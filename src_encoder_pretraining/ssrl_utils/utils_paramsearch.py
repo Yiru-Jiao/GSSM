@@ -34,11 +34,11 @@ class trainer():
     def define_encoder(self, sim_mat, input_dims, device, regularizer=None):
         self.model_config = dict(
             input_dims = input_dims,
-            output_dims = 128,
+            output_dims = 64,
             dist_metric = self.dist_metric,
             device = device,
             batch_size = self.batch_size,
-            lr = 0.001,
+            lr = 0.002,
             weight_lr = self.weight_lr,
             loss_config = dict(
                 tau_inst = self.tau_inst,

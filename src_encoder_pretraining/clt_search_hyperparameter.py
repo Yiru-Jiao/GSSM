@@ -1,7 +1,7 @@
 '''
 Search strategy:
 
-Fix `repr_dims`=5 and `lr`=0.001, the training score is the contrastive learning loss (without regularization)
+Fix `lr`=0.002, the training score is the contrastive learning loss (without regularization)
 
 - TS2Vec (no soft labels, no regularizer):
   Phase 1: with other parameters default, search for best `batch_size`
@@ -9,10 +9,6 @@ Fix `repr_dims`=5 and `lr`=0.001, the training score is the contrastive learning
 - TopoTS2Vec (no soft labels, topology regularizer):
   Phase 0: set default `batch_size` to the best tuned value from TS2Vec
   Phase 1: with other parameters default, search for best `weight_lr`
-
-- GGeoTS2Vec (no soft labels, geometry regularizer):
-  Phase 0: set default `batch_size` to the best tuned value from TS2Vec
-  Phase 1: with other parameters default, search for best `bandwidth` and `weight_lr`
 
 - SoftCLT (use soft labels, no regularizer):
   Phase 1: with other parameters default, search for best `tau_temp` and `temporal_hierarchy`
@@ -22,20 +18,15 @@ Fix `repr_dims`=5 and `lr`=0.001, the training score is the contrastive learning
   Phase 0: set default `tau_inst`, `tau_temp`, `temporal_hierarchy`, `batch_size` to the best tuned values from SoftCLT
   Phase 1: with other parameters default, search for best `weight_lr`
 
-- GGeoSoftCLT (use soft labels, geometry regularizer):
-  Phase 0: set default `tau_inst`, `tau_temp`, `temporal_hierarchy`, `batch_size` to the best tuned values from SoftCLT
-  Phase 1: with other parameters default, search for best `bandwidth` and `weight_lr`
-
--------------------------------------------------------------------------------------------------------
-|            |  TS2Vec  | TopoTS2Vec | GGeoTS2Vec |  SoftCLT | TopoSoftCLT | GGeoSoftCLT |  in total  |
-|    runs    |     3    |     3      |     3x5    |  5x3+5x3 |      3      |    5x3      |     69     |
--------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------
+|            |  TS2Vec  | TopoTS2Vec | SoftCLT | TopoSoftCLT |  in total  |
+|    runs    |     3    |     3      | 5x3+5x3 |      3      |     39     |
+---------------------------------------------------------------------------
 '''
 
 import os
 import sys
 import time as systime
-import numpy as np
 import pandas as pd
 import argparse
 from ssrl_utils.utils_paramsearch import *
@@ -170,18 +161,6 @@ def main(args):
         save_best_params(best_param_log, log_dir)
         print('--- TopoTS2Vec_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
 
-    # # GGeoTS2Vec (tau_inst=0, tau_temp=0, geometry regularizer)
-    # grid_search_args['fit_config'] = {'device': device, 'regularizer': 'geometry'}
-
-    # if 'GGeoTS2Vec_Phase1' in best_param_log:
-    #     params = use_best_params(best_param_log, 'GGeoTS2Vec_Phase1')
-    #     print(f'--- GGeoTS2Vec_Phase1 hyperparameter search already completed ---')
-    # else:
-    #     params, best_score = search_best_params(['bandwidth', 'weight_lr'], params, search_space, grid_search_args)
-    #     best_param_log['GGeoTS2Vec_Phase1'] = params
-    #     save_best_params(best_param_log, log_dir)
-    #     print('--- GGeoTS2Vec_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
-
     # SoftCLT (use soft labels, no regularizer)
     params = default_params.copy()
     grid_search_args['fit_config'] = {'device': device, 'regularizer': None}
@@ -215,18 +194,6 @@ def main(args):
         best_param_log['TopoSoftCLT_Phase1'] = params
         save_best_params(best_param_log, log_dir)
         print('--- TopoSoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
-
-    # # GGeoSoftCLT (use soft labels, geometry regularizer)
-    # grid_search_args['fit_config'] = {'device': device, 'regularizer': 'geometry'}
-
-    # if 'GGeoSoftCLT_Phase1' in best_param_log:
-    #     params = use_best_params(best_param_log, 'GGeoSoftCLT_Phase1')
-    #     print(f'--- GGeoSoftCLT_Phase1 hyperparameter search already completed ---')
-    # else:
-    #     params, best_score = search_best_params(['bandwidth', 'weight_lr'], params, search_space, grid_search_args)
-    #     best_param_log['GGeoSoftCLT_Phase1'] = params
-    #     save_best_params(best_param_log, log_dir)
-    #     print('--- GGeoSoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
 
     print(f'--- {dataset} hyperparameter search completed, time elapsed : ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time()-start_time)) + ' ---')
         
