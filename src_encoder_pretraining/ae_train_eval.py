@@ -88,7 +88,6 @@ def main(args):
     # Load dataset
     print('---- Loading data ----')
     train_data, _ = datautils.load_data(dataset_dir=path_prepared, feature=args.encoder_name)
-    dataset = 'SafeBaseline'
 
     # Iterate over different model sets
     verbose = 5 # update per n_epochs // (1+verbose*4) epoch
@@ -113,7 +112,7 @@ def main(args):
                                 after_epoch_callback = save_checkpoint_callback(save_dir, 0, unit='epoch'))
             scheduler = 'reduced'
             print(f'--- {model_type} training with ReduceLROnPlateau scheduler ---')
-            loss_log = model.fit(dataset, train_data, args.epochs, scheduler, verbose=verbose)
+            loss_log = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
             # Save loss log
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])

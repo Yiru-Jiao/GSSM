@@ -60,11 +60,11 @@ class autoencoder():
         mask = target != 0
         return ((input - target) ** 2 * mask).sum() / mask.sum()
 
-    def fit(self, name_data, train_data, n_epochs=100, scheduler='constant', verbose=0):
+    def fit(self, train_data, n_epochs=100, scheduler='constant', verbose=0):
         self.net.train()
         # define a progress bar
         if verbose:
-            progress_bar = tqdm(range(n_epochs), desc=f'Train {name_data} epoch', ascii=True, dynamic_ncols=False)
+            progress_bar = tqdm(range(n_epochs), desc=f'Epoch', ascii=True, dynamic_ncols=False)
         else:
             progress_bar = range(n_epochs)
         
