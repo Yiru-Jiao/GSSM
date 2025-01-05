@@ -1,0 +1,14 @@
+**/*.*
+**/__pycache__
+!**/*.md
+!src_trajectory_reconstruction/**/*.py
+!src_data_preparation/**/*.py
+!src_encoder_pretraining/**/*.py
+!src_posterior_inference/**/*.py
+!src_conflict_detection/**/*.py
+# !**/*.ipynb
+test.ipynb
+!environment_test.py
+!requirements.txt
+!clean_pycache.py
+!.gitignore
