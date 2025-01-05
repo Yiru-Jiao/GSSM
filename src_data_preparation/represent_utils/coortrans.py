@@ -62,7 +62,7 @@ class coortrans():
                                      'x_origin': pairs['x_ego'], 
                                      'y_origin': pairs['y_ego']}, index=pairs.index)
             condition = (coor_ref['x_axis']==0)&(coor_ref['y_axis']==0)
-            coor_ref.loc[condition, ['x_axis','y_axis']] = pairs.loc[condition, ['hx_ego','hy_ego']]
+            coor_ref.loc[condition, ['x_axis','y_axis']] = pairs.loc[condition, ['hx_ego','hy_ego']].values
         else:
             # Calculate the reference coordinate system based on the view of vehicle i
             coor_ref = pd.DataFrame({'x_axis': pairs['hx_ego'], 
