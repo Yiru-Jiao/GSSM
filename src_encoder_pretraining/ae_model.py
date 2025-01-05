@@ -21,7 +21,6 @@ class shared_decoder(nn.Module):
             nn.Linear(input_dims, 32),
             nn.ReLU(),
             nn.Linear(32, output_dims),
-            nn.ReLU(),
         )
 
     def forward(self, x):
@@ -41,9 +40,9 @@ class model(nn.Module):
             ValueError("Undefined encoder name: should be either 'current' or 'environment'.")
 
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
+        latent = self.encoder(x)
+        out = self.decoder(latent)
+        return out
 
 
 class autoencoder():
@@ -54,11 +53,10 @@ class autoencoder():
         self.device = device
         self.net = model(encoder_name).to(self.device)
         self.after_epoch_callback = after_epoch_callback
-        self.loss_func = self.non_zero_mse
+        self.loss_func = self.rmse_loss
 
-    def non_zero_mse(self, input, target):
-        mask = target != 0
-        return ((input - target) ** 2 * mask).sum() / mask.sum()
+    def rmse_loss(self, input, target):
+        return torch.sqrt(((input - target) ** 2).mean())
 
     def fit(self, train_data, n_epochs=100, scheduler='constant', verbose=0):
         self.net.train()
