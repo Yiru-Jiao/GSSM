@@ -105,12 +105,15 @@ def main(path_prepared, path_processed):
     initial_time = systime.time()
     print(f'Available cores for parallel processing: {multiprocessing.cpu_count()}')
 
-    # Separate all the SafeBaselines into train (395,091), val (62,838), test (127,056) sets
+    # Separate all the events into train (70%, 177,650 scenes), val (10%, 25,514), test (20%, 50,908) sets
     print('Loading data...')
-    data_ego = pd.concat([pd.read_hdf(path_processed+'SafeBaseline/Ego_birdseye_'+str(chunck_id)+'.h5', key='data') for chunck_id in range(0,5)], ignore_index=True)
+    conflict_folders = os.listdir(path_processed)
+    conflict_folders = [folder for folder in conflict_folders if 'Safe' not in folder and os.path.isdir(path_processed+folder)]
+
+    data_ego = pd.concat([pd.read_hdf(path_processed+folder+'/Ego_birdseye.h5', key='data') for folder in conflict_folders], ignore_index=True)
     data_ego['hx'] = np.cos(data_ego['psi_ekf'])
     data_ego['hy'] = np.sin(data_ego['psi_ekf'])
-    data_sur = pd.concat([pd.read_hdf(path_processed+'SafeBaseline/Surrounding_birdseye_'+str(chunck_id)+'.h5', key='data') for chunck_id in range(0,5)], ignore_index=True)
+    data_sur = pd.concat([pd.read_hdf(path_processed+folder+'/Surrounding_birdseye.h5', key='data') for folder in conflict_folders], ignore_index=True)
     data_sur['hx'] = np.cos(data_sur['psi_ekf'])
     data_sur['hy'] = np.sin(data_sur['psi_ekf'])
 
@@ -121,21 +124,11 @@ def main(path_prepared, path_processed):
     data_both = data_ego.merge(data_sur, on=['event_id','time'], how='inner', suffixes=('_ego', '_sur'))
     data_ego, data_sur = [], [] ## free memory
 
-    ## Read conflict data to calculate a ratio for val and test sets
-    conflict_folders = os.listdir(path_processed)
-    conflict_folders = [folder for folder in conflict_folders if 'Safe' not in folder and os.path.isdir(path_processed+folder)]
-    conflict_ego = pd.concat([pd.read_hdf(path_processed+folder+'/Surrounding_birdseye.h5', key='data') for folder in conflict_folders], ignore_index=True)
-    len_conflict_ids = conflict_ego['event_id'].nunique()
-    conflict_ego = [] ## free memory
-
     event_ids = data_both['event_id'].unique()
     len_event_ids = len(event_ids)
-    test_ratio = len_conflict_ids/(len_event_ids+len_conflict_ids)
-    val_ratio = test_ratio/2
-    print(f'SafeBaseline: {len_event_ids} unique events, Conflict: {len_conflict_ids} unique events, Ratio: {test_ratio:.2f}')
-    val_event_ids = np.random.RandomState(manual_seed).choice(event_ids, int(val_ratio*len_event_ids), replace=False)
+    val_event_ids = np.random.RandomState(manual_seed).choice(event_ids, int(0.1*len_event_ids), replace=False)
     event_ids = np.setdiff1d(event_ids, val_event_ids)
-    test_event_ids = np.random.RandomState(manual_seed).choice(event_ids, int(test_ratio*len_event_ids), replace=False)
+    test_event_ids = np.random.RandomState(manual_seed).choice(event_ids, int(0.2*len_event_ids), replace=False)
     train_event_ids = np.setdiff1d(event_ids, test_event_ids)
 
     data_train = data_both[data_both['event_id'].isin(train_event_ids)]
@@ -145,22 +138,24 @@ def main(path_prepared, path_processed):
 
     # Segment and save scenes, with profiles and current features separated
     initial_scene_id = 0
+    path_save = path_prepared + 'Segments/'
+    os.makedirs(path_save, exist_ok=True)
     fig, axes = plt.subplots(1, 3, figsize=(8., 2.), constrained_layout=True)
     bins = np.linspace(0, 40, 31)
     for data, suffix in zip([data_train, data_val, data_test], ['train', 'val', 'test']):
         print('Segmenting ' + suffix + ' set...')
         sr = TimeSeriesSegmenter(data, initial_scene_id)
-        sr.profiles_set.to_hdf(path_prepared + 'SafeBaselines/profiles_'+suffix+'.h5', key='profiles')
-        sr.current_features_set.to_hdf(path_prepared + 'SafeBaselines/current_features_'+suffix+'.h5', key='features')
-        sr.environment_features_set.to_hdf(path_prepared + 'SafeBaselines/environment_features_'+suffix+'.h5', key='features')
+        sr.profiles_set.to_hdf(path_save + 'profiles_'+suffix+'.h5', key='profiles')
+        sr.current_features_set.to_hdf(path_save + 'current_features_'+suffix+'.h5', key='features')
+        sr.environment_features_set.to_hdf(path_save + 'environment_features_'+suffix+'.h5', key='features')
         initial_scene_id = sr.current_features_set['scene_id'].max() + 1
         print('Number of scenes in ' + suffix + ' set: ' + str(initial_scene_id - sr.initial_scene_id))
         print(f'Minimum net distance: {sr.current_features_set['s'].min():.2f}, minimum ego speed: {sr.current_features_set['v_ego'].min():.2f}')
         print(f'Unique scene ids in current features set: {sr.current_features_set['scene_id'].nunique()}, should be the same as the profiles set: {sr.profiles_set['scene_id'].nunique()}')
         '''
-        In train set: minimum net distance: 1.64, minimum ego speed: 0.00
-        In val set: minimum net distance: 1.78, minimum ego speed: 0.00
-        In test set: minimum net distance: 1.90, minimum ego speed: 0.00
+        In train set: minimum net distance: 0.23m, minimum ego speed: 0.00
+        In val set: minimum net distance: 0.38m, minimum ego speed: 0.00
+        In test set: minimum net distance: 0.17m, minimum ego speed: 0.00
         '''
         ## save a plot of speed distribution
         ax = axes[0] if suffix=='train' else axes[1] if suffix=='val' else axes[2]
@@ -175,7 +170,7 @@ def main(path_prepared, path_processed):
     axes[0].set_title('Train set')
     axes[1].set_title('Val set')
     axes[2].set_title('Test set')
-    fig.savefig(path_prepared + 'SafeBaselines/speed_distribution.pdf', bbox_inches='tight', dpi=600)
+    fig.savefig(path_save + 'speed_distribution.pdf', bbox_inches='tight', dpi=600)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
