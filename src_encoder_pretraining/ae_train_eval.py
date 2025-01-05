@@ -72,10 +72,10 @@ def main(args):
     
     if args.encoder_name == 'current':
         model_list = ['bs128_lr0.001','bs256_lr0.001', 'bs512_lr0.001', 'bs1024_lr0.001',
-                      'bs128_lr0.0001', 'bs256_lr0.0001', 'bs512_lr0.0001', 'bs1024_lr0.0001']
+                      'bs8_lr0.0001', 'bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001']
     else:
-        model_list = ['bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001', 'bs128_lr0.001',
-                      'bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001']
+        model_list = ['bs128_lr0.01', 'bs256_lr0.01', 'bs512_lr0.01', 'bs1024_lr0.01',
+                      'bs8_lr0.001', 'bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001']
     
     if os.path.exists(results_dir):
         eval_results = read_saved_results()
