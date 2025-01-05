@@ -54,37 +54,34 @@ def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
 
 def load_data(dataset_dir='./PreparedData/', feature='profiles'):
     if feature == 'profiles':
-        train_data = pd.read_hdf(f'{dataset_dir}SafeBaselines/profiles_train_downsampled.h5', key='profiles')
-        train_X = train_data[['v_ego','omega_ego','v_sur']].values.reshape(-1, 20, 3)
-        val_data = pd.read_hdf(f'{dataset_dir}SafeBaselines/profiles_val_downsampled.h5', key='profiles')
-        val_X = val_data[['v_ego','omega_ego','v_sur']].values.reshape(-1, 20, 3)
+        train_data = pd.read_hdf(f'{dataset_dir}Segments/profiles_train.h5', key='profiles')
+        val_data = pd.read_hdf(f'{dataset_dir}Segments/profiles_val.h5', key='profiles')
+        test_data = pd.read_hdf(f'{dataset_dir}Segments/profiles_test.h5', key='profiles')
 
-        scaler_data = pd.concat([pd.read_hdf(f'{dataset_dir}SafeBaselines/profiles_{split}.h5', key='profiles') for split in ['train', 'val', 'test']], ignore_index=True)
-        scaler_data = scaler_data[['v_ego','omega_ego','v_sur']].values
+        scaler_data = pd.concat([train_data, val_data, test_data], ignore_index=True)
         scaler = StandardScaler()
-        scaler.fit(scaler_data)
-        train_X = scaler.transform(train_X.reshape(-1, 3)).reshape(train_X.shape)
-        val_X = scaler.transform(val_X.reshape(-1, 3)).reshape(val_X.shape)
+        scaler.fit(scaler_data[['v_ego','omega_ego','v_sur']].values)
+        train_X = scaler.transform(train_data[['v_ego','omega_ego','v_sur']].values).reshape(-1, 20, 3)
+        val_X = scaler.transform(val_data[['v_ego','omega_ego','v_sur']].values).reshape(-1, 20, 3)
 
-        assert train_X.ndim == 3 # (n_instance, n_timestamps, n_features)
-        assert val_X.ndim == 3
+        assert train_X.ndim == 3 and val_X.ndim == 3
+        
     elif feature == 'current':
         variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
-        train_data = pd.read_hdf(f'{dataset_dir}SafeBaselines/current_features_train_downsampled.h5', key='features')
-        train_X = train_data[variables].values
-        val_data = pd.read_hdf(f'{dataset_dir}SafeBaselines/current_features_val_downsampled.h5', key='features')
-        val_X = val_data[variables].values
+        train_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_train.h5', key='features')
+        val_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_val.h5', key='features')
+        test_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_test.h5', key='features')
 
-        scaler_data = pd.concat([pd.read_hdf(f'{dataset_dir}SafeBaselines/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
-        scaler_data = scaler_data[variables].values
+        scaler_data = pd.concat([train_data, val_data, test_data], ignore_index=True)
         scaler = StandardScaler()
-        scaler.fit(scaler_data)
-        train_X = scaler.transform(train_X)
-        val_X = scaler.transform(val_X)
+        scaler.fit(scaler_data[variables].values)
+        train_X = scaler.transform(train_data[variables].values)
+        val_X = scaler.transform(val_data[variables].values)
+
     elif feature == 'environment':
-        train_data = pd.read_hdf(f'{dataset_dir}SafeBaselines/environment_features_train_downsampled.h5', key='features')
+        train_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_train_AE.h5', key='features')
         train_X = train_data.values
-        val_data = pd.read_hdf(f'{dataset_dir}SafeBaselines/environment_features_val_downsampled.h5', key='features')
+        val_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_val_AE.h5', key='features')
         val_X = val_data.values
     
     return train_X, val_X
