@@ -61,7 +61,8 @@ class TimeSeriesSegmenter(coortrans):
                 # sample 2-second scenes every 1 second
                 profiles = df.iloc[idx_end-20:idx_end][['v_ego','omega_ego','v_sur']] # speed and yaw rate of ego, speed of surrounding
 
-                if profiles.isna().sum().sum()==0: # if there is no missing value in the profiles
+                # if there is no missing value in the profiles or df
+                if profiles.isna().sum().sum()==0 and df.iloc[idx_end].isna().sum()==0:
                     profiles['scene_id'] = scene_id
 
                     current_features = np.zeros(self.current_feature_size+1)
