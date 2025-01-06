@@ -32,7 +32,7 @@ class model(nn.Module):
         super(model, self).__init__()
         if encoder_name == 'current':
             self.encoder = current_encoder(input_dims=9, output_dims=64)
-            self.decoder = shared_decoder(input_dims=64, output_dims=9)
+            self.decoder = shared_decoder(input_dims=9*64, output_dims=9)
         elif encoder_name == 'environment':
             self.encoder = environment_encoder(input_dims=27, output_dims=64)
             self.decoder = shared_decoder(input_dims=64, output_dims=27)
@@ -41,6 +41,7 @@ class model(nn.Module):
 
     def forward(self, x):
         latent = self.encoder(x)
+        latent = latent.view(latent.size(0), -1)
         out = self.decoder(latent)
         return out
 
