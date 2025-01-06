@@ -71,8 +71,8 @@ def main(args):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     # Create the directory to save the evaluation results
-    run_dir = f'{path_prepared}EncoderPretraining/spclt_depth2/trained_models/'
-    results_dir = f'{path_prepared}EncoderPretraining/spclt_depth2/evaluation.csv'
+    run_dir = f'{path_prepared}EncoderPretraining/spclt/trained_models/'
+    results_dir = f'{path_prepared}EncoderPretraining/spclt/evaluation.csv'
     os.makedirs(run_dir, exist_ok=True)
 
     # Define metrics
@@ -101,7 +101,7 @@ def main(args):
     train_sim_mat = None # to be computed per batch during training
     
     # Load tuned hyperparameters
-    tuned_params_dir = f'{path_prepared}EncoderPretraining/spclt_depth2/representation_hyperparameters.csv'
+    tuned_params_dir = f'{path_prepared}EncoderPretraining/spclt/representation_hyperparameters.csv'
     if os.path.exists(tuned_params_dir):
         tuned_params = pd.read_csv(tuned_params_dir, index_col=0)
     else:

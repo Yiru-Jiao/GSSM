@@ -59,7 +59,7 @@ def main(args):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__}, Available threads: {os.cpu_count()} ---')
     
     # Set result-saving directory
-    save_dir = f'{path_prepared}EncoderPretraining/spclt_depth2/'
+    save_dir = f'{path_prepared}EncoderPretraining/spclt/'
     os.makedirs(save_dir, exist_ok=True)
 
     def use_best_params(best_param_log, phase):
