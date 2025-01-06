@@ -10,24 +10,24 @@ from src_posterior_inference.inference_utils import modules
 
 
 class UnifiedProximity(nn.Module):
-    def __init__(self, encoder_selection='all', mask_mode=None):
+    def __init__(self, encoder_selection='all', cross_attention='all', mask_mode=None):
         super(UnifiedProximity, self).__init__()
         if encoder_selection=='all':
             encoder_selection = ['current', 'environment', 'profiles']
+        if cross_attention=='all':
+            cross_attention = ['first', 'middle', 'last']
         self.encoder_selection = encoder_selection
-        latent_dims = 0
+        self.cross_attention = cross_attention
         if 'current' in encoder_selection:
             self.current_encoder = modules.current_encoder()
-            latent_dims += 64
         else:
             Warning('Current encoder must be selected.')
         if 'environment' in encoder_selection:
             self.environment_encoder = modules.environment_encoder()
-            latent_dims += 64
         if 'profiles' in encoder_selection:
             self.ts_encoder = modules.ts_encoder(mask_mode=mask_mode)
-            latent_dims += 64
-        self.cross_attention_decoder = modules.cross_attention_decoder(latent_dims=latent_dims)
+        self.attention_decoder = modules.attention_decoder(encoder_selection=self.encoder_selection,
+                                                           cross_attention=self.cross_attention)
         self.combi_encoder = self.define_combi_encoder()
 
     def load_pretrained_encoders(self, device, path_prepared='../PreparedData/'):
@@ -72,7 +72,7 @@ class UnifiedProximity(nn.Module):
 
     def forward(self, x):
         x = self.combi_encoder(x)
-        out = self.cross_attention_decoder(x)  # ([bs, 2], [bs, 1], [bs, 1])
+        out = self.attention_decoder(x)  # ([bs, 2], [bs, 1], [bs, 1])
         return out
 
 

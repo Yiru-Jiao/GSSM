@@ -18,23 +18,29 @@ from torch.utils.data import DataLoader
 
 
 class train_val_test():
-    def __init__(self, device, path_prepared, encoder_selection='all', pretrained_encoder=False):
+    def __init__(self, device, path_prepared, encoder_selection='all', cross_attention='all', pretrained_encoder=False):
         super(train_val_test, self).__init__()
         self.device = device
         self.path_prepared = path_prepared
+        if encoder_selection == 'all':
+            encoder_selection = ['current', 'environment', 'profiles']
         encoder_name = '_'.join(encoder_selection)
+        if cross_attention == 'all':
+            cross_attention = ['first', 'middle', 'last']
+        cross_attention_name = '_'.join(cross_attention)
         if pretrained_encoder:
-            self.path_output = path_prepared + f'PosteriorInference/{encoder_name}_pretrained/'
+            self.path_output = path_prepared + f'PosteriorInference/pretrained/{encoder_name}_{cross_attention_name}/'
         else:
-            self.path_output = path_prepared + f'PosteriorInference/{encoder_name}_notpretrained/'
+            self.path_output = path_prepared + f'PosteriorInference/notpretrained/{encoder_name}_{cross_attention_name}/'
         os.makedirs(self.path_output, exist_ok=True)
         self.encoder_selection = encoder_selection
+        self.cross_attention = cross_attention
         self.pretrained_encoder = pretrained_encoder
         self.define_model()
 
     def define_model(self,):
         # Define the model
-        self.model = UnifiedProximity(encoder_selection=self.encoder_selection, mask_mode='all_true')
+        self.model = UnifiedProximity(self.encoder_selection, self.cross_attention)
         if self.pretrained_encoder:
             self.model.load_pretrained_encoders(self.device, self.path_prepared)
        # Determine loss function
@@ -84,7 +90,7 @@ class train_val_test():
             )
 
         if self.verbose > 0:
-            progress_bar = tqdm(range(num_epochs), unit='epoch', ascii=True, dynamic_ncols=False)
+            progress_bar = tqdm(range(num_epochs), unit='epoch', ascii=True, dynamic_ncols=False, miniters=self.verbose)
         else:
             progress_bar = range(num_epochs)
         for epoch_n in progress_bar:
