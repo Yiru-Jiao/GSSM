@@ -31,9 +31,9 @@ def parse_args():
     
     # Set default parameters
     if args.encoder_name == 'current':
-        args.epochs = 2000
+        args.epochs = 1500
     elif args.encoder_name == 'environment':
-        args.epochs = 3000
+        args.epochs = 1000
 
     return args
 
@@ -71,11 +71,11 @@ def main(args):
         return eval_results
     
     if args.encoder_name == 'current':
-        model_list = ['bs128_lr0.001','bs256_lr0.001', 'bs512_lr0.001', 'bs1024_lr0.001',
-                      'bs8_lr0.0001', 'bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001']
+        model_list = ['bs8_lr0.0001', 'bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001',
+                      'bs128_lr0.001','bs256_lr0.001', 'bs512_lr0.001', 'bs1024_lr0.001']
     else:
-        model_list = ['bs128_lr0.01', 'bs256_lr0.01', 'bs512_lr0.01', 'bs1024_lr0.01',
-                      'bs8_lr0.001', 'bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001']
+        model_list = ['bs8_lr0.001', 'bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001',
+                      'bs128_lr0.01', 'bs256_lr0.01', 'bs512_lr0.01', 'bs1024_lr0.01']
     
     if os.path.exists(results_dir):
         eval_results = read_saved_results()
@@ -142,7 +142,7 @@ def main(args):
 
         ## loss results
         loss_results = model.compute_loss(test_data)
-        loss_results = {'mse_loss': loss_results}
+        loss_results = {'rmse_loss': loss_results}
 
         # Save evaluation results
         key_values = {**loss_results, **global_dist_dens_results}
