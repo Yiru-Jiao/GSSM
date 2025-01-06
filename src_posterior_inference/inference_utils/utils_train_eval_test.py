@@ -13,7 +13,7 @@ import pandas as pd
 from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from inference_utils.utils_data import DataOrganiser
-from model import UnifiedProximity, TruncatedNLL
+from model import UnifiedProximity, LogNormalNLL
 from torch.utils.data import DataLoader
 
 
@@ -38,7 +38,7 @@ class train_val_test():
         if self.pretrained_encoder:
             self.model.load_pretrained_encoders(self.device, self.path_prepared)
        # Determine loss function
-        self.loss_func = TruncatedNLL(k=100, device=self.device)
+        self.loss_func = LogNormalNLL()
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
