@@ -14,13 +14,13 @@ from sklearn.preprocessing import StandardScaler
 def get_scaler(dataset_dir, feature):
     print(f'Getting scaler for {feature}...')
     if feature == 'profiles':
-        scaler_data = pd.concat([pd.read_hdf(f'{dataset_dir}SafeBaselines/profiles_{split}.h5', key='profiles') for split in ['train', 'val', 'test']], ignore_index=True)
+        scaler_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/profiles_{split}.h5', key='profiles') for split in ['train', 'val', 'test']], ignore_index=True)
         scaler_data = scaler_data[['v_ego','omega_ego','v_sur']].values
         scaler = StandardScaler()
         scaler.fit(scaler_data)
     elif feature == 'current':
         variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
-        scaler_data = pd.concat([pd.read_hdf(f'{dataset_dir}SafeBaselines/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
+        scaler_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
         scaler_data = scaler_data[variables].values
         scaler = StandardScaler()
         scaler.fit(scaler_data)
@@ -63,13 +63,13 @@ class DataOrganiser(Dataset):
     def read_data(self,):
         print(f'Reading data for {self.encoder_selection} {self.split}...')
         self.data = []
-        X_current = pd.read_hdf(os.path.join(self.path_prepared, 'SafeBaselines/current_features_'+self.split+'.h5'), key='features')
+        X_current = pd.read_hdf(os.path.join(self.path_prepared, 'Segments/current_features_'+self.split+'.h5'), key='features')
         self.scene_ids = X_current['scene_id'].values
         variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         self.data.append(torch.from_numpy(self.current_scaler.transform(X_current[variables].values)).float())
 
         if 'environment' in self.encoder_selection:
-            X_environment = pd.read_hdf(os.path.join(self.path_prepared, 'SafeBaselines/environment_features_'+self.split+'.h5'), key='features')
+            X_environment = pd.read_hdf(os.path.join(self.path_prepared, 'Segments/environment_features_'+self.split+'.h5'), key='features')
             X_environment = X_environment.sort_values('scene_id').reset_index(drop=True)
             assert np.all(X_current['scene_id'].values==X_environment['scene_id'].values)
             X_environment = X_environment.drop(columns=['scene_id', 'event_id', 'target_id'])
@@ -77,7 +77,7 @@ class DataOrganiser(Dataset):
             self.data.append(torch.from_numpy(X_environment.values).float())
         
         if 'profiles' in self.encoder_selection:
-            X_profiles = pd.read_hdf(os.path.join(self.path_prepared, 'SafeBaselines/profiles_'+self.split+'.h5'), key='profiles')
+            X_profiles = pd.read_hdf(os.path.join(self.path_prepared, 'Segments/profiles_'+self.split+'.h5'), key='profiles')
             X_profiles = X_profiles.sort_values(['scene_id', 'time']).reset_index(drop=True)
             assert np.all(X_current['scene_id'].values==X_profiles['scene_id'].drop_duplicates().values)
             X_profiles = X_profiles[['v_ego','omega_ego','v_sur']].values.reshape(-1, 20, 3)
