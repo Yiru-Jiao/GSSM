@@ -4,9 +4,7 @@
 import os
 import sys
 import torch
-import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils import modules
 
@@ -28,7 +26,7 @@ class UnifiedProximity(nn.Module):
             latent_dims += 64
         if 'profiles' in encoder_selection:
             self.ts_encoder = modules.ts_encoder(mask_mode=mask_mode)
-            latent_dims += 128
+            latent_dims += 64
         self.cross_attention_decoder = modules.cross_attention_decoder(latent_dims=latent_dims)
         self.combi_encoder = self.define_combi_encoder()
 
@@ -78,14 +76,12 @@ class UnifiedProximity(nn.Module):
         return out
 
 
-class TruncatedNLL(nn.Module):
-    def __init__(self, k, device):
-        super(TruncatedNLL, self).__init__()
-        self.k = k
-        self.sqrt2 = torch.tensor(np.sqrt(2), dtype=torch.float64).to(device)
+class LogNormalNLL(nn.Module):
+    def __init__(self,):
+        super(LogNormalNLL, self).__init__()
 
     def forward(self, out, y):
-        mu, sigma, a = out
-        y = torch.log(y) # log(y) follows a normal distribution
-        loss = 0.5*((y-mu)/sigma)**2 + torch.log(sigma) + torch.log(1.-torch.erf((a-mu)/sigma/self.sqrt2)) - F.logsigmoid(self.k*(y-a))
+        mu, sigma = out
+        clipped_y = torch.clamp(y, min=1e-6, max=None) # avoid log(0)
+        loss = 0.5*((torch.log(clipped_y)-mu)/sigma)**2 + torch.log(sigma) # log(y) follows a normal distribution
         return loss.mean() # mean over batch

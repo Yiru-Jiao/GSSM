@@ -103,19 +103,16 @@ class environment_encoder(nn.Module):
 
 
 class cross_attention_decoder(nn.Module):
-    def __init__(self, latent_dims=256, attention_dims=32, fc_dims=8):
+    def __init__(self, latent_dims=192, attention_dims=32, fc_dims=8):
         '''
-        2 heads, 1 outputs (mu, variance), 1 outputs (a)
+        Single head outputs (mu, sigma)
         '''
         super(cross_attention_decoder, self).__init__()
         self.attention_dims = attention_dims
         self.fc_dims = fc_dims
-        # Shared head for (mu, variance)
-        weights_mu_var = self.define_head(latent_dims, attention_dims, fc_dims, 2)
-        self.Query_mu_var, self.Key_mu_var, self.Value_mu_var, self.Output_mu_var = weights_mu_var
-        # Head for lower bound
-        weights_low = self.define_head(latent_dims, attention_dims, fc_dims, 1)
-        self.Query_low, self.Key_low, self.Value_low, self.Output_low = weights_low
+        # Shared head for (mu, sigma)
+        weights_mu_sigma = self.define_head(latent_dims, attention_dims, fc_dims, 2)
+        self.Query_mu_sigma, self.Key_mu_sigma, self.Value_mu_sigma, self.Output_mu_sigma = weights_mu_sigma
 
     def define_head(self, latent_dims, attention_dims, fc_dims, output_dims):
         Query = nn.Sequential(
@@ -161,22 +158,14 @@ class cross_attention_decoder(nn.Module):
         '''
         x: (batch_size, latent_dims)
         '''
-        # Shared head for (mu, variance)
-        mu_var = self.head_forward(x,
-            self.Query_mu_var,
-            self.Key_mu_var,
-            self.Value_mu_var,
-            self.Output_mu_var,
+        # Shared head for (mu, sigma)
+        mu_sigma = self.head_forward(x,
+            self.Query_mu_sigma,
+            self.Key_mu_sigma,
+            self.Value_mu_sigma,
+            self.Output_mu_sigma,
         )                                          # (batch_size, 2)
-        # Head for lower bound
-        low = self.head_forward(x,
-            self.Query_low,
-            self.Key_low,
-            self.Value_low,
-            self.Output_low,
-        )                                          # (batch_size, 1)
-        mu = mu_var[:, 0].unsqueeze(-1)
-        sigma = F.softplus(mu_var[:, 1].unsqueeze(-1)) + 1e-6 # avoid zero variance
-        a = mu - F.softplus(low)
-        return mu, sigma, a
+        mu = mu_sigma[:, 0].unsqueeze(-1)
+        sigma = F.softplus(mu_sigma[:, 1].unsqueeze(-1)) + 1e-6 # avoid zero variance
+        return mu, sigma
 
