@@ -22,7 +22,6 @@ class ts_encoder(nn.Module):
         self.dist_metric = 'DTW'
         self.mask_mode = mask_mode
         self.spclt_model = spclt(input_dims, output_dims, hidden_dims=64, dist_metric='DTW', mask_mode=mask_mode)
-        self.feature_extractor = self.spclt_model.net
 
     # Load a pretrained model
     def load(self, model_selection, device, path_prepared='../PreparedData/'):
@@ -44,19 +43,16 @@ class ts_encoder(nn.Module):
         self.feature_extractor = self.spclt_model.net
         
     def forward(self, x):
-        out = self.feature_extractor(x, mask='all_true') # out: (batch_size, seq_len, repr_dims)
-        out = F.max_pool1d(
-                out.transpose(1, 2),
-                kernel_size = out.size(1),
-            ).transpose(1, 2).squeeze(1) # out: (batch_size, repr_dims)
-        return out
+        out = self.spclt_model.encode(x, mask='all_true') # out: (batch_size, seq_len, repr_dims)
+        # out = self.spclt_model.encode(x, mask='all_true', encoding_window='full_series') # out: (batch_size, repr_dims)
+        return out # (batch_size, 20, 64)
 
 
 class current_encoder(nn.Module):
     def __init__(self, input_dims=9, output_dims=64):
         super(current_encoder, self).__init__()
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, 32),
+            nn.Linear(1, 32),
             nn.ReLU(),
             nn.Linear(32, output_dims),
             nn.ReLU(),
@@ -74,7 +70,8 @@ class current_encoder(nn.Module):
         print(f'Loaded the best model: {best_model.split(model_selection)[-1]}')
 
     def forward(self, x):
-        return self.feature_extractor(x)
+        x = x.unsqueeze(-1) # (batch_size, 9, 1)
+        return self.feature_extractor(x) # (batch_size, 9, 64)
 
 
 class environment_encoder(nn.Module):
@@ -99,73 +96,123 @@ class environment_encoder(nn.Module):
         print(f'Loaded the best model: {best_model.split(model_selection)[-1]}')
 
     def forward(self, x):
-        return self.feature_extractor(x)
+        x = x.view(x.size(0), 1, -1) # (batch_size, 1, 27)
+        return self.feature_extractor(x) # (batch_size, 1, 64)
 
 
-class cross_attention_decoder(nn.Module):
-    def __init__(self, latent_dims=192, attention_dims=32, fc_dims=8):
+class attention_decoder(nn.Module):
+    def __init__(self, latent_dims=64, hidden_dims=32, fc_dims=8, encoder_selection=[], cross_attention=[]):
         '''
-        Single head outputs (mu, sigma)
+        State (Current + Environment) self-attention: (batch_size, 10, latent_dims=64) -> (batch_size, 10, hidden_dims=32)
+        TimeSeries self-attention: (batch_size, 20, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
+
+        Optional cross-attention, use State to query TimeSeries key-value
+        First1sec cross-attention: (batch_size, 10, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
+        Middle1sec cross-attention: (batch_size, 10, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
+        Last1sec cross-attention: (batch_size, 10, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
+
+        Output self-attention: (batch_size, 30~60, hidden_dims=32) -> (batch_size, 30~60, fc_dims=8)
+        
+        output: (batch_size, 2)
         '''
-        super(cross_attention_decoder, self).__init__()
-        self.attention_dims = attention_dims
+        super(attention_decoder, self).__init__()
+        self.latent_dims = latent_dims
+        self.hidden_dims = hidden_dims
         self.fc_dims = fc_dims
-        # Shared head for (mu, sigma)
-        weights_mu_sigma = self.define_head(latent_dims, attention_dims, fc_dims, 2)
-        self.Query_mu_sigma, self.Key_mu_sigma, self.Value_mu_sigma, self.Output_mu_sigma = weights_mu_sigma
+        self.encoder_selection = encoder_selection
+        self.cross_attention = cross_attention
+        self.final_seq_len = 30
 
-    def define_head(self, latent_dims, attention_dims, fc_dims, output_dims):
+        self.Q_state, self.K_state, self.V_state = self.define_head(latent_dims, hidden_dims)
+        self.Q_ts, self.K_ts, self.V_ts = self.define_head(latent_dims, hidden_dims)
+        if 'profiles' in self.encoder_selection:
+            if 'first' in self.cross_attention:
+                self.Q_first, self.K_first, self.V_first = self.define_head(latent_dims, hidden_dims)
+                self.final_seq_len += 10
+            if 'middle' in self.cross_attention:
+                self.Q_middle, self.K_middle, self.V_middle = self.define_head(latent_dims, hidden_dims)
+                self.final_seq_len += 10
+            if 'last' in self.cross_attention:
+                self.Q_last, self.K_last, self.V_last = self.define_head(latent_dims, hidden_dims)
+                self.final_seq_len += 10
+        self.Q_out, self.K_out, self.V_out = self.define_head(hidden_dims, fc_dims)
+        self.mlp = nn.Sequential(
+            nn.Linear(self.final_seq_len * fc_dims, 128),
+            nn.ReLU(),
+            nn.Linear(128, 32),
+            nn.ReLU(),
+            nn.Linear(32, 2)
+        )
+
+    def define_head(self, input_dims, output_dims):
         Query = nn.Sequential(
-            nn.Linear(fc_dims, latent_dims),
+            nn.Linear(input_dims, input_dims//2),
             nn.ReLU(),
-            nn.Linear(latent_dims, attention_dims),
-            nn.ReLU(),
+            nn.Linear(input_dims//2, output_dims)
         )
         Key = nn.Sequential(
-            nn.Linear(latent_dims, latent_dims//2),
+            nn.Linear(input_dims, input_dims//2),
             nn.ReLU(),
-            nn.Linear(latent_dims//2, attention_dims),
-            nn.ReLU(),
+            nn.Linear(input_dims//2, output_dims, bias=False)
         )
         Value = nn.Sequential(
-            nn.Linear(latent_dims, latent_dims//2),
+            nn.Linear(input_dims, input_dims//2),
             nn.ReLU(),
-            nn.Linear(latent_dims//2, attention_dims),
-            nn.ReLU(),
+            nn.Linear(input_dims//2, output_dims, bias=False)
         )
-        Output = nn.Sequential(
-            nn.Linear(attention_dims, fc_dims),
-            nn.ReLU(),
-            nn.Linear(fc_dims, output_dims),
-        )
-        return Query, Key, Value, Output
+        return Query, Key, Value
 
-    def head_forward(self, x, Query, Key, Value, Output):
-        '''
-        x: (batch_size, latent_dims)
-        '''
-        q0 = torch.zeros(x.size(0), self.fc_dims).to(x.device) # (batch_size, fc_dims)
-        queries = Query(q0).unsqueeze(-1)                      # (batch_size, attention_dims, 1)
-        keys = Key(x).unsqueeze(1)                             # (batch_size, 1, attention_dims)
-        values = Value(x).unsqueeze(-1)                        # (batch_size, attention_dims, 1)
-        scores = torch.matmul(queries, keys) / (self.attention_dims ** 0.5)
-        attention_weights = F.softmax(scores, dim=-1)          # (batch_size, attention_dims, attention_dims)
-        attended = torch.matmul(attention_weights, values)     # (batch_size, attention_dims, 1)
-        out = Output(attended.squeeze(-1))                     # (batch_size, output_dims)
-        return out
+    def get_qkv(self, x, Query, Key, Value):
+        x = F.layer_norm(x, x.size()[1:])
+        queries = Query(x)
+        keys = Key(x)
+        values = Value(x) # (batch_size, seq_len, output_dims)
+        return queries, keys, values
 
-    def forward(self, x):
+    def head_forward(self, queries, keys, values):
+        scores = torch.matmul(queries, keys.transpose(-2, -1)) / (values.size(-1) ** 0.5)
+        attention = F.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
+        out = torch.matmul(attention, values)
+        return out # (batch_size, seq_len, output_dims)
+
+    def forward(self, current, environment, ts):
         '''
-        x: (batch_size, latent_dims)
+        current: (batch_size, 9, latent_dims=64)
+        environment: (batch_size, 1, latent_dims=64)
+        ts: (batch_size, 20, latent_dims=64)
         '''
-        # Shared head for (mu, sigma)
-        mu_sigma = self.head_forward(x,
-            self.Query_mu_sigma,
-            self.Key_mu_sigma,
-            self.Value_mu_sigma,
-            self.Output_mu_sigma,
-        )                                          # (batch_size, 2)
-        mu = mu_sigma[:, 0].unsqueeze(-1)
-        sigma = F.softplus(mu_sigma[:, 1].unsqueeze(-1)) + 1e-6 # avoid zero variance
+        out_seq = []
+        # State self-attention
+        state = torch.cat([current, environment], dim=1) # (batch_size, 10, latent_dims=64)
+        q_state, k_state, v_state = self.get_qkv(state, self.Q_state, self.K_state, self.V_state)
+        attended_state = self.head_forward(q_state, k_state, v_state) # (batch_size, 10, hidden_dims=32)
+        out_seq.append(attended_state)
+        if 'profiles' in self.encoder_selection:
+            # Cross-attention (optional)
+            if 'first' in self.cross_attention:
+                q_first, k_first, v_first = self.get_qkv(ts[:, :10], self.Q_first, self.K_first, self.V_first)
+                attended_first = self.head_forward(q_state, k_first, v_first) # (batch_size, 10, hidden_dims=32)
+                out_seq.append(attended_first)
+            if 'middle' in self.cross_attention:
+                q_middle, k_middle, v_middle = self.get_qkv(ts[:, 5:15], self.Q_middle, self.K_middle, self.V_middle)
+                attended_middle = self.head_forward(q_state, k_middle, v_middle) # (batch_size, 10, hidden_dims=32)
+                out_seq.append(attended_middle)
+            if 'last' in self.cross_attention:
+                q_last, k_last, v_last = self.get_qkv(ts[:, -10:], self.Q_last, self.K_last, self.V_last)
+                attended_last = self.head_forward(q_state, k_last, v_last) # (batch_size, 10, hidden_dims=32)
+                out_seq.append(attended_last)
+            # TimeSeries self-attention
+            q_ts, k_ts, v_ts = self.get_qkv(ts, self.Q_ts, self.K_ts, self.V_ts)
+            attended_ts = self.head_forward(q_ts, k_ts, v_ts) # (batch_size, 20, hidden_dims=32)
+            out_seq.append(attended_ts)
+        # Output self-attention
+        out_seq = torch.cat(out_seq, dim=1)
+        q_out, k_out, v_out = self.get_qkv(out_seq, self.Q_out, self.K_out, self.V_out)
+        attended_out = self.head_forward(q_out, k_out, v_out) # (batch_size, final_seq_len, fc_dims=8)
+        attended_out = F.layer_norm(attended_out, attended_out.size()[1:])
+        out = self.mlp(attended_out.view(attended_out.size(0), -1))
+
+        mu = out[:, 0].unsqueeze(-1)
+        sigma = F.softplus(out[:, 1].unsqueeze(-1)) + 1e-6 # avoid zero variance
         return mu, sigma
 
