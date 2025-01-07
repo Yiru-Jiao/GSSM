@@ -27,7 +27,7 @@ class train_val_test():
         encoder_name = '_'.join(encoder_selection)
         if cross_attention == 'all':
             cross_attention = ['first', 'middle', 'last']
-        cross_attention_name = '_'.join(cross_attention)
+        cross_attention_name = '_'.join(cross_attention) if len(cross_attention) > 0 else 'not_crossed'
         if pretrained_encoder:
             self.path_output = path_prepared + f'PosteriorInference/pretrained/{encoder_name}_{cross_attention_name}/'
         else:

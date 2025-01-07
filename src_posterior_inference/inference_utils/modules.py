@@ -119,13 +119,19 @@ class attention_decoder(nn.Module):
         self.latent_dims = latent_dims
         self.hidden_dims = hidden_dims
         self.fc_dims = fc_dims
-        self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
-        self.final_seq_len = 30
-
+        
         self.Q_state, self.K_state, self.V_state = self.define_head(latent_dims, hidden_dims)
         self.Q_ts, self.K_ts, self.V_ts = self.define_head(latent_dims, hidden_dims)
-        if 'profiles' in self.encoder_selection:
+
+        self.final_seq_len = 0
+        if 'current' in encoder_selection:
+            self.final_seq_len += 9
+        if 'environment' in encoder_selection:
+            self.final_seq_len += 1
+
+        if 'profiles' in encoder_selection:
+            self.final_seq_len += 20
             if 'first' in self.cross_attention:
                 self.Q_first, self.K_first, self.V_first = self.define_head(latent_dims, hidden_dims)
                 self.final_seq_len += 10
@@ -175,19 +181,27 @@ class attention_decoder(nn.Module):
         out = torch.matmul(attention, values)
         return out # (batch_size, seq_len, output_dims)
 
-    def forward(self, current, environment, ts):
+    def forward(self, x_tuple):
         '''
         current: (batch_size, 9, latent_dims=64)
         environment: (batch_size, 1, latent_dims=64)
         ts: (batch_size, 20, latent_dims=64)
         '''
+        current, environment, ts = x_tuple
         out_seq = []
         # State self-attention
-        state = torch.cat([current, environment], dim=1) # (batch_size, 10, latent_dims=64)
+        if environment is None:
+            state = current # (batch_size, 9, latent_dims=64)
+        else:
+            state = torch.cat([current, environment], dim=1) # (batch_size, 10, latent_dims=64)
         q_state, k_state, v_state = self.get_qkv(state, self.Q_state, self.K_state, self.V_state)
-        attended_state = self.head_forward(q_state, k_state, v_state) # (batch_size, 10, hidden_dims=32)
+        attended_state = self.head_forward(q_state, k_state, v_state) # (batch_size, 9/10, hidden_dims=32)
         out_seq.append(attended_state)
-        if 'profiles' in self.encoder_selection:
+        if ts is not None:
+            # TimeSeries self-attention
+            q_ts, k_ts, v_ts = self.get_qkv(ts, self.Q_ts, self.K_ts, self.V_ts)
+            attended_ts = self.head_forward(q_ts, k_ts, v_ts) # (batch_size, 20, hidden_dims=32)
+            out_seq.append(attended_ts)
             # Cross-attention (optional)
             if 'first' in self.cross_attention:
                 q_first, k_first, v_first = self.get_qkv(ts[:, :10], self.Q_first, self.K_first, self.V_first)
@@ -201,16 +215,12 @@ class attention_decoder(nn.Module):
                 q_last, k_last, v_last = self.get_qkv(ts[:, -10:], self.Q_last, self.K_last, self.V_last)
                 attended_last = self.head_forward(q_state, k_last, v_last) # (batch_size, 10, hidden_dims=32)
                 out_seq.append(attended_last)
-            # TimeSeries self-attention
-            q_ts, k_ts, v_ts = self.get_qkv(ts, self.Q_ts, self.K_ts, self.V_ts)
-            attended_ts = self.head_forward(q_ts, k_ts, v_ts) # (batch_size, 20, hidden_dims=32)
-            out_seq.append(attended_ts)
         # Output self-attention
-        out_seq = torch.cat(out_seq, dim=1)
+        out_seq = torch.cat(out_seq, dim=1) # (batch_size, final_seq_len, hidden_dims=32)
         q_out, k_out, v_out = self.get_qkv(out_seq, self.Q_out, self.K_out, self.V_out)
         attended_out = self.head_forward(q_out, k_out, v_out) # (batch_size, final_seq_len, fc_dims=8)
         attended_out = F.layer_norm(attended_out, attended_out.size()[1:])
-        out = self.mlp(attended_out.view(attended_out.size(0), -1))
+        out = self.mlp(attended_out.view(attended_out.size(0), -1)) # (batch_size, 2)
 
         mu = out[:, 0].unsqueeze(-1)
         sigma = F.softplus(out[:, 1].unsqueeze(-1)) + 1e-6 # avoid zero variance

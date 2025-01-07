@@ -46,34 +46,28 @@ class UnifiedProximity(nn.Module):
     def define_combi_encoder(self,):
         if self.encoder_selection==['current']:
             def combi_encoder(x):
-                return self.current_encoder(x)
+                return (self.current_encoder(x), None, None)
         elif self.encoder_selection==['current','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
                 x_current = self.current_encoder(x_current)
                 x_environment = self.environment_encoder(x_environment)
-                return torch.cat([x_current, x_environment], dim=1)
-        elif self.encoder_selection==['current','profiles']:
-            def combi_encoder(x):
-                x_current, x_ts = x
-                x_current = self.current_encoder(x_current)
-                x_ts = self.ts_encoder(x_ts)
-                return torch.cat([x_current, x_ts], dim=1)
+                return (x_current, x_environment, None)
         elif self.encoder_selection==['current','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
                 x_current = self.current_encoder(x_current)
                 x_environment = self.environment_encoder(x_environment)
                 x_ts = self.ts_encoder(x_ts)
-                return torch.cat([x_current, x_environment, x_ts], dim=1)
+                return (x_current, x_environment, x_ts)
         else:
             Warning('Invalid encoder selection.')
         return combi_encoder
 
     def forward(self, x):
         x = self.combi_encoder(x)
-        out = self.attention_decoder(x)  # ([bs, 2], [bs, 1], [bs, 1])
-        return out
+        out = self.attention_decoder(x)
+        return out # mu, sigma
 
 
 class LogNormalNLL(nn.Module):

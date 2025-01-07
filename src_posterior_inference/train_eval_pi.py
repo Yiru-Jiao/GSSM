@@ -48,13 +48,14 @@ def main(args, manual_seed, path_prepared):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    encoder_combinations = [['current', 'environment'],
+    encoder_combinations = [['current'],
+                            ['current', 'environment'],
                             ['current', 'environment', 'profiles'],
                             ['current', 'environment', 'profiles'],
                             ['current', 'environment', 'profiles'],
                             ['current', 'environment', 'profiles'],
                             ['current', 'environment', 'profiles']]
-    cross_attention_flag = [[], [], 
+    cross_attention_flag = [[], [], [], 
                             ['first'], 
                             ['last'], 
                             ['first','last'], 
