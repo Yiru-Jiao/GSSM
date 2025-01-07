@@ -108,8 +108,9 @@ class train_val_test():
             val_loss_log.append(val_loss)
 
             # Add information to progress bar with learning rate and loss values
-            progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
-                                     train_loss=loss_log[epoch_n].mean(), val_loss=val_loss)
+            if epoch_n // self.verbose == 0:
+                progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
+                                         train_loss=loss_log[epoch_n].mean(), val_loss=val_loss)
 
             stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
             stop_condition2 = np.all(abs(np.diff(val_loss_log)[-4:]/val_loss_log[-4:])<1e-4)
