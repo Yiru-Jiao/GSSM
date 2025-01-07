@@ -46,9 +46,9 @@ class train_val_test():
         self.define_model()
 
     def define_model(self,):
-        self.model = UnifiedProximity(self.encoder_selection, self.cross_attention, self.return_attention)
+        self.model = UnifiedProximity(self.device, self.encoder_selection, self.cross_attention, self.return_attention)
         if self.pretrained_encoder:
-            self.model.load_pretrained_encoders(self.device, self.path_prepared)
+            self.model.load_pretrained_encoders(self.path_prepared)
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size

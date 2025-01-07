@@ -10,8 +10,9 @@ from src_posterior_inference.inference_utils import modules
 
 
 class UnifiedProximity(nn.Module):
-    def __init__(self, encoder_selection='all', cross_attention='all', return_attention=False, mask_mode=None):
+    def __init__(self, device, encoder_selection='all', cross_attention='all', return_attention=False, mask_mode=None):
         super(UnifiedProximity, self).__init__()
+        self.device = device
         if encoder_selection=='all':
             encoder_selection = ['current', 'environment', 'profiles']
         if cross_attention=='all':
@@ -25,35 +26,36 @@ class UnifiedProximity(nn.Module):
         if 'environment' in encoder_selection:
             self.environment_encoder = modules.environment_encoder()
         if 'profiles' in encoder_selection:
-            self.ts_encoder = modules.ts_encoder(mask_mode=mask_mode)
+            self.ts_encoder = modules.ts_encoder(device, mask_mode=mask_mode)
         self.attention_decoder = modules.attention_decoder(encoder_selection=self.encoder_selection,
                                                            cross_attention=self.cross_attention,
                                                            return_attention=return_attention)
         self.combi_encoder = self.define_combi_encoder()
 
-    def load_pretrained_encoders(self, device, path_prepared='../PreparedData/'):
+    def load_pretrained_encoders(self, path_prepared='../PreparedData/'):
         '''
-        current: bs1024_lr0.001
-        environment: bs16_lr0.001
-        time series: topo_ts2vec
+        current: bs64_lr0.0001
+        environment: bs32_lr0.003
+        time series: ggeo-softclt
         '''
         if 'current' in self.encoder_selection:
-            self.current_encoder.load('bs1024_lr0.001', device, path_prepared)
+            self.current_encoder.load('bs64_lr0.0001', self.device, path_prepared)
         if 'environment' in self.encoder_selection:
-            self.environment_encoder.load('bs16_lr0.001', device, path_prepared)
+            self.environment_encoder.load('bs32_lr0.003', self.device, path_prepared)
         if 'profiles' in self.encoder_selection:
-            self.ts_encoder.load('topo_ts2vec', device, path_prepared)
+            self.ts_encoder.load('ggeo_softclt', self.device, path_prepared)
 
     def define_combi_encoder(self,):
         if self.encoder_selection==['current']:
             def combi_encoder(x):
-                return (self.current_encoder(x), None, None)
+                x_current = self.current_encoder(x)
+                return (x_current,)
         elif self.encoder_selection==['current','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
                 x_current = self.current_encoder(x_current)
                 x_environment = self.environment_encoder(x_environment)
-                return (x_current, x_environment, None)
+                return (x_current, x_environment)
         elif self.encoder_selection==['current','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
@@ -66,8 +68,8 @@ class UnifiedProximity(nn.Module):
         return combi_encoder
 
     def forward(self, x):
-        x = self.combi_encoder(x)
-        out = self.attention_decoder(x)
+        latent = self.combi_encoder(x)
+        out = self.attention_decoder(latent)
         return out # mu, sigma
 
 

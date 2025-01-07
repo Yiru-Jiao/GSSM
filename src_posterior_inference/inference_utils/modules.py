@@ -14,14 +14,15 @@ from src_encoder_pretraining.ssrl_utils.utils_general import load_tuned_hyperpar
 
 
 class ts_encoder(nn.Module):
-    def __init__(self, input_dims=3, output_dims=64, mask_mode=None):
+    def __init__(self, device, input_dims=3, output_dims=64, mask_mode=None):
         super(ts_encoder, self).__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
         self.hidden_dims = 24
         self.dist_metric = 'DTW'
         self.mask_mode = mask_mode
-        self.spclt_model = spclt(input_dims, output_dims, hidden_dims=64, dist_metric='DTW', mask_mode=mask_mode)
+        self.spclt_model = spclt(self.input_dims, self.output_dims, self.hidden_dims,
+                                 mask_mode=self.mask_mode, dist_metric=self.dist_metric, device=device)
 
     # Load a pretrained model
     def load(self, model_selection, device, path_prepared='../PreparedData/'):
