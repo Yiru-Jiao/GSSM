@@ -74,8 +74,8 @@ def main(args):
         model_list = ['bs8_lr0.0001', 'bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001',
                       'bs128_lr0.001','bs256_lr0.001', 'bs512_lr0.001', 'bs1024_lr0.001']
     else:
-        model_list = ['bs8_lr0.001', 'bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001',
-                      'bs128_lr0.01', 'bs256_lr0.01', 'bs512_lr0.01', 'bs1024_lr0.01']
+        model_list = ['bs8_lr0.003', 'bs16_lr0.003', 'bs32_lr0.003', 'bs64_lr0.003',
+                      'bs128_lr0.03', 'bs256_lr0.03', 'bs512_lr0.03', 'bs1024_lr0.03']
     
     if os.path.exists(results_dir):
         eval_results = read_saved_results()
