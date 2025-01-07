@@ -12,7 +12,7 @@ from src_posterior_inference.inference_utils.utils_train_eval_test import train_
 
 def define_model(device, path_prepared, encoder_selection, pretrained_encoder, batch_size, initial_lr):
     # Define the model
-    pipeline = train_val_test(device, path_prepared, encoder_selection, pretrained_encoder)
+    pipeline = train_val_test(device, path_prepared, encoder_selection, pretrained_encoder, return_attention=True)
     ## Load trained model
     pipeline.load_model(batch_size, initial_lr)
     print('Posterior inference model loaded.')
@@ -40,10 +40,9 @@ def assess_conflict(states, model, device, output='probability', n=25):
     # Compute mu and sigma
     with torch.no_grad():
         out = model(send_x_to_device(x, device))
-        mu, sigma, a = out
+        mu, sigma, _ = out
     mu = mu.squeeze().cpu().numpy()
     sigma = sigma.squeeze().cpu().numpy()
-    a = a.squeeze().cpu().numpy()
 
     probability = extreme_cdf(proximity, mu, sigma, n)
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
@@ -57,4 +56,4 @@ def assess_conflict(states, model, device, output='probability', n=25):
     elif output=='both':
         return probability, max_intensity
     elif output=='all':
-        return mu, sigma, a, probability, max_intensity
+        return mu, sigma, probability, max_intensity
