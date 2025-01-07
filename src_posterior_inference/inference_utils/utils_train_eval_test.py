@@ -75,7 +75,7 @@ class train_val_test():
         # Training
         num_batches = len(self.train_dataloader)
         loss_log = np.zeros((num_epochs, num_batches))
-        val_loss_log = [100., 99., 98., 97., 96.]
+        val_loss_log = [100., 99., 98., 97., 96., 95.]
 
         self.model.train()
         self.optimizer = torch.optim.AdamW(
