@@ -58,7 +58,7 @@ class train_val_test():
         else:
             return x.to(self.device)
 
-    def train_model(self, num_epochs=500, initial_lr=0.001, verbose=0):
+    def train_model(self, num_epochs=500, initial_lr=0.001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
         self.path_save = self.path_output + f'bs={self.batch_size}-initlr={self.initial_lr}/'
@@ -78,16 +78,17 @@ class train_val_test():
             self.model.parameters(),
             lr=self.initial_lr, amsgrad=True)
 
-        if 'profiles' in self.encoder_selection:
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=4, cooldown=4,
-                threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
-            )
-        else:
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=4, cooldown=8,
-                threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
-            )
+        if lr_schedule:
+            if 'profiles' in self.encoder_selection:
+                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                    self.optimizer, mode='min', factor=0.6, patience=4, cooldown=4,
+                    threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
+                )
+            else:
+                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                    self.optimizer, mode='min', factor=0.6, patience=4, cooldown=8,
+                    threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
+                )
 
         if self.verbose > 0:
             progress_bar = tqdm(range(num_epochs), unit='epoch', ascii=True, dynamic_ncols=False, miniters=self.verbose)
@@ -103,14 +104,15 @@ class train_val_test():
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
-            val_loss = self.val_loop()
-            self.scheduler.step(val_loss)
-            val_loss_log.append(val_loss)
+            if lr_schedule:
+                val_loss = self.val_loop()
+                self.scheduler.step(val_loss)
+                val_loss_log.append(val_loss)
 
-            # Add information to progress bar with learning rate and loss values
-            if epoch_n // self.verbose == 0:
-                progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
-                                         train_loss=loss_log[epoch_n].mean(), val_loss=val_loss)
+                # Add information to progress bar with learning rate and loss values
+                if epoch_n // self.verbose == 0:
+                    progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
+                                            train_loss=loss_log[epoch_n].mean(), val_loss=val_loss)
 
             stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
             stop_condition2 = np.all(abs(np.diff(val_loss_log)[-4:]/val_loss_log[-4:])<1e-4)
@@ -119,14 +121,15 @@ class train_val_test():
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
-        # Save model and loss records
-        torch.save(self.model.state_dict(), self.path_save+f'model_final_{epoch_n}epoch.pth')
-        loss_log = loss_log[loss_log.sum(axis=1)>0]
-        loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
-                                columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
-        loss_log.to_csv(self.path_save+'loss_log.csv')
-        val_loss_log = pd.DataFrame(val_loss_log[5:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-4)], columns=['val_loss'])
-        val_loss_log.to_csv(self.path_save+'val_loss_log.csv')
+        if lr_schedule:
+            # Save model and loss records
+            torch.save(self.model.state_dict(), self.path_save+f'model_final_{epoch_n}epoch.pth')
+            loss_log = loss_log[loss_log.sum(axis=1)>0]
+            loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
+                                    columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
+            loss_log.to_csv(self.path_save+'loss_log.csv')
+            val_loss_log = pd.DataFrame(val_loss_log[5:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-4)], columns=['val_loss'])
+            val_loss_log.to_csv(self.path_save+'val_loss_log.csv')
 
     # Validation loop
     def val_loop(self,):
