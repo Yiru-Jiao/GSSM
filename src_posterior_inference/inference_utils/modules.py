@@ -178,16 +178,17 @@ class attention_decoder(nn.Module):
     def head_forward(self, queries, keys, values):
         scores = torch.matmul(queries, keys.transpose(-2, -1)) / (values.size(-1) ** 0.5)
         attention = F.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
-        out = torch.matmul(attention, values)
-        return out # (batch_size, seq_len, output_dims)
+        out = torch.matmul(attention, values) # (batch_size, seq_len, output_dims)
+        return out, attention
 
-    def forward(self, x_tuple):
+    def forward(self, x_tuple, return_attention=False):
         '''
         current: (batch_size, 9, latent_dims=64)
         environment: (batch_size, 1, latent_dims=64)
         ts: (batch_size, 20, latent_dims=64)
         '''
         current, environment, ts = x_tuple
+        attention_matrices = dict()
         out_seq = []
         # State self-attention
         if environment is None:
@@ -195,34 +196,43 @@ class attention_decoder(nn.Module):
         else:
             state = torch.cat([current, environment], dim=1) # (batch_size, 10, latent_dims=64)
         q_state, k_state, v_state = self.get_qkv(state, self.Q_state, self.K_state, self.V_state)
-        attended_state = self.head_forward(q_state, k_state, v_state) # (batch_size, 9/10, hidden_dims=32)
+        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 9/10, hidden_dims=32)
+        attention_matrices['state'] = state_attention
         out_seq.append(attended_state)
         if ts is not None:
             # TimeSeries self-attention
             q_ts, k_ts, v_ts = self.get_qkv(ts, self.Q_ts, self.K_ts, self.V_ts)
-            attended_ts = self.head_forward(q_ts, k_ts, v_ts) # (batch_size, 20, hidden_dims=32)
+            attended_ts, ts_attention = self.head_forward(q_ts, k_ts, v_ts) # (batch_size, 20, hidden_dims=32)
+            attention_matrices['ts'] = ts_attention
             out_seq.append(attended_ts)
             # Cross-attention (optional)
             if 'first' in self.cross_attention:
                 q_first, k_first, v_first = self.get_qkv(ts[:, :10], self.Q_first, self.K_first, self.V_first)
-                attended_first = self.head_forward(q_state, k_first, v_first) # (batch_size, 10, hidden_dims=32)
+                attended_first, first_attention = self.head_forward(q_state, k_first, v_first) # (batch_size, 10, hidden_dims=32)
+                attention_matrices['first'] = first_attention
                 out_seq.append(attended_first)
             if 'middle' in self.cross_attention:
                 q_middle, k_middle, v_middle = self.get_qkv(ts[:, 5:15], self.Q_middle, self.K_middle, self.V_middle)
-                attended_middle = self.head_forward(q_state, k_middle, v_middle) # (batch_size, 10, hidden_dims=32)
+                attended_middle, middle_attention = self.head_forward(q_state, k_middle, v_middle) # (batch_size, 10, hidden_dims=32)
+                attention_matrices['middle'] = middle_attention
                 out_seq.append(attended_middle)
             if 'last' in self.cross_attention:
                 q_last, k_last, v_last = self.get_qkv(ts[:, -10:], self.Q_last, self.K_last, self.V_last)
-                attended_last = self.head_forward(q_state, k_last, v_last) # (batch_size, 10, hidden_dims=32)
+                attended_last, last_attention = self.head_forward(q_state, k_last, v_last) # (batch_size, 10, hidden_dims=32)
+                attention_matrices['last'] = last_attention
                 out_seq.append(attended_last)
         # Output self-attention
         out_seq = torch.cat(out_seq, dim=1) # (batch_size, final_seq_len, hidden_dims=32)
         q_out, k_out, v_out = self.get_qkv(out_seq, self.Q_out, self.K_out, self.V_out)
-        attended_out = self.head_forward(q_out, k_out, v_out) # (batch_size, final_seq_len, fc_dims=8)
+        attended_out, out_attention = self.head_forward(q_out, k_out, v_out) # (batch_size, final_seq_len, fc_dims=8)
+        attention_matrices['out'] = out_attention
         attended_out = F.layer_norm(attended_out, attended_out.size()[1:])
         out = self.mlp(attended_out.view(attended_out.size(0), -1)) # (batch_size, 2)
 
         mu = out[:, 0].unsqueeze(-1)
         sigma = F.softplus(out[:, 1].unsqueeze(-1)) + 1e-6 # avoid zero variance
-        return mu, sigma
+        if return_attention:
+            return mu, sigma, attention_matrices
+        else:
+            return mu, sigma
 
