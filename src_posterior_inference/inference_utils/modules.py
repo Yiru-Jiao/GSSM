@@ -101,7 +101,7 @@ class environment_encoder(nn.Module):
 
 
 class attention_decoder(nn.Module):
-    def __init__(self, latent_dims=64, hidden_dims=32, fc_dims=8, encoder_selection=[], cross_attention=[]):
+    def __init__(self, latent_dims=64, hidden_dims=32, fc_dims=8, encoder_selection=[], cross_attention=[], return_attention=False):
         '''
         State (Current + Environment) self-attention: (batch_size, 10, latent_dims=64) -> (batch_size, 10, hidden_dims=32)
         TimeSeries self-attention: (batch_size, 20, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
@@ -120,6 +120,7 @@ class attention_decoder(nn.Module):
         self.hidden_dims = hidden_dims
         self.fc_dims = fc_dims
         self.cross_attention = cross_attention
+        self.return_attention = return_attention
         
         self.Q_state, self.K_state, self.V_state = self.define_head(latent_dims, hidden_dims)
         self.Q_ts, self.K_ts, self.V_ts = self.define_head(latent_dims, hidden_dims)
@@ -181,7 +182,7 @@ class attention_decoder(nn.Module):
         out = torch.matmul(attention, values) # (batch_size, seq_len, output_dims)
         return out, attention
 
-    def forward(self, x_tuple, return_attention=False):
+    def forward(self, x_tuple):
         '''
         current: (batch_size, 9, latent_dims=64)
         environment: (batch_size, 1, latent_dims=64)
@@ -231,7 +232,7 @@ class attention_decoder(nn.Module):
 
         mu = out[:, 0].unsqueeze(-1)
         sigma = F.softplus(out[:, 1].unsqueeze(-1)) + 1e-6 # avoid zero variance
-        if return_attention:
+        if self.return_attention:
             return mu, sigma, attention_matrices
         else:
             return mu, sigma

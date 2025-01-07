@@ -10,7 +10,7 @@ from src_posterior_inference.inference_utils import modules
 
 
 class UnifiedProximity(nn.Module):
-    def __init__(self, encoder_selection='all', cross_attention='all', mask_mode=None):
+    def __init__(self, encoder_selection='all', cross_attention='all', return_attention=False, mask_mode=None):
         super(UnifiedProximity, self).__init__()
         if encoder_selection=='all':
             encoder_selection = ['current', 'environment', 'profiles']
@@ -27,7 +27,8 @@ class UnifiedProximity(nn.Module):
         if 'profiles' in encoder_selection:
             self.ts_encoder = modules.ts_encoder(mask_mode=mask_mode)
         self.attention_decoder = modules.attention_decoder(encoder_selection=self.encoder_selection,
-                                                           cross_attention=self.cross_attention)
+                                                           cross_attention=self.cross_attention,
+                                                           return_attention=return_attention)
         self.combi_encoder = self.define_combi_encoder()
 
     def load_pretrained_encoders(self, device, path_prepared='../PreparedData/'):

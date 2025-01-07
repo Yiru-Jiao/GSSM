@@ -18,7 +18,11 @@ from torch.utils.data import DataLoader
 
 
 class train_val_test():
-    def __init__(self, device, path_prepared, encoder_selection='all', cross_attention='all', pretrained_encoder=False):
+    def __init__(self, device, path_prepared, 
+                 encoder_selection='all', 
+                 cross_attention='all', 
+                 pretrained_encoder=False,
+                 return_attention=False):
         super(train_val_test, self).__init__()
         self.device = device
         self.path_prepared = path_prepared
@@ -28,23 +32,23 @@ class train_val_test():
         if cross_attention == 'all':
             cross_attention = ['first', 'middle', 'last']
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention) > 0 else 'not_crossed'
-        if pretrained_encoder:
-            self.path_output = path_prepared + f'PosteriorInference/pretrained/{encoder_name}_{cross_attention_name}/'
-        else:
-            self.path_output = path_prepared + f'PosteriorInference/notpretrained/{encoder_name}_{cross_attention_name}/'
-        os.makedirs(self.path_output, exist_ok=True)
+        if not return_attention:
+            if pretrained_encoder:
+                self.path_output = path_prepared + f'PosteriorInference/pretrained/{encoder_name}_{cross_attention_name}/'
+            else:
+                self.path_output = path_prepared + f'PosteriorInference/notpretrained/{encoder_name}_{cross_attention_name}/'
+            os.makedirs(self.path_output, exist_ok=True)
+            self.loss_func = LogNormalNLL()
         self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
         self.pretrained_encoder = pretrained_encoder
+        self.return_attention = return_attention
         self.define_model()
 
     def define_model(self,):
-        # Define the model
-        self.model = UnifiedProximity(self.encoder_selection, self.cross_attention)
+        self.model = UnifiedProximity(self.encoder_selection, self.cross_attention, self.return_attention)
         if self.pretrained_encoder:
             self.model.load_pretrained_encoders(self.device, self.path_prepared)
-       # Determine loss function
-        self.loss_func = LogNormalNLL()
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
