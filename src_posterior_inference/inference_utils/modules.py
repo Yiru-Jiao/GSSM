@@ -119,16 +119,17 @@ class attention_decoder(nn.Module):
         self.latent_dims = latent_dims
         self.hidden_dims = hidden_dims
         self.fc_dims = fc_dims
+        self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
         self.return_attention = return_attention
         
         self.final_seq_len = 0
-        if 'current' in encoder_selection:
+        if 'current' in self.encoder_selection:
             self.final_seq_len += 9
-        if 'environment' in encoder_selection:
+        if 'environment' in self.encoder_selection:
             self.final_seq_len += 1
         self.Q_state, self.K_state, self.V_state = self.define_head(latent_dims, hidden_dims)
-        if 'profiles' in encoder_selection:
+        if 'profiles' in self.encoder_selection:
             self.Q_ts, self.K_ts, self.V_ts = self.define_head(latent_dims, hidden_dims)
             self.final_seq_len += 20
             if 'first' in self.cross_attention:
@@ -141,6 +142,13 @@ class attention_decoder(nn.Module):
                 self.Q_last, self.K_last, self.V_last = self.define_head(latent_dims, hidden_dims)
                 self.final_seq_len += 10
         self.Q_out, self.K_out, self.V_out = self.define_head(hidden_dims, fc_dims)
+        self.mlp = nn.Sequential(
+            nn.Linear(self.final_seq_len * self.fc_dims, 128),
+            nn.ReLU(),
+            nn.Linear(128, 32),
+            nn.ReLU(),
+            nn.Linear(32, 2)
+        )
         self.combi_decoder = self.define_combi_decoder()
 
     def define_head(self, input_dims, output_dims):
@@ -207,21 +215,14 @@ class attention_decoder(nn.Module):
         return attended_out, attention_matrices
     
     def mlp_forward(self, attended_out):
-        mlp = nn.Sequential(
-            nn.Linear(self.final_seq_len * self.fc_dims, 128),
-            nn.ReLU(),
-            nn.Linear(128, 32),
-            nn.ReLU(),
-            nn.Linear(32, 2)
-        )
-        attended_out = F.layer_norm(attended_out, attended_out.size()[1:])
-        out = mlp(attended_out.view(attended_out.size(0), -1))
+        attended_out = F.layer_norm(attended_out, attended_out.size()[1:]) # (batch_size, final_seq_len, fc_dims=8)
+        out = self.mlp(attended_out.view(attended_out.size(0), -1))
         return out # (batch_size, 2)
 
     def define_combi_decoder(self,):
         if self.encoder_selection==['current']:
             def combi_decoder(x_tuple):
-                state, _, _ = x_tuple # (batch_size, 9, latent_dims=64)
+                state = x_tuple[0] # (batch_size, 9, latent_dims=64)
                 attention_matrices = dict()
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
@@ -230,7 +231,7 @@ class attention_decoder(nn.Module):
 
         elif self.encoder_selection==['current','environment']:
             def combi_decoder(x_tuple):
-                current, environment, _ = x_tuple
+                current, environment = x_tuple
                 attention_matrices = dict()
                 state = torch.cat([current, environment], dim=1) # (batch_size, 10, latent_dims=64)
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
