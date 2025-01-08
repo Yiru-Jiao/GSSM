@@ -71,14 +71,15 @@ def main(args, manual_seed, path_prepared):
             encoder_flag = '_'.join(encoder_selection)
             cross_flag = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
             if 'profiles' in encoder_selection:
-                epochs = 200
+                epochs = 300
             else:
                 epochs = 500
 
             bslr = bslr_search[(bslr_search.encoder_selection==encoder_flag)&
                                (bslr_search.cross_attention==cross_flag)&
                                (bslr_search.pretraining==pretraining)].sort_values(by='val_loss')
-            batch_size, initial_lr = bslr['batch_size'].values[0], bslr['initial_lr'].values[0]
+            batch_size = int(bslr['batch_size'].values[0])
+            initial_lr = round(float(bslr['initial_lr'].values[0]), 3)
 
             condition = (evaluation.encoder_selection==encoder_flag)&\
                         (evaluation.cross_attention==cross_flag)&\
@@ -86,13 +87,13 @@ def main(args, manual_seed, path_prepared):
                         (evaluation.initial_lr==initial_lr)&\
                         (evaluation.batch_size==batch_size)
             if len(evaluation[condition])>0 and evaluation.loc[condition, 'test_loss'].values[0]>0:
-                print(f"{encoder_flag}, {cross_flag}, pretrained: {pretrained_encoder}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
+                print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
                 continue
-            print(f"{encoder_flag}, {cross_flag}, pretrained: {pretrained_encoder}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
+            print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
             pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
             pipeline.create_dataloader(batch_size)
             if os.path.exists(pipeline.path_output + f'bs={batch_size}-initlr={initial_lr}/val_loss_log.csv'):
-                print(f"Loading trained model: {encoder_flag}, {cross_flag}, pretrained: {pretrained_encoder}, initial_lr: {initial_lr}, batch_size: {batch_size}.")
+                print(f"Loading trained model: {encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}.")
                 pipeline.load_model(batch_size, initial_lr)
             else:
                 pipeline.train_model(epochs, initial_lr, verbose=5)
