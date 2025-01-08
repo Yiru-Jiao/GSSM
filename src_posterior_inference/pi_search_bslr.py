@@ -69,7 +69,7 @@ def main(args, manual_seed, path_prepared):
             if 'profiles' in encoder_selection:
                 initial_lr = 0.001
             else:
-                initial_lr = 0.003
+                initial_lr = 0.002
             for factor in range(5, 11):
                 batch_size = 2**factor # 32, 64, 128, 256, 512, 1024
                 condition = (bslr_search.encoder_selection==encoder_flag)&\

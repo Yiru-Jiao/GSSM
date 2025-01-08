@@ -65,8 +65,6 @@ class train_val_test():
     def train_model(self, num_epochs=500, initial_lr=0.001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
-        self.path_save = self.path_output + f'bs={self.batch_size}-initlr={self.initial_lr}/'
-        os.makedirs(self.path_save, exist_ok=True)
 
         # Move model and loss function to device
         self.model = self.model.to(self.device)
@@ -90,7 +88,7 @@ class train_val_test():
                 )
             else:
                 self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.optimizer, mode='min', factor=0.6, patience=4, cooldown=8,
+                    self.optimizer, mode='min', factor=0.6, patience=4, cooldown=6,
                     threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                 )
 
@@ -127,6 +125,8 @@ class train_val_test():
                 break
 
         if lr_schedule:
+            self.path_save = self.path_output + f'bs={self.batch_size}-initlr={self.initial_lr}/'
+            os.makedirs(self.path_save, exist_ok=True)
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_save+f'model_final_{epoch_n}epoch.pth')
             loss_log = loss_log[loss_log.sum(axis=1)>0]

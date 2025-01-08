@@ -65,7 +65,7 @@ def main(args, manual_seed, path_prepared):
     else:
         evaluation = pd.DataFrame(columns=['encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'test_loss'])
     bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
-    for pretrained_encoder in [False]:#, True]:
+    for pretrained_encoder in [False, True]:
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
         for encoder_selection, cross_attention in zip(encoder_combinations, cross_attention_flag):
             encoder_flag = '_'.join(encoder_selection)
