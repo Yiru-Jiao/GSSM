@@ -142,13 +142,12 @@ def main(meta_both, events, args):
                 else:
                     states = [tuple(states), spacing_list]
 
-                mu, sigma, a, probability, max_intensity = assess_conflict(states, model, device, output='all')
+                mu, sigma, probability, max_intensity, _ = assess_conflict(states, model, device, output='all')
                 record = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
                 record[['event_id','target_id']] = record[['event_id','target_id']].astype(int)
                 record['proximity'] = spacing_list
                 record['mu'] = mu
                 record['sigma'] = sigma
-                record['a'] = a
                 record['probability'] = probability
                 record['intensity'] = max_intensity
                 record.to_hdf(path_save + f'{event_cat}/{encoder_name}_{pretraining}.h5', key='data', mode='w')

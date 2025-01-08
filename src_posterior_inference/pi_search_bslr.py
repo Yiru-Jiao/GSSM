@@ -67,7 +67,7 @@ def main(args, manual_seed, path_prepared):
             cross_flag = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
             epochs = 10
             if 'profiles' in encoder_selection:
-                initial_lr = 0.0003
+                initial_lr = 0.001
             else:
                 initial_lr = 0.003
             for factor in range(5, 11):
