@@ -125,16 +125,14 @@ class train_val_test():
                 break
 
         if lr_schedule:
-            self.path_save = self.path_output + f'bs={self.batch_size}-initlr={self.initial_lr}/'
-            os.makedirs(self.path_save, exist_ok=True)
             # Save model and loss records
-            torch.save(self.model.state_dict(), self.path_save+f'model_final_{epoch_n}epoch.pth')
+            torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
             loss_log = loss_log[loss_log.sum(axis=1)>0]
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
-            loss_log.to_csv(self.path_save+'loss_log.csv')
+            loss_log.to_csv(self.path_output+'loss_log.csv')
             val_loss_log = pd.DataFrame(val_loss_log[5:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-4)], columns=['val_loss'])
-            val_loss_log.to_csv(self.path_save+'val_loss_log.csv')
+            val_loss_log.to_csv(self.path_output+'val_loss_log.csv')
 
     # Validation loop
     def val_loop(self,):
@@ -148,8 +146,11 @@ class train_val_test():
         self.model.train()
         return val_loss/(val_batch_iter+1)
     
-    def load_model(self, batch_size, initial_lr):
-        self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
+    def load_model(self, batch_size=None, initial_lr=None):
+        if batch_size is not None and initial_lr is not None:
+            self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
+        else:
+            self.path_save = self.path_output
         final_model = glob.glob(self.path_save+'model_final*')[0]
         self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))        
         self.model = self.model.to(self.device)
@@ -157,9 +158,8 @@ class train_val_test():
         self.model.eval()
 
     def test_model(self, batch_size=None, initial_lr=None):
-        if batch_size is not None and initial_lr is not None:
-            # Load trained model and likelihood
-            self.load_model(batch_size, initial_lr)
+        # Load trained model and likelihood
+        self.load_model(batch_size, initial_lr)
 
         # Evaluate the model
         self.model.eval()
