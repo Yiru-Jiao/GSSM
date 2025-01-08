@@ -77,10 +77,10 @@ def main(args, manual_seed, path_prepared):
                             (bslr_search.pretraining==pretraining)&\
                             (bslr_search.initial_lr==initial_lr)&\
                             (bslr_search.batch_size==batch_size)
-                if len(bslr_search[condition])>0 and bslr_search.loc[condition, 'val_loss'].values[0]>0:
-                    print(f"{encoder_flag}, {cross_flag}, pretrained: {pretrained_encoder}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
+                if len(bslr_search[condition])>0 and bslr_search.loc[condition, 'val_loss'].values[0]<1:
+                    print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
                     continue
-                print(f"{encoder_flag}, {cross_flag}, pretrained: {pretrained_encoder}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
+                print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
                 pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
                 pipeline.create_dataloader(batch_size)
                 pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=5)
