@@ -32,11 +32,11 @@ This repository reconstructs bird's eye view trajectories of vehicles involved i
 
 **Step 1.** `/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
 
-**Step 2.** `src_data_preparation/segment_datasets.py`
+**Step 2.** `src_data_preparation/segment_datasets.py`, `src_data_preparation/complete_environment_samples.py`
 
-**Step 3.** `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
+**Step 3.** `ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
 
-**Step 4.** `src_gaussian_regression/train_gpr.py`
+**Step 4.** `src_posterior_inference/train_eval_pi.py`
 
 **Step 5.** `src_conflict_Detection/conflict_evaluation.py`
 
