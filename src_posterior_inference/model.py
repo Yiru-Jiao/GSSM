@@ -36,14 +36,14 @@ class UnifiedProximity(nn.Module):
         '''
         current: bs64_lr0.0001
         environment: bs32_lr0.003
-        time series: ggeo-softclt
+        time series: topo-ts2vec
         '''
         if 'current' in self.encoder_selection:
             self.current_encoder.load('bs64_lr0.0001', self.device, path_prepared)
         if 'environment' in self.encoder_selection:
             self.environment_encoder.load('bs32_lr0.003', self.device, path_prepared)
         if 'profiles' in self.encoder_selection:
-            self.ts_encoder.load('ggeo_softclt', self.device, path_prepared)
+            self.ts_encoder.load('topo-ts2vec', self.device, path_prepared)
 
     def define_combi_encoder(self,):
         if self.encoder_selection==['current']:
