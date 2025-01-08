@@ -147,17 +147,17 @@ class autoencoder():
                     current_lr = self.optimizer.param_groups[0]['lr']
                 if verbose > 6:
                     if scheduler == 'reduced':
-                        progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr)
+                        progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr, refresh=False)
                     else:
-                        progress_bar.set_postfix(loss=avg_batch_loss)
+                        progress_bar.set_postfix(loss=avg_batch_loss, refresh=False)
                     progress_bar.update(1)
                 else: # update every 20% of the total epochs
                     step = n_epochs // (1+verbose*4)
                     if (self.epoch_n+1) % step == 0:
                         if scheduler == 'reduced':
-                            progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr)
+                            progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr, refresh=False)
                         else:
-                            progress_bar.set_postfix(loss=avg_batch_loss)
+                            progress_bar.set_postfix(loss=avg_batch_loss, refresh=False)
                         progress_bar.update(step)
 
             self.epoch_n += 1

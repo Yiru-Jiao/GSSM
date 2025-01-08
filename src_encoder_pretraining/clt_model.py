@@ -269,12 +269,12 @@ class spclt():
                 # update progress bar if n_iters is specified
                 if n_iters is not None and verbose:
                     if verbose > 6:
-                        progress_bar.set_postfix(loss=loss.item())
+                        progress_bar.set_postfix(loss=loss.item(), refresh=False)
                         progress_bar.update(1)
                     else: # update every 20% of the total iterations
                         step = n_iters // (1+verbose*4)
                         if (self.iter_n+1) % step == 0:
-                            progress_bar.set_postfix(loss=loss.item())
+                            progress_bar.set_postfix(loss=loss.item(), refresh=False)
                             progress_bar.update(step)
 
                 self.iter_n += 1
@@ -326,17 +326,17 @@ class spclt():
                     current_lr = self.optimizer.param_groups[0]['lr']
                 if verbose > 6:
                     if scheduler == 'reduced':
-                        progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr)
+                        progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr, refresh=False)
                     else:
-                        progress_bar.set_postfix(loss=avg_batch_loss)
+                        progress_bar.set_postfix(loss=avg_batch_loss, refresh=False)
                     progress_bar.update(1)
                 else: # update every 20% of the total epochs
                     step = n_epochs // (1+verbose*4)
                     if (self.epoch_n+1) % step == 0:
                         if scheduler == 'reduced':
-                            progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr)
+                            progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr, refresh=False)
                         else:
-                            progress_bar.set_postfix(loss=avg_batch_loss)
+                            progress_bar.set_postfix(loss=avg_batch_loss, refresh=False)
                         progress_bar.update(step)
 
             self.epoch_n += 1
