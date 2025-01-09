@@ -61,6 +61,7 @@ class current_encoder(nn.Module):
             nn.ReLU(),
             nn.Linear(output_dims, output_dims),
             nn.ReLU(),
+            nn.Dropout(0.1),
         )
 
     # Load a pretrained model
@@ -87,6 +88,7 @@ class environment_encoder(nn.Module):
             nn.ReLU(),
             nn.Linear(output_dims, output_dims),
             nn.ReLU(),
+            nn.Dropout(0.1),
         )
 
     # Load a pretrained model
