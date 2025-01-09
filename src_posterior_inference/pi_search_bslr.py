@@ -4,11 +4,12 @@
 
 import os
 import sys
-import random
-import time as systime
-import pandas as pd
 import torch
+import random
 import argparse
+import numpy as np
+import pandas as pd
+import time as systime
 from inference_utils.utils_train_eval_test import train_val_test
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
@@ -86,7 +87,7 @@ def main(args, manual_seed, path_prepared):
                 pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
                 pipeline.create_dataloader(batch_size)
                 pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=1)
-                avg_val_loss = pipeline.val_loss_log[-5:].mean()
+                avg_val_loss = np.mean(pipeline.val_loss_log[-5:])
                 bslr_search.loc[len(bslr_search)] = [encoder_flag, cross_flag, pretraining,
                                                      initial_lr, batch_size, avg_val_loss]
                 bslr_search = bslr_search.sort_values(by=['encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size'])
