@@ -59,7 +59,7 @@ def main(args, manual_seed, path_prepared):
     if os.path.exists(path_prepared + 'PosteriorInference/bslr_search.csv'):
         bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
     else:
-        bslr_search = pd.DataFrame(columns=['encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'val_loss'])
+        bslr_search = pd.DataFrame(columns=['encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'avg_val_loss'])
     for pretrained_encoder in [False, True]:
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
         for encoder_selection, cross_attention in zip(encoder_combinations, cross_attention_flag):
@@ -67,26 +67,28 @@ def main(args, manual_seed, path_prepared):
             cross_flag = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
             initial_lr = 0.001
             if 'profiles' in encoder_selection:
-                epochs = 10
+                epochs = 15
+                factor_range = range(6, 10) # 32, 64, 128, 256, 512
             else:
                 epochs = 30
-            for factor in range(5, 11):
-                batch_size = 2**factor # 32, 64, 128, 256, 512, 1024
+                factor_range = range(6, 11) # 32, 64, 128, 256, 512, 1024
+            for factor in factor_range:
+                batch_size = 2**factor
                 condition = (bslr_search.encoder_selection==encoder_flag)&\
                             (bslr_search.cross_attention==cross_flag)&\
                             (bslr_search.pretraining==pretraining)&\
                             (bslr_search.initial_lr==initial_lr)&\
                             (bslr_search.batch_size==batch_size)
-                if len(bslr_search[condition])>0 and bslr_search.loc[condition, 'val_loss'].values[0]<1:
+                if len(bslr_search[condition])>0 and bslr_search.loc[condition, 'avg_val_loss'].values[0]<1:
                     print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
                     continue
                 print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
                 pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
                 pipeline.create_dataloader(batch_size)
                 pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=5)
-                val_loss = pipeline.val_loop()
+                avg_val_loss = pipeline.val_loss_log[-5:].mean()
                 bslr_search.loc[len(bslr_search)] = [encoder_flag, cross_flag, pretraining,
-                                                     initial_lr, batch_size, val_loss]
+                                                     initial_lr, batch_size, avg_val_loss]
                 bslr_search = bslr_search.sort_values(by=['encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size'])
                 bslr_search.to_csv(path_prepared + 'PosteriorInference/bslr_search.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
