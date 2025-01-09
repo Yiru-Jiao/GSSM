@@ -83,7 +83,7 @@ class autoencoder():
             
             # define scheduler
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
+                self.optimizer, mode='min', factor=0.6, patience=4, cooldown=6,
                 threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
                 )
 
@@ -127,9 +127,9 @@ class autoencoder():
                 self.net.train()
 
                 stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5,:].mean(axis=1))
-                stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<1e-4)
+                stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<1e-3)
                 stop_condition2 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+4,:].mean(axis=1))
-                stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n,:].mean())<1e-5)
+                stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n,:].mean())<1e-4)
                 if stop_condition1 or stop_condition2:
                     # early stopping if validation loss converges
                     Warning('Early stopping due to validation loss convergence.')
