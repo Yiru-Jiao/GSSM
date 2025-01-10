@@ -80,7 +80,7 @@ def main(args, manual_seed, path_prepared):
                             (bslr_search.pretraining==pretraining)&\
                             (bslr_search.initial_lr==initial_lr)&\
                             (bslr_search.batch_size==batch_size)
-                if len(bslr_search[condition])>0 and bslr_search.loc[condition, 'avg_val_loss'].values[0]<1:
+                if len(bslr_search[condition])>0 and bslr_search.loc[condition, 'avg_val_loss'].values[0]<10:
                     print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
                     continue
                 print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
