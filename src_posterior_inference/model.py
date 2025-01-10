@@ -35,13 +35,13 @@ class UnifiedProximity(nn.Module):
     def load_pretrained_encoders(self, path_prepared='../PreparedData/'):
         '''
         current: bs64_lr0.0001
-        environment: bs32_lr0.003
+        environment: bs16_lr0.001
         time series: topo-ts2vec
         '''
         if 'current' in self.encoder_selection:
             self.current_encoder.load('bs64_lr0.0001', self.device, path_prepared)
         if 'environment' in self.encoder_selection:
-            self.environment_encoder.load('bs32_lr0.003', self.device, path_prepared)
+            self.environment_encoder.load('bs16_lr0.001', self.device, path_prepared)
         if 'profiles' in self.encoder_selection:
             self.ts_encoder.load('topo-ts2vec', self.device, path_prepared)
 
