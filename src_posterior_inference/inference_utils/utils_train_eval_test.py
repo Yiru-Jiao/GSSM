@@ -73,7 +73,7 @@ class train_val_test():
         # Training
         num_batches = len(self.train_dataloader)
         loss_log = np.zeros((num_epochs, num_batches))
-        val_loss_log = [100., 99., 98., 97., 96., 95.]
+        val_loss_log = [99., 98., 97., 96., 95., 94., 93., 92., 91.]
 
         self.model.train()
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
@@ -112,24 +112,27 @@ class train_val_test():
             # Add information to progress bar with learning rate and loss values
             progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
                                         train_loss=loss_log[epoch_n].mean(), val_loss=val_loss, refresh=False)
-            if epoch_n % self.verbose == 0:
+            if epoch_n % self.verbose < 1:
                 progress_bar.update(self.verbose)
 
             stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
-            stop_condition2 = np.all(abs(np.diff(val_loss_log)[-4:]/val_loss_log[-4:])<1e-4)
+            stop_condition2 = (val_loss_log[-3:].mean() > val_loss_log[-6:-3].mean()) and (val_loss_log[-6:-3].mean() < val_loss_log[-9:-6].mean())
             # Early stopping if validation loss converges
-            if stop_condition1 or stop_condition2:
+            if stop_condition1:
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
+                break
+            if stop_condition2:
+                print(f'Validation loss increases and training stops early at Epoch {epoch_n}.')
                 break
 
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
-            loss_log = loss_log[loss_log.sum(axis=1)>0]
+            loss_log = loss_log[loss_log.sum(axis=1)>-1000]
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
             loss_log.to_csv(self.path_output+'loss_log.csv')
-            val_loss_log = pd.DataFrame(val_loss_log[5:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-4)], columns=['val_loss'])
+            val_loss_log = pd.DataFrame(val_loss_log[9:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-4)], columns=['val_loss'])
             val_loss_log.to_csv(self.path_output+'val_loss_log.csv')
         else:
             self.val_loss_log = val_loss_log
