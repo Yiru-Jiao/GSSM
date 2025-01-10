@@ -88,7 +88,7 @@ class environment_encoder(nn.Module):
             nn.ReLU(),
             nn.Linear(output_dims, output_dims),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
         )
 
     # Load a pretrained model
