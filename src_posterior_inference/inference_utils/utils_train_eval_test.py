@@ -116,7 +116,8 @@ class train_val_test():
                 progress_bar.update(self.verbose)
 
             stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
-            stop_condition2 = (val_loss_log[-3:].mean() > val_loss_log[-6:-3].mean()) and (val_loss_log[-6:-3].mean() < val_loss_log[-9:-6].mean())
+            avg_val_loss_log = np.array(val_loss_log[-9:]).reshape(3, 3).mean(axis=1)
+            stop_condition2 = (avg_val_loss_log[2]>avg_val_loss_log[1]) & (avg_val_loss_log[1]>avg_val_loss_log[0])
             # Early stopping if validation loss converges
             if stop_condition1:
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
