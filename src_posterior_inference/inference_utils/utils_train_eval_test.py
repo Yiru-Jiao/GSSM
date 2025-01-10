@@ -62,7 +62,7 @@ class train_val_test():
         else:
             return x.to(self.device)
 
-    def train_model(self, num_epochs=500, initial_lr=0.001, lr_schedule=True, verbose=0):
+    def train_model(self, num_epochs=300, initial_lr=0.001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
 
@@ -76,12 +76,10 @@ class train_val_test():
         val_loss_log = [100., 99., 98., 97., 96., 95.]
 
         self.model.train()
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=self.initial_lr, amsgrad=True)
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
 
         if lr_schedule:
-            if 'profiles' in self.encoder_selection:
+            if 'environment' in self.encoder_selection:
                 self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                     self.optimizer, mode='min', factor=0.6, patience=4, cooldown=4,
                     threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
