@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 
 
 def get_stop_condition2(val_loss_log):
-    avg_val_loss_log = np.array(val_loss_log[-9:])
+    avg_val_loss_log = np.array(val_loss_log[-11:])
     value2 = np.sort(avg_val_loss_log[-5:])[1:4].mean()
     value1 = np.sort(avg_val_loss_log[-8:-3])[1:4].mean()
     value0 = np.sort(avg_val_loss_log[-11:-6])[1:4].mean()
