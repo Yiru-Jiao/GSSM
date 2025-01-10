@@ -22,7 +22,7 @@ def get_stop_condition2(val_loss_log):
     value2 = np.sort(avg_val_loss_log[-5:])[1:4].mean()
     value1 = np.sort(avg_val_loss_log[-8:-3])[1:4].mean()
     value0 = np.sort(avg_val_loss_log[-11:-6])[1:4].mean()
-    return value2 > value1 and value1 > value0
+    return (value2>value1)&(value1>value0)&((value2-value1)>(value1-value0))
 
 class train_val_test():
     def __init__(self, device, path_prepared, 
@@ -79,7 +79,7 @@ class train_val_test():
 
         # Training
         num_batches = len(self.train_dataloader)
-        loss_log = np.zeros((num_epochs, num_batches))
+        loss_log = np.ones((num_epochs, num_batches))*np.inf
         val_loss_log = [101., 100., 99., 98., 97., 96., 95., 94., 93., 92., 91.]
 
         self.model.train()
@@ -135,7 +135,7 @@ class train_val_test():
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
-            loss_log = loss_log[loss_log.sum(axis=1)>-1000]
+            loss_log = loss_log[loss_log.mean(axis=1)<1000]
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
             loss_log.to_csv(self.path_output+'loss_log.csv')
