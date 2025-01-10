@@ -66,7 +66,7 @@ def main(args, manual_seed, path_prepared):
         for encoder_selection, cross_attention in zip(encoder_combinations, cross_attention_flag):
             encoder_flag = '_'.join(encoder_selection)
             cross_flag = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
-            initial_lr = 0.001 if 'environment' not in encoder_selection else 0.0005
+            initial_lr = 0.0005 if 'environment' not in encoder_selection else 0.0002
             if 'profiles' in encoder_selection:
                 epochs = 15
                 factor_range = range(4, 10) # 16, 32, 64, 128, 256, 512
