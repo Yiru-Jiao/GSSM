@@ -17,6 +17,13 @@ from model import UnifiedProximity, LogNormalNLL
 from torch.utils.data import DataLoader
 
 
+def get_stop_condition2(val_loss_log):
+    avg_val_loss_log = np.array(val_loss_log[-9:])
+    value2 = np.sort(avg_val_loss_log[-5:])[1:4].mean()
+    value1 = np.sort(avg_val_loss_log[-8:-3])[1:4].mean()
+    value0 = np.sort(avg_val_loss_log[-11:-6])[1:4].mean()
+    return value2 > value1 and value1 > value0
+
 class train_val_test():
     def __init__(self, device, path_prepared, 
                  encoder_selection='all', 
@@ -73,7 +80,7 @@ class train_val_test():
         # Training
         num_batches = len(self.train_dataloader)
         loss_log = np.zeros((num_epochs, num_batches))
-        val_loss_log = [99., 98., 97., 96., 95., 94., 93., 92., 91.]
+        val_loss_log = [101., 100., 99., 98., 97., 96., 95., 94., 93., 92., 91.]
 
         self.model.train()
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
@@ -116,8 +123,7 @@ class train_val_test():
                 progress_bar.update(self.verbose)
 
             stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
-            avg_val_loss_log = np.array(val_loss_log[-9:]).reshape(3, 3).mean(axis=1)
-            stop_condition2 = (avg_val_loss_log[2]>avg_val_loss_log[1]) & (avg_val_loss_log[1]>avg_val_loss_log[0])
+            stop_condition2 = get_stop_condition2(val_loss_log)
             # Early stopping if validation loss converges
             if stop_condition1:
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
@@ -133,7 +139,7 @@ class train_val_test():
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
             loss_log.to_csv(self.path_output+'loss_log.csv')
-            val_loss_log = pd.DataFrame(val_loss_log[9:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-4)], columns=['val_loss'])
+            val_loss_log = pd.DataFrame(val_loss_log[11:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-10)], columns=['val_loss'])
             val_loss_log.to_csv(self.path_output+'val_loss_log.csv')
         else:
             self.val_loss_log = val_loss_log
