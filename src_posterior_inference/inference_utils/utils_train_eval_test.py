@@ -147,14 +147,14 @@ class train_val_test():
     # Validation loop
     def val_loop(self,):
         self.model.eval()
-        val_loss = 0.
+        val_loss = np.zeros(len(self.val_dataloader))
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader):
                 out = self.model(self.send_x_to_device(x))
                 loss = self.loss_func(out, y.to(self.device)).item()
-                val_loss += loss
+                val_loss[val_batch_iter] = loss
         self.model.train()
-        return val_loss/(val_batch_iter+1)
+        return val_loss.mean()
     
     def load_model(self, batch_size=None, initial_lr=None):
         if batch_size is not None and initial_lr is not None:
@@ -168,7 +168,7 @@ class train_val_test():
         self.model.eval()
 
     def test_model(self, batch_size=None, initial_lr=None):
-        # Load trained model and likelihood
+        # Load trained model
         self.load_model(batch_size, initial_lr)
 
         # Evaluate the model
