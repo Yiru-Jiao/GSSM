@@ -55,6 +55,10 @@ class autoencoder():
         self.net = model(encoder_name).to(self.device)
         self.after_epoch_callback = after_epoch_callback
         self.loss_func = self.rmse_loss
+        if encoder_name == 'current':
+            self.stop_threshold = 1e-3
+        elif encoder_name == 'environment':
+            self.stop_threshold = 1e-4
 
     def rmse_loss(self, input, target):
         return torch.sqrt(((input - target) ** 2).mean())
@@ -127,9 +131,9 @@ class autoencoder():
                 self.net.train()
 
                 stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5,:].mean(axis=1))
-                stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<1e-3)
+                stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold)
                 stop_condition2 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+4,:].mean(axis=1))
-                stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n,:].mean())<1e-4)
+                stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold/10)
                 if stop_condition1 or stop_condition2:
                     # early stopping if validation loss converges
                     Warning('Early stopping due to validation loss convergence.')
