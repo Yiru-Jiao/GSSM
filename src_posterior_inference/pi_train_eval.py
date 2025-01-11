@@ -59,7 +59,7 @@ def main(args, manual_seed, path_prepared):
                             ['last'], 
                             ['first','last'], 
                             ['first','middle','last']]
-
+    
     if os.path.exists(path_prepared + 'PosteriorInference/evaluation.csv'):
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     else:
@@ -70,34 +70,31 @@ def main(args, manual_seed, path_prepared):
         for encoder_selection, cross_attention in zip(encoder_combinations, cross_attention_flag):
             encoder_flag = '_'.join(encoder_selection)
             cross_flag = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
-            if 'profiles' in encoder_selection:
-                epochs = 300
-            else:
-                epochs = 500
+            epochs = 300
 
             bslr = bslr_search[(bslr_search.encoder_selection==encoder_flag)&
                                (bslr_search.cross_attention==cross_flag)&
-                               (bslr_search.pretraining==pretraining)].sort_values(by='val_loss')
+                               (bslr_search.pretraining==pretraining)].sort_values(by='avg_val_loss')
             batch_size = int(bslr['batch_size'].values[0])
-            initial_lr = round(float(bslr['initial_lr'].values[0]), 3)
+            initial_lr = round(float(bslr['initial_lr'].values[0]), 4)
 
             condition = (evaluation.encoder_selection==encoder_flag)&\
                         (evaluation.cross_attention==cross_flag)&\
                         (evaluation.pretraining==pretraining)&\
                         (evaluation.initial_lr==initial_lr)&\
                         (evaluation.batch_size==batch_size)
-            if len(evaluation[condition])>0 and evaluation.loc[condition, 'test_loss'].values[0]>0:
+            if len(evaluation[condition])>0 and evaluation.loc[condition, 'test_loss'].values[0]<10:
                 print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
                 continue
             print(f"{encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
             pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
             pipeline.create_dataloader(batch_size)
-            if os.path.exists(pipeline.path_output + f'bs={batch_size}-initlr={initial_lr}/val_loss_log.csv'):
+            if os.path.exists(pipeline.path_output + f'val_loss_log.csv'):
                 print(f"Loading trained model: {encoder_flag}, {cross_flag}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}.")
-                pipeline.load_model(batch_size, initial_lr)
+                pipeline.load_model()
             else:
                 pipeline.train_model(epochs, initial_lr, verbose=5)
-            test_loss = pipeline.test_model(batch_size, initial_lr)
+            test_loss = pipeline.test_model()
             evaluation.loc[len(evaluation)] = [encoder_flag, cross_flag, pretraining,
                                                initial_lr, batch_size, test_loss]
             evaluation = evaluation.sort_values(by=['encoder_selection', 'cross_attention', 'pretraining'])
