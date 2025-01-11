@@ -10,35 +10,34 @@ https://dataverse.vtti.vt.edu/dataset.xhtml?persistentId=doi:10.15787/VTT1/FQLUW
 
 This repository reconstructs bird's eye view trajectories of vehicles involved in crashes and near-crashes from 100-Car Naturalistic Driving Study (NDS) radar data.
 
+## Open access to SHRP2 Safety-Critical Trajectory Data
+Collaborating with VITTI, we have made the processed anoynomous trajectory data publicly available. The data include 1,836 crashes, 6,881 near-crashes, and 32,581 baselines. The data are available at
 
-## To repeat/adjust the processing
-### Python libarary requirements
-`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`
+## Directory of dynamic figures
 
-### Wrokflow
-**Step 1.** Download the raw data from [^3] in the folder `RawData`. This include: `100CarVehicleInformation_v1_0.txt`, `100CarEventVideoReducedData_v1_5.txt`, `HundredCar_Crash_Public_Compiled.txt`, `HundredCar_NearCrash_Public_Compiled.txt`, `Researcher Dictionary for Vehicle Data v1_0.pdf`, `Researcher Dictionary for Video Reduction Data v1.3.pdf`, and `DataDictionary_TimeSeries_v1_2.pdf`. (Given that the license of raw data is now CC0 1.0, which means no limits, this repo has included needed data for your convenience.)
-
-**Step 2.** Convert `100CarVehicleInformation_v1_0.txt` into `100CarVehicleInformation.csv` using microsoft excel or other data sheet tools, and rename the column names based on corresponding data dictionary; similarly, convert the `100CarVehicleInformation_v1_0.txt` into `100CarEventVideoReducedData.csv`, rename and remain the columns of `webfileid`, `vehicle webid`, `event start`, `event end`, `event severity`, `target type`, `event nature`, then remove "Conflict with " in the descriptions and rename the column name `event nature` by `target`. (This has also been done in this repo.)
-
-**Step 3.** Run `preprocessing_100Car.py`
-
-**Step 4.** Run `processing_100Car.py`
-
-**Step 5.** Run `event_matching.py`, which can be adjusted for your own matching
-
-**Step 6.** Use `visualiser.ipynb` to observe the reconstructed events
 
 ## To repeat the experiments
+This offers a workflow to repeat the experiments in the paper. More detailed instructions can be found at the beginning of each script.
 
-**Step 1.** `/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
+### Dependencies
+`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`
 
-**Step 2.** `src_data_preparation/segment_datasets.py`, `src_data_preparation/complete_environment_samples.py`
+### Bird's eye trajectory reconstruction
+`/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
 
-**Step 3.** `ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
+### Training data preparation
+`src_data_preparation/segment_datasets.py`, `src_data_preparation/complete_environment_samples.py`
 
-**Step 4.** `src_posterior_inference/train_eval_pi.py`
+### Encoder pretraining
+`ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
 
-**Step 5.** `src_conflict_Detection/conflict_evaluation.py`
+### Posterior inference
+`src_posterior_inference/pi_search_bslr.py`, `src_posterior_inference/pi_train_eval.py`
 
+### Conflict analysis
+`src_conflict_Detection/conflict_evaluation.py` ...
 
 ## Copyright
+Free of use
+
+Citation
