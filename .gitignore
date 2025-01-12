@@ -5,7 +5,7 @@
 !src_data_preparation/**/*.py
 !src_encoder_pretraining/**/*.py
 !src_posterior_inference/**/*.py
-!src_conflict_detection/**/*.py
+!src_safety_evaluation/**/*.py
 # !**/*.ipynb
 test.ipynb
 !environment_test.py
