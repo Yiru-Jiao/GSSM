@@ -87,70 +87,71 @@ def main(meta_both, events, args):
         assert data['event_id'].nunique() == len(meta_both[meta_both['event_category']==event_cat])
 
         model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
-        encoder_combinations = model_evaluation['encoder_selection'].unique()
-        for pretrained_encoder in [False, True]:
-            pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
-            for encoder_name in encoder_combinations:
-                encoder_selection = encoder_name.split('_')
-                if os.path.exists(path_save + f'{event_cat}/{encoder_name}_{pretraining}.h5'):
-                    print(f'{event_cat} has been evaluated by {encoder_name}-{pretraining} encoder.')
-                    continue
-                # Define and load trained model
-                best_model = model_evaluation[(model_evaluation['encoder_selection']==encoder_name)&
-                                              (model_evaluation['pretraining']==pretraining)].sort_values('test_loss')
-                if len(best_model)==0:
-                    print(f'No model is available for {encoder_name}-{pretraining} encoder.')
-                    continue
-                else:
-                    best_model = best_model.iloc[0]
-                batch_size = best_model['batch_size']
-                initial_lr = best_model['initial_lr']
-                model = define_model(device, path_prepared, encoder_selection, pretrained_encoder, batch_size, initial_lr)
+        for model_id in range(len(model_evaluation)):
+            encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
+            encoder_selection = encoder_name.split('_')
+            pretraining = model_evaluation.iloc[model_id]['pretraining']
+            pretrained_encoder = True if pretraining=='pretrained' else False
+            cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
+            cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
 
-                # Organise features for each event and target
-                profiles_features = []
-                current_features = []
-                spacing_list = []
-                event_id_list = []
-                target_ids = data.index.get_level_values('target_id').unique()
-                for target_id in tqdm(target_ids, desc='Target', ascii=True):
-                    df = data.loc(axis=0)[target_id, :]
-                    if len(df)<25: # skip if the target was detected for less than 2.5 seconds
-                        continue
-                    segmented_features = get_context_representations(df, current_scaler, profiles_scaler)
-                    profiles_features.append(segmented_features[0])
-                    current_features.append(segmented_features[1])
-                    spacing_list.append(segmented_features[2])
-                    event_id_list.append(segmented_features[3])
-                profiles_features = np.concatenate(profiles_features, axis=0)
-                current_features = np.concatenate(current_features, axis=0)
-                spacing_list = np.concatenate(spacing_list, axis=0)
-                event_id_list = np.concatenate(event_id_list, axis=0)
-                assert profiles_features.shape == (len(spacing_list), 20, 3)
-                
-                states = []
-                if 'current' in encoder_selection:
-                    states.append(current_features)
-                if 'environment' in encoder_selection:
-                    environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
-                    environment_features = one_hot_encoder.transform(environment_features.values)
-                    states.append(environment_features)
-                if 'profiles' in encoder_selection:
-                    states.append(profiles_features)
-                if len(states) == 1: # only current features
-                    states = [states[0], spacing_list]
-                else:
-                    states = [tuple(states), spacing_list]
+            if os.path.exists(path_save + f'{event_cat}/{encoder_name}_{pretraining}.h5'):
+                print(f'{event_cat} has been evaluated by {encoder_name}-{pretraining} encoder.')
+                continue
+            # Define and load trained model
+            best_model = model_evaluation[(model_evaluation['encoder_selection']==encoder_name)&
+                                          (model_evaluation['pretraining']==pretraining)]
+            if len(best_model)==0:
+                print(f'No model is available for {encoder_name}-{pretraining} encoder.')
+                continue
+            else:
+                best_model = best_model.iloc[0]
+            model = define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
 
-                mu, sigma, probability, max_intensity, _ = assess_conflict(states, model, device, output='all')
-                record = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-                record[['event_id','target_id']] = record[['event_id','target_id']].astype(int)
-                record['proximity'] = spacing_list
-                record['mu'] = mu
-                record['sigma'] = sigma
-                record['probability'] = probability
-                record['intensity'] = max_intensity
-                record.to_hdf(path_save + f'{event_cat}/{encoder_name}_{pretraining}.h5', key='data', mode='w')
+            # Organise features for each event and target
+            profiles_features = []
+            current_features = []
+            spacing_list = []
+            event_id_list = []
+            target_ids = data.index.get_level_values('target_id').unique()
+            for target_id in tqdm(target_ids, desc='Target', ascii=True):
+                df = data.loc(axis=0)[target_id, :]
+                if len(df)<25: # skip if the target was detected for less than 2.5 seconds
+                    continue
+                segmented_features = get_context_representations(df, current_scaler, profiles_scaler)
+                profiles_features.append(segmented_features[0])
+                current_features.append(segmented_features[1])
+                spacing_list.append(segmented_features[2])
+                event_id_list.append(segmented_features[3])
+            profiles_features = np.concatenate(profiles_features, axis=0)
+            current_features = np.concatenate(current_features, axis=0)
+            spacing_list = np.concatenate(spacing_list, axis=0)
+            event_id_list = np.concatenate(event_id_list, axis=0)
+            assert profiles_features.shape == (len(spacing_list), 20, 3)
+            
+            states = []
+            if 'current' in encoder_selection:
+                states.append(current_features)
+            if 'environment' in encoder_selection:
+                environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
+                environment_features = one_hot_encoder.transform(environment_features.values)
+                states.append(environment_features)
+            if 'profiles' in encoder_selection:
+                states.append(profiles_features)
+            if len(states) == 1: # only current features
+                states = [states[0], spacing_list]
+            else:
+                states = [tuple(states), spacing_list]
+
+            mu, sigma, probability, max_intensity, _ = assess_conflict(states, model, device, output='all')
+            record = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+            record[['event_id','target_id']] = record[['event_id','target_id']].astype(int)
+            record['proximity'] = spacing_list
+            record['mu'] = mu
+            record['sigma'] = sigma
+            record['probability'] = probability
+            record['intensity'] = max_intensity
+            record.to_hdf(path_save + f'{event_cat}/{encoder_name}_{pretraining}.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
