@@ -36,9 +36,11 @@ class train_val_test():
         if encoder_selection == 'all':
             encoder_selection = ['current', 'environment', 'profiles']
         encoder_name = '_'.join(encoder_selection)
+        self.encoder_name = encoder_name
         if cross_attention == 'all':
             cross_attention = ['first', 'middle', 'last']
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention) > 0 else 'not_crossed'
+        self.cross_attention_name = cross_attention_name
         if not return_attention:
             if pretrained_encoder:
                 self.path_output = path_prepared + f'PosteriorInference/pretrained/{encoder_name}_{cross_attention_name}/'
@@ -157,6 +159,11 @@ class train_val_test():
         return val_loss.mean()
     
     def load_model(self, batch_size=None, initial_lr=None):
+        if 'path_output' not in self.__dict__:
+            if self.pretrained_encoder:
+                self.path_output = self.path_prepared + f'PosteriorInference/pretrained/{self.encoder_name}_{self.cross_attention_name}/'
+            else:
+                self.path_output = self.path_prepared + f'PosteriorInference/notpretrained/{self.encoder_name}_{self.cross_attention_name}/'
         if batch_size is not None and initial_lr is not None:
             self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
         else:
