@@ -10,11 +10,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
 
 
-def define_model(device, path_prepared, encoder_selection, pretrained_encoder, batch_size, initial_lr):
+def define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder):
     # Define the model
-    pipeline = train_val_test(device, path_prepared, encoder_selection, pretrained_encoder, return_attention=True)
+    pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder, return_attention=True)
     ## Load trained model
-    pipeline.load_model(batch_size, initial_lr)
+    pipeline.load_model()
     print('Posterior inference model loaded.')
     return pipeline.model
 
