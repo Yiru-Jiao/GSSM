@@ -19,6 +19,15 @@ def define_model(device, path_prepared, encoder_selection, cross_attention, pret
     return pipeline.model
 
 
+def lognormal_pdf(x, mu, sigma, rescale=True):
+    p = 1/x/np.sqrt(2*np.pi)/sigma*np.exp(-1/2*(np.log(x)-mu)**2/sigma**2)
+    if rescale:
+        mode = np.exp(mu-sigma**2)
+        pmax = 1/mode/np.sqrt(2*np.pi)/sigma*np.exp(-1/2*sigma**2)
+        p = p/pmax
+    return p
+
+
 def lognormal_cdf(x, mu, sigma):
     return 1/2+1/2*erf((np.log(x)-mu)/sigma/np.sqrt(2))
 
@@ -34,7 +43,7 @@ def send_x_to_device(x, device):
         return torch.from_numpy(x).float().to(device)
 
 
-def assess_conflict(states, model, device, output='probability', n=25):
+def SSSE(states, model, device):
     x, proximity = states
 
     # Compute mu and sigma
@@ -44,16 +53,8 @@ def assess_conflict(states, model, device, output='probability', n=25):
     mu = mu.squeeze().cpu().numpy()
     sigma = sigma.squeeze().cpu().numpy()
 
-    probability = extreme_cdf(proximity, mu, sigma, n)
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu, sigma)+1e-6)
     max_intensity = np.maximum(1., max_intensity)
 
-    if output=='probability':
-        return probability
-    elif output=='intensity':
-        return max_intensity
-    elif output=='both':
-        return probability, max_intensity
-    elif output=='all':
-        return mu, sigma, probability, max_intensity
+    return mu, sigma, max_intensity
