@@ -149,7 +149,7 @@ meta_both = meta_both.set_index('event_id')  # 41,404 events
 
 
 # Categorise events
-events = pd.read_csv(path_raw_honda + 'InsightTables_csv/Event_table.csv')
+events = pd.read_csv(path_raw_honda + 'InsightTables_csv/Event_Table.csv')
 severity = events[['eventID','eventSeverity1','eventSeverity2']].set_index('eventID')
 categories = {'SafeBaseline': (severity['eventSeverity1'].isin(['Balanced-Sample Baseline', 'Additional Baseline'])), 
               'Crash': (severity['eventSeverity1']=='Crash')&(severity['eventSeverity2']=='Not Applicable'),

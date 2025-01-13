@@ -16,7 +16,7 @@ path_processed = './ProcessedData/'
 
 # Load metadata and event information
 meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
-events = pd.read_csv(path_raw_honda + 'InsightTables_csv/Event_table.csv')
+events = pd.read_csv(path_raw_honda + 'InsightTables_csv/Event_Table.csv')
 meta_both = meta_both.set_index('event_id')
 events = events.set_index('eventID')
 

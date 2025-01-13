@@ -25,7 +25,7 @@ class TimeSeriesSegmenter(coortrans):
         self.data = data
         self.current_feature_size = 10
         self.initial_scene_id = initial_scene_id
-        self.events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_table.csv').set_index('eventID')
+        self.events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
         self.environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
         self.one_hot_encoder = self.create_categorical_encoder(self.environment_feature_names)
         self.profiles_set, self.current_features_set, self.environment_features_set = self.segment_data()
