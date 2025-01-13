@@ -20,12 +20,6 @@ from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
 
 
-manual_seed = 131
-path_processed = './ProcessedData/'
-path_prepared = './PreparedData/'
-path_result = './ResultData/'
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
@@ -45,7 +39,7 @@ def create_categorical_encoder(events, environment_feature_names):
     return categorical_encoder
 
 
-def main(events, args):
+def main(args, events, manual_seed, path_prepared, path_result):
     initial_time = systime.time()
     print('Available cpus:', torch.get_num_threads(), 'available gpus:', torch.cuda.device_count())
     
@@ -174,7 +168,11 @@ if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
 
+    manual_seed = 131
+    path_prepared = './PreparedData/'
+    path_result = './ResultData/'
+
     # Load event information to create one-hot encoder later
     events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_table.csv').set_index('eventID')
     
-    main(events, args)
+    main(args, events, manual_seed, path_prepared, path_result)
