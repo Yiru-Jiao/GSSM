@@ -42,7 +42,7 @@ class ts_encoder(nn.Module):
         existing_models = glob.glob(f'{save_dir}/*_net.pth')
         best_model = 'model' + existing_models[0].split('model')[-1].split('_net')[0]
         self.spclt_model.load(f'{save_dir}/{best_model}')
-        print(f'Loaded the best model: {best_model}')
+        print(f'Pretrained encoder for profiles loaded: {best_model}')
         self.feature_extractor = self.spclt_model.net
         
     def forward(self, x):
@@ -71,7 +71,7 @@ class current_encoder(nn.Module):
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
         self.load_state_dict(state_dict)
-        print(f'Loaded the best model: {best_model.split(model_selection)[-1]}')
+        print(f'Pretrained encoder for current features loaded: {best_model.split(model_selection)[-1]}')
 
     def forward(self, x):
         x = x.unsqueeze(-1) # (batch_size, 9, 1)
@@ -98,7 +98,7 @@ class environment_encoder(nn.Module):
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
         self.load_state_dict(state_dict)
-        print(f'Loaded the best model: {best_model.split(model_selection)[-1]}')
+        print(f'Pretrained encoder for environment features loaded: {best_model.split(model_selection)[-1]}')
 
     def forward(self, x):
         x = x.view(x.size(0), 1, -1) # (batch_size, 1, 27)
