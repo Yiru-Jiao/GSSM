@@ -216,7 +216,16 @@ events['other_width'] = events['motorist3Type'].map(vehicle_dimension['width'])
 events['other_length'] = events['motorist3Type'].map(vehicle_dimension['length'])
 meta_both[['target_width','target_length','other_width','other_length']] = events.set_index('eventID').loc[meta_both.index.values][['target_width','target_length','other_width','other_length']].values
 
-condition = meta_both['event_category'].isin(['SecondaryNearCrash','SecondaryCrash']) ## For secondary events, motorist3 is the target, and motorist2 is the other
+condition = meta_both['event_category'].isin(['SecondaryNearCrash','SecondaryCrash'])
+meta_both.loc[condition, ['target_width','target_length','other_width','other_length']] = meta_both.loc[condition, ['other_width','other_length','target_width','target_length']].values
+'''
+For secondary events, in general motorist3 is described as the target; but sometimes motorist2 is the target.
+To try the best to keep width&length correct, we check specifically for animal, pedestrian, cyclist, obstacle, and single.
+'''
+non_veh_list = ['animal','pedestrian','cyclist','obstacle','single']
+condition1 = (meta_both['first'].isin(non_veh_list))&(meta_both['target_width']>1.)
+condition2 = (meta_both['second'].isin(non_veh_list))&(meta_both['other_width']>1.)
+condition = condition&(condition1|condition2)
 meta_both.loc[condition, ['target_width','target_length','other_width','other_length']] = meta_both.loc[condition, ['other_width','other_length','target_width','target_length']].values
 
 meta_both.to_csv(path_processed + 'metadata_birdseye.csv')
