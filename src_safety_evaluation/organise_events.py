@@ -55,6 +55,7 @@ def main(meta_both, events):
             NearCrash: 2
             CrashRelevant: 1
             Not applicable: 0
+            The target is not considered if it is a following vehicle, as the data does not provide rear radar information
             '''
             if event_cat=='Crash':
                 event_meta.loc[event_id, 'severity_first'] = 3
@@ -72,6 +73,10 @@ def main(meta_both, events):
                 first, second = event_cat.split('-')
                 event_meta.loc[event_id, 'severity_first'] = 3 if first=='Crash' else 2 if first=='NearCrash' else 1
                 event_meta.loc[event_id, 'severity_second'] = 3 if second=='Crash' else 2 if second=='NearCrash' else 1
+            if event_meta.loc[event_id, 'first'] in ['animal', 'following', 'obstacle', 'single']:
+                event_meta.loc[event_id, 'severity_first'] = 0
+            if event_meta.loc[event_id, 'second'] in ['animal', 'following', 'obstacle', 'single']:
+                event_meta.loc[event_id, 'severity_second'] = 0
 
             # Retrieve event narrative
             event_meta.loc[event_id, 'narrative'] = events.loc[event_id, 'finalNarrative']
