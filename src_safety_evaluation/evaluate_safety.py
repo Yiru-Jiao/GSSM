@@ -75,6 +75,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         # Self-supervised traffic safety evaluation
         model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
+        os.makedirs(path_save + f'{event_cat}/pretrained/', exist_ok=True)
+        os.makedirs(path_save + f'{event_cat}/not_pretrained/', exist_ok=True)
         for model_id in range(len(model_evaluation)):
             encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
             encoder_selection = encoder_name.split('_')
