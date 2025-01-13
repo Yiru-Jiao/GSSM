@@ -97,7 +97,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
             spacing_list = []
             event_id_list = []
             target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
-            for target_id in tqdm(target_ids, desc='Target', ascii=True, dynamic_ncols=False, miniters=len(target_ids)//10):
+            verbose = len(target_ids)//10
+            progress_bar = tqdm(enumerate(target_ids), desc='Target', ascii=True, dynamic_ncols=False)
+            for progress, target_id in progress_bar:
                 df = data.loc(axis=0)[target_id, :]
                 if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                     continue
@@ -106,6 +108,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
                 current_features.append(segmented_features[1])
                 spacing_list.append(segmented_features[2])
                 event_id_list.append(segmented_features[3])
+                if progress % verbose < 1:
+                    progress_bar.update(verbose)
             profiles_features = np.concatenate(profiles_features, axis=0)
             current_features = np.concatenate(current_features, axis=0)
             spacing_list = np.concatenate(spacing_list, axis=0)
