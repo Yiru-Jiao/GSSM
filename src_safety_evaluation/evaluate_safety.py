@@ -97,7 +97,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             spacing_list = []
             event_id_list = []
             target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
-            for target_id in tqdm(target_ids, desc='Target', ascii=True, miniters=int(len(target_ids)/10)):
+            for target_id in tqdm(target_ids, desc='Target', ascii=True, dynamic_ncols=False, miniters=len(target_ids)//10):
                 df = data.loc(axis=0)[target_id, :]
                 if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                     continue
