@@ -100,7 +100,7 @@ class train_val_test():
                 )
 
         if self.verbose > 0:
-            progress_bar = tqdm(range(num_epochs), unit='epoch', ascii=True, dynamic_ncols=False, miniters=self.verbose)
+            progress_bar = tqdm(range(num_epochs), unit='epoch', ascii=True, dynamic_ncols=False)
         else:
             progress_bar = range(num_epochs)
         for epoch_n in progress_bar:
