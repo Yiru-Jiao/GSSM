@@ -70,7 +70,7 @@ def main(events, args):
     environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
     one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
-    # Evaluate for each event category    
+    # Evaluate for each event category
     path_save = path_result + 'ConflictDetection/'
     event_categories = os.listdir(path_save)
     for event_cat in event_categories:
@@ -89,7 +89,7 @@ def main(events, args):
             cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
             cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
 
-            if os.path.exists(path_save + f'{event_cat}/{encoder_name}_{cross_attention_name}_{pretraining}.h5'):
+            if os.path.exists(path_save + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5'):
                 print(f'{event_cat} has been evaluated by {encoder_name}-{cross_attention_name}-{pretraining} encoder.')
                 continue
             # Define and load trained model
@@ -135,7 +135,7 @@ def main(events, args):
             results['mu'] = mu
             results['sigma'] = sigma
             results['intensity'] = max_intensity
-            results.to_hdf(path_save + f'{event_cat}/{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data', mode='w')
+            results.to_hdf(path_save + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data', mode='w')
 
         # Two-dimensional time-to-collision (2D-TTC) and Deceleration Rate to Avoid Collision (DRAC)
         rename_columns = dict()
