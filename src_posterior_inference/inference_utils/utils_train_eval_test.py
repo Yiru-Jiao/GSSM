@@ -45,7 +45,7 @@ class train_val_test():
             if pretrained_encoder:
                 self.path_output = path_prepared + f'PosteriorInference/pretrained/{encoder_name}_{cross_attention_name}/'
             else:
-                self.path_output = path_prepared + f'PosteriorInference/notpretrained/{encoder_name}_{cross_attention_name}/'
+                self.path_output = path_prepared + f'PosteriorInference/not_pretrained/{encoder_name}_{cross_attention_name}/'
             os.makedirs(self.path_output, exist_ok=True)
             self.loss_func = LogNormalNLL()
         self.encoder_selection = encoder_selection
@@ -163,7 +163,7 @@ class train_val_test():
             if self.pretrained_encoder:
                 self.path_output = self.path_prepared + f'PosteriorInference/pretrained/{self.encoder_name}_{self.cross_attention_name}/'
             else:
-                self.path_output = self.path_prepared + f'PosteriorInference/notpretrained/{self.encoder_name}_{self.cross_attention_name}/'
+                self.path_output = self.path_prepared + f'PosteriorInference/not_pretrained/{self.encoder_name}_{self.cross_attention_name}/'
         if batch_size is not None and initial_lr is not None:
             self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
         else:
