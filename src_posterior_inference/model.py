@@ -70,7 +70,7 @@ class UnifiedProximity(nn.Module):
     def forward(self, x):
         latent = self.combi_encoder(x)
         out = self.attention_decoder(latent)
-        return out # mu, sigma
+        return out # (mu, sigma) if return_attention=False; (mu, sigma, attention) if return_attention=True
 
 
 class LogNormalNLL(nn.Module):
