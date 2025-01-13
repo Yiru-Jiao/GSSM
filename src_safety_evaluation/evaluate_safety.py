@@ -13,6 +13,7 @@ import argparse
 from sklearn.preprocessing import OneHotEncoder
 from validation_utils.utils_features import *
 from validation_utils.utils_detection import *
+import validation_utils.TwoDimTTC as TwoDimTTC
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
@@ -44,7 +45,7 @@ def create_categorical_encoder(events, environment_feature_names):
     return categorical_encoder
 
 
-def main(meta_both, events, args):
+def main(events, args):
     initial_time = systime.time()
     print('Available cpus:', torch.get_num_threads(), 'available gpus:', torch.cuda.device_count())
     
@@ -69,23 +70,16 @@ def main(meta_both, events, args):
     environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
     one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
-    # Evaluate for each event category
-    meta_both = meta_both[(meta_both['event_category']!='SafeBaseline')&
-                          (meta_both['ego_reconstructed'].astype(bool))&
-                          (meta_both['surrounding_reconstructed'].astype(bool))]
-    
+    # Evaluate for each event category    
     path_save = path_result + 'ConflictDetection/'
-    os.makedirs(path_save, exist_ok=True)
-    for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
+    event_categories = os.listdir(path_save)
+    for event_cat in event_categories:
         print(f'--- Evaluating {event_cat} ---')
-        os.makedirs(path_save + f'{event_cat}/', exist_ok=True)
-        if os.path.exists(path_save + f'{event_cat}/events.h5'):
-            data = pd.read_hdf(path_save + f'{event_cat}/events.h5', key='data')
-        else:
-            data = read_data(event_cat)
-            data.to_hdf(path_save + f'{event_cat}/events.h5', key='data', mode='w')
-        assert data['event_id'].nunique() == len(meta_both[meta_both['event_category']==event_cat])
+        event_meta = pd.read_csv(path_save + f'{event_cat}/event_meta.csv').set_index('event_id')
+        data = pd.read_hdf(path_save + f'{event_cat}/event_data.h5', key='data')
+        assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
 
+        # Self-supervised traffic safety evaluation
         model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
         for model_id in range(len(model_evaluation)):
             encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
@@ -95,17 +89,10 @@ def main(meta_both, events, args):
             cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
             cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
 
-            if os.path.exists(path_save + f'{event_cat}/{encoder_name}_{pretraining}.h5'):
-                print(f'{event_cat} has been evaluated by {encoder_name}-{pretraining} encoder.')
+            if os.path.exists(path_save + f'{event_cat}/{encoder_name}_{cross_attention_name}_{pretraining}.h5'):
+                print(f'{event_cat} has been evaluated by {encoder_name}-{cross_attention_name}-{pretraining} encoder.')
                 continue
             # Define and load trained model
-            best_model = model_evaluation[(model_evaluation['encoder_selection']==encoder_name)&
-                                          (model_evaluation['pretraining']==pretraining)]
-            if len(best_model)==0:
-                print(f'No model is available for {encoder_name}-{pretraining} encoder.')
-                continue
-            else:
-                best_model = best_model.iloc[0]
             model = define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
 
             # Organise features for each event and target
@@ -113,11 +100,9 @@ def main(meta_both, events, args):
             current_features = []
             spacing_list = []
             event_id_list = []
-            target_ids = data.index.get_level_values('target_id').unique()
+            target_ids = event_meta[event_meta['duration_enough']].index.values
             for target_id in tqdm(target_ids, desc='Target', ascii=True):
                 df = data.loc(axis=0)[target_id, :]
-                if len(df)<25: # skip if the target was detected for less than 2.5 seconds
-                    continue
                 segmented_features = get_context_representations(df, current_scaler, profiles_scaler)
                 profiles_features.append(segmented_features[0])
                 current_features.append(segmented_features[1])
@@ -143,15 +128,43 @@ def main(meta_both, events, args):
             else:
                 states = [tuple(states), spacing_list]
 
-            mu, sigma, probability, max_intensity, _ = assess_conflict(states, model, device, output='all')
-            record = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-            record[['event_id','target_id']] = record[['event_id','target_id']].astype(int)
-            record['proximity'] = spacing_list
-            record['mu'] = mu
-            record['sigma'] = sigma
-            record['probability'] = probability
-            record['intensity'] = max_intensity
-            record.to_hdf(path_save + f'{event_cat}/{encoder_name}_{pretraining}.h5', key='data', mode='w')
+            mu, sigma, max_intensity = SSSE(states, model, device)
+            results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+            results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
+            results['proximity'] = spacing_list
+            results['mu'] = mu
+            results['sigma'] = sigma
+            results['intensity'] = max_intensity
+            results.to_hdf(path_save + f'{event_cat}/{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data', mode='w')
+
+        # Two-dimensional time-to-collision (2D-TTC) and Deceleration Rate to Avoid Collision (DRAC)
+        rename_columns = dict()
+        for column in data.columns:
+            if '_ego' in column:
+                rename_columns[column] = column.replace('_ego','_i')
+            elif '_sur' in column:
+                rename_columns[column] = column.replace('_sur','_j')
+        results = data.rename(columns=rename_columns).copy()
+        results['vx_i'] = results['v_i']*results['hx_i']
+        results['vy_i'] = results['v_i']*results['hy_i']
+        results['vx_j'] = results['v_j']*results['hx_j']
+        results['vy_j'] = results['v_j']*results['hy_j']
+
+        veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
+        condition = event_meta[['target_width','target_length']].isna().any(axis=1)
+        veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
+        results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
+
+        results['TTC'] = TwoDimTTC.TTC(results, 'values')
+
+        results['s_box'] = TwoDimTTC.CurrentD(results, 'values')
+        results.loc[results['s_box']<1e-6, 's_box'] = 1e-6
+        results['delta_v'] = np.sqrt((results['vx_i']-results['vx_j'])**2 + (results['vy_i']-results['vy_j'])**2)
+        results['DRAC'] = results['delta_v']**2 / 2 / results['s_box']
+        results.loc[results['v_i']<=results['v_j'], 'DRAC'] = 0.
+
+        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'TTC', 'DRAC']]
+        results.to_hdf(path_save + f'{event_cat}/TTC_DRAC.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
@@ -159,13 +172,9 @@ def main(meta_both, events, args):
 
 if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
-    manual_seed = 131
-    np.random.seed(manual_seed)
     args = parse_args()
 
-    # Load metadata and event information
-    meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
-    meta_both = meta_both.set_index('event_id')
+    # Load event information to create one-hot encoder later
     events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_table.csv').set_index('eventID')
     
-    main(meta_both, events, args)
+    main(events, args)
