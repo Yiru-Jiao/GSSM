@@ -23,7 +23,7 @@ def main(meta_both, events):
                           (meta_both['ego_reconstructed'].astype(bool))&
                           (meta_both['surrounding_reconstructed'].astype(bool))]
     
-    path_save = path_result + 'ConflictDetection/'
+    path_save = path_result + 'EventEvaluation/'
     os.makedirs(path_save, exist_ok=True)
     for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
         event_meta = meta_both[meta_both['event_category']==event_cat].copy()

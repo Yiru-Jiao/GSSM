@@ -65,7 +65,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
     one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
     # Evaluate for each event category
-    path_save = path_result + 'ConflictDetection/'
+    path_save = path_result + 'EventEvaluation/'
     event_categories = os.listdir(path_save)
     for event_cat in event_categories:
         print(f'--- Evaluating {event_cat} ---')
