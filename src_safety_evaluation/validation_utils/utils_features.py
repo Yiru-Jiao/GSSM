@@ -39,13 +39,13 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
 
 def get_scaler(path_prepared, feature='profiles'):
     if feature == 'profiles':
-        scaler_data = pd.concat([pd.read_hdf(f'{path_prepared}SafeBaselines/profiles_{split}.h5', key='profiles') for split in ['train', 'val', 'test']], ignore_index=True)
+        scaler_data = pd.concat([pd.read_hdf(f'{path_prepared}Segments/profiles_{split}.h5', key='profiles') for split in ['train', 'val', 'test']], ignore_index=True)
         scaler_data = scaler_data[['v_ego','omega_ego','v_sur']].values
         scaler = StandardScaler()
         scaler.fit(scaler_data)
     elif feature == 'current':
         variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
-        scaler_data = pd.concat([pd.read_hdf(f'{path_prepared}SafeBaselines/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
+        scaler_data = pd.concat([pd.read_hdf(f'{path_prepared}Segments/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
         scaler_data = scaler_data[variables].values
         scaler = StandardScaler()
         scaler.fit(scaler_data)
