@@ -94,7 +94,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             current_features = []
             spacing_list = []
             event_id_list = []
-            target_ids = event_meta[event_meta['duration_enough']].index.values
+            target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
             for target_id in tqdm(target_ids, desc='Target', ascii=True):
                 df = data.loc(axis=0)[target_id, :]
                 segmented_features = get_context_representations(df, current_scaler, profiles_scaler)
@@ -132,6 +132,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             results.to_hdf(path_save + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data', mode='w')
 
         # Two-dimensional time-to-collision (2D-TTC) and Deceleration Rate to Avoid Collision (DRAC)
+        data = data.reset_index()
         rename_columns = dict()
         for column in data.columns:
             if '_ego' in column:
