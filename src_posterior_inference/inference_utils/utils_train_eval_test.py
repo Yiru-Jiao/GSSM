@@ -47,12 +47,12 @@ class train_val_test():
             else:
                 self.path_output = path_prepared + f'PosteriorInference/not_pretrained/{encoder_name}_{cross_attention_name}/'
             os.makedirs(self.path_output, exist_ok=True)
-            self.loss_func = LogNormalNLL()
         self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
         self.pretrained_encoder = pretrained_encoder
         self.return_attention = return_attention
         self.define_model()
+        self.loss_func = LogNormalNLL()
 
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.cross_attention, self.return_attention)
