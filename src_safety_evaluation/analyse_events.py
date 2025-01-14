@@ -14,6 +14,7 @@ from validation_utils.utils_detection import *
 
 def main(path_prepared, path_result):
     initial_time = systime.time()
+    print('---- available cpus:', os.cpu_count(), '----')
 
     # Read data for all event categories
     path_events = path_result + 'EventEvaluation/'
@@ -90,7 +91,8 @@ def main(path_prepared, path_result):
 
         drac_thresholds = np.round(np.arange(0.05,5.,0.05),2)
         safety_evaluation = read_evaluation('DRAC', path_events)
-        drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in tqdm(drac_thresholds, desc='DRAC'))
+        progress_bar = tqdm(drac_thresholds, desc='DRAC', ascii=True, dynamic_ncols=False)
+        drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in progress_bar)
         drac_records = pd.concat(drac_records).reset_index()
         drac_records['indicator'] = 'DRAC'
         results.append(drac_records)
@@ -98,7 +100,8 @@ def main(path_prepared, path_result):
 
         ttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
         safety_evaluation = read_evaluation('TTC', path_events)
-        ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in tqdm(ttc_thresholds, desc='TTC'))
+        progress_bar = tqdm(ttc_thresholds, desc='TTC', ascii=True, dynamic_ncols=False)
+        ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in progress_bar)
         ttc_records = pd.concat(ttc_records).reset_index()
         ttc_records['indicator'] = 'TTC'
         results.append(ttc_records)
@@ -108,7 +111,8 @@ def main(path_prepared, path_result):
         for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list):
             print(pretraining + '_' + encoder_name + '_' + cross_attention_name)
             safety_evaluation = read_evaluation('SSSE', path_events, pretraining, encoder_name, cross_attention_name)
-            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in tqdm(ssse_thresholds, desc='SSSE'))
+            progress_bar = tqdm(ssse_thresholds, desc='SSSE', ascii=True, dynamic_ncols=False)
+            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)
             ssse_records = pd.concat(ssse_records).reset_index()
             ssse_records['indicator'] = 'SSSE'
             ssse_records['model'] = pretraining + '_' + encoder_name + '_' + cross_attention_name
@@ -138,6 +142,7 @@ def main(path_prepared, path_result):
 
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(line_buffering=True)
     manual_seed = 131
     np.random.seed(manual_seed)
 
