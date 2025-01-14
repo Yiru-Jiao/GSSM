@@ -63,16 +63,21 @@ def send_x_to_device(x, device):
 class custom_dataset(Dataset): 
     def __init__(self, X):
         self.X = X
-        if isinstance(X[0], tuple):
+        if isinstance(X, tuple):
+            def get_length():
+                return len(self.X[0])
             def get_item(idx):
-                return [torch.from_numpy(i).float() for i in self.X[idx]]
+                return [torch.from_numpy(x_i[idx]).float() for x_i in self.X]
         else:
+            def get_length():
+                return len(self.X)
             def get_item(idx):
                 return torch.from_numpy(self.X[idx]).float()
+        self.get_length = get_length
         self.get_item = get_item
 
     def __len__(self): 
-        return len(self.X)
+        return self.get_length()
 
     def __getitem__(self, idx): 
         return self.get_item(idx)
@@ -101,3 +106,75 @@ def SSSE(states, model, device):
     return mu, sigma, max_intensity
 
 
+def determine_conflicts(evaluation, conflict_indicator, threshold):
+    evaluation = evaluation.reset_index()
+    evaluation['conflict'] = False
+
+    if conflict_indicator=='TTC':
+        evaluation.loc[(evaluation['TTC']<threshold), 'conflict'] = True
+        return evaluation
+    
+    elif conflict_indicator=='DRAC':
+        evaluation.loc[(evaluation['DRAC']>threshold), 'conflict'] = True
+        return evaluation
+    
+    elif conflict_indicator=='SSSE':
+        evaluation['probability'] = extreme_cdf(evaluation['proximity'].values, evaluation['mu'].values, evaluation['sigma'].values, threshold)
+        # 0.5 means that the probability of conflict is larger than the probability of non-conflict
+        evaluation.loc[evaluation['probability']>0.5, 'conflict'] = True
+        return evaluation
+
+
+def roc_curve(evaluation, event_meta, indicator, thresholds):
+    evaluation = evaluation.sort_values(['target_id','time'])
+    events = events.set_index('event_id')
+    event_meta = event_meta[event_meta['reaction_covered']]
+    event_ids = event_meta.index.values
+
+    for event_id in event_ids:
+        event = events.loc[event_id].copy()
+        # the 3 seconds in the event before the moment are supposed to be dangerous
+        within_3s = data[(data['time']>=moment-3)&(data['time']<=moment)&(data['event'])]
+        true_warning = within_3s[within_3s['conflict']]
+        if len(true_warning)>0:
+            meta.loc[trip_id,'true warning'] = True
+        else:
+            meta.loc[trip_id,'true warning'] = False
+
+        # the first 3 seconds are assumed to be safe
+        beginning = data['time'].min()
+        first_3s = data[(data['time']>=beginning)&(data['time']<=beginning+3)&(~data['event'])]
+        false_warning = first_3s[first_3s['conflict']]
+        if len(false_warning)>0:
+            meta.loc[trip_id,'false warning'] = True
+        else:
+            meta.loc[trip_id,'false warning'] = False
+
+    return results
+
+
+def issue_warning(evaluation, event_meta, indicator, threshold):
+    evaluation = evaluation.sort_values(['target_id','time'])
+    events = events.set_index('event_id')
+    event_meta = event_meta[event_meta['reaction_covered']]
+    event_ids = event_meta.index.values
+
+    for event_id in event_ids:
+        event = events.loc[event_id].copy()
+
+        data = determine_conflicts(data, indicator, parameters)
+        true_warning = data[(data['conflict'])&(data['event'])]
+        event_period = data[data['event']]
+        meta.loc[trip_id,'warning period'] = len(true_warning)/len(event_period)
+
+        # record the first warning before the impact moment
+        indicated_events.append(data)
+        warning = data[data['time']<=moment]['conflict'].astype(int).values
+        warning_change = warning[1:] - warning[:-1]
+        first_warning = np.where(warning_change==1)[0]
+        if len(first_warning)>0:
+            meta.loc[trip_id,'first warning'] = data.loc[first_warning[-1]+1,'time']
+        else:
+            meta.loc[trip_id,'first warning'] = np.nan
+        
+    return meta.reset_index()
