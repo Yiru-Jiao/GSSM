@@ -208,33 +208,32 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'true warning'] = True
         else:
             records.loc[event_id, 'true warning'] = False
-    records['target_id'] = records['target_id'].astype(int)
     records['threshold'] = threshold
     return records
 
 
-def issue_warning(evaluation, event_meta, indicator, threshold):
-    evaluation = evaluation.sort_values(['target_id','time'])
-    events = events.set_index('event_id')
-    event_meta = event_meta[event_meta['reaction_covered']]
-    event_ids = event_meta.index.values
+# def issue_warning(evaluation, event_meta, indicator, threshold):
+#     evaluation = evaluation.sort_values(['target_id','time'])
+#     events = events.set_index('event_id')
+#     event_meta = event_meta[event_meta['reaction_covered']]
+#     event_ids = event_meta.index.values
 
-    for event_id in event_ids:
-        event = events.loc[event_id].copy()
+#     for event_id in event_ids:
+#         event = events.loc[event_id].copy()
 
-        data = determine_conflicts(data, indicator, parameters)
-        true_warning = data[(data['conflict'])&(data['event'])]
-        event_period = data[data['event']]
-        meta.loc[trip_id,'warning period'] = len(true_warning)/len(event_period)
+#         data = determine_conflicts(data, indicator, parameters)
+#         true_warning = data[(data['conflict'])&(data['event'])]
+#         event_period = data[data['event']]
+#         meta.loc[trip_id,'warning period'] = len(true_warning)/len(event_period)
 
-        # record the first warning before the impact moment
-        indicated_events.append(data)
-        warning = data[data['time']<=moment]['conflict'].astype(int).values
-        warning_change = warning[1:] - warning[:-1]
-        first_warning = np.where(warning_change==1)[0]
-        if len(first_warning)>0:
-            meta.loc[trip_id,'first warning'] = data.loc[first_warning[-1]+1,'time']
-        else:
-            meta.loc[trip_id,'first warning'] = np.nan
+#         # record the first warning before the impact moment
+#         indicated_events.append(data)
+#         warning = data[data['time']<=moment]['conflict'].astype(int).values
+#         warning_change = warning[1:] - warning[:-1]
+#         first_warning = np.where(warning_change==1)[0]
+#         if len(first_warning)>0:
+#             meta.loc[trip_id,'first warning'] = data.loc[first_warning[-1]+1,'time']
+#         else:
+#             meta.loc[trip_id,'first warning'] = np.nan
         
-    return meta.reset_index()
+#     return meta.reset_index()
