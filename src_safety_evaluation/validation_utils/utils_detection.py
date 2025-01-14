@@ -21,10 +21,18 @@ def read_events(path_events):
     return event_meta, event_data
 
 
-def read_evaluation(pretraining, encoder_name, cross_attention_name, path_events):
+def read_evaluation(indicator, path_events, pretraining=None, encoder_name=None, cross_attention_name=None):
     event_categories = sorted(os.listdir(path_events))
-    safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data') for event_cat in event_categories])
-    return safety_evaluation
+    if indicator=='TTC' or indicator=='DRAC':
+        safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/TTC_DRAC.h5', key='data') for event_cat in event_categories])
+        return safety_evaluation
+    elif indicator=='SSSE':
+        if pretraining is None:
+            print('Please specify model configuration for SSSE evaluation.')
+            return None
+        else:
+            safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data') for event_cat in event_categories])
+            return safety_evaluation
 
 
 def define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder):
@@ -125,32 +133,66 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
         return evaluation
 
 
-def roc_curve(evaluation, event_meta, indicator, thresholds):
-    evaluation = evaluation.sort_values(['target_id','time'])
-    events = events.set_index('event_id')
-    event_meta = event_meta[event_meta['reaction_covered']]
-    event_ids = event_meta.index.values
+def roc_curve(safety_evaluation, event_meta, indicator, thresholds):
+    safety_evaluation = safety_evaluation.sort_values(['target_id','time'])
+    events = safety_evaluation.set_index('event_id')
+    event_ids = events.index.unique()
 
-    for event_id in event_ids:
-        event = events.loc[event_id].copy()
-        # the 3 seconds in the event before the moment are supposed to be dangerous
-        within_3s = data[(data['time']>=moment-3)&(data['time']<=moment)&(data['event'])]
-        true_warning = within_3s[within_3s['conflict']]
-        if len(true_warning)>0:
-            meta.loc[trip_id,'true warning'] = True
-        else:
-            meta.loc[trip_id,'true warning'] = False
+    tp_fp_records = []
+    for threshold in thresholds:
+        records = event_meta[['danger_start', 'danger_end']].copy()
+        for event_id in event_ids:
+            event = events.loc[event_id].copy()
+            danger = event[(event['time']>event_meta.loc[event_id, 'danger_start']/1000)&
+                           (event['time']<event_meta.loc[event_id, 'danger_end']/1000)]
+            if len(danger)<5:
+                records.loc[event_id, 'danger_recorded'] = False
+                continue
+            else:
+                records.loc[event_id, 'danger_recorded'] = True
 
-        # the first 3 seconds are assumed to be safe
-        beginning = data['time'].min()
-        first_3s = data[(data['time']>=beginning)&(data['time']<=beginning+3)&(~data['event'])]
-        false_warning = first_3s[first_3s['conflict']]
-        if len(false_warning)>0:
-            meta.loc[trip_id,'false warning'] = True
-        else:
-            meta.loc[trip_id,'false warning'] = False
+            # Determine the conflicting target
+            if indicator=='TTC':
+                target_id = danger.loc[danger['TTC'].idxmin(),'target_id']
+            elif indicator=='DRAC':
+                target_id = danger.loc[danger['DRAC'].idxmax(),'target_id']
+            elif indicator=='SSSE':
+                target_id = danger.loc[danger['intensity'].idxmax(),'target_id']
+            records.loc[event_id, 'target_id'] = target_id
+            target_danger = danger[danger['target_id']==target_id]
 
-    return results
+            # Determine safety period for the conflicting target
+            target = event[event['target_id']==target_id]
+            target_first3s = target[(target['time']<=target['time'].min()+3.)&
+                                    (target['time']<event_meta.loc[event_id, 'start_timestamp']/1000)]
+            if len(target_first3s)<5:
+                records.loc[event_id, 'safety_recorded'] = False
+                continue
+            no_hard_braking = (target_first3s['acc_ego'].min()>-1.5)
+            not_in_congestion = (target_first3s.iloc[0]['v_ego']>3.)&(target_first3s.iloc[0]['v_sur']>3.)
+            if no_hard_braking and not_in_congestion:
+                records.loc[event_id, 'safety_recorded'] = True
+                records.loc[event_id, 'avg_acc_ego'] = target_first3s['acc_ego'].mean()
+                records.loc[event_id, 'avg_v_ego'] = target_first3s['v_ego'].mean()
+                records.loc[event_id, 'avg_v_sur'] = target_first3s['v_sur'].mean()
+            else:
+                records.loc[event_id, 'safety_recorded'] = False
+            
+            # Determine conflict and warning
+            target_first3s = determine_conflicts(target_first3s, indicator, threshold)
+            if np.any(target_first3s['conflict']):
+                records.loc[event_id, 'false warning'] = True
+            else:
+                records.loc[event_id, 'false warning'] = False
+            target_danger = determine_conflicts(target_danger, indicator, threshold)
+            if np.any(target_danger['conflict']):
+                records.loc[event_id, 'true warning'] = True
+            else:
+                records.loc[event_id, 'true warning'] = False
+        records['threshold'] = threshold
+        tp_fp_records.append(records)
+    tp_fp_records = pd.concat(tp_fp_records).reset_index()
+    return tp_fp_records
 
 
 def issue_warning(evaluation, event_meta, indicator, threshold):
