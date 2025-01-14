@@ -5,9 +5,26 @@ import os
 import sys
 import torch
 import numpy as np
+import pandas as pd
+from torch.utils.data import Dataset, DataLoader
 from scipy.special import erf
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
+
+
+def read_events(path_events):
+    event_categories = sorted(os.listdir(path_events))
+    event_meta = pd.concat([pd.read_csv(path_events + f'{event_cat}/event_meta.csv') for event_cat in event_categories])
+    event_meta = event_meta.set_index('event_id')
+    event_data = pd.concat([pd.read_hdf(path_events + f'{event_cat}/event_data.h5', key='data') for event_cat in event_categories])
+    assert np.all(np.isin(event_data['event_id'].unique(), event_meta.index.values))
+    return event_meta, event_data
+
+
+def read_evaluation(pretraining, encoder_name, cross_attention_name, path_events):
+    event_categories = sorted(os.listdir(path_events))
+    safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data') for event_cat in event_categories])
+    return safety_evaluation
 
 
 def define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder):
@@ -37,21 +54,45 @@ def extreme_cdf(x, mu, sigma, n=10):
 
 
 def send_x_to_device(x, device):
-    if isinstance(x, tuple):
-        return [torch.from_numpy(i).float().to(device) for i in x]
+    if isinstance(x, list):
+        return [i.to(device) for i in x]
     else:
-        return torch.from_numpy(x).float().to(device)
+        return x.to(device)
 
+
+class custom_dataset(Dataset): 
+    def __init__(self, X):
+        self.X = X
+        if isinstance(X[0], tuple):
+            def get_item(idx):
+                return [torch.from_numpy(i).float() for i in self.X[idx]]
+        else:
+            def get_item(idx):
+                return torch.from_numpy(self.X[idx]).float()
+        self.get_item = get_item
+
+    def __len__(self): 
+        return len(self.X)
+
+    def __getitem__(self, idx): 
+        return self.get_item(idx)
+    
 
 def SSSE(states, model, device):
-    x, proximity = states
+    contexts, proximity = states
+    data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
 
-    # Compute mu and sigma
-    with torch.no_grad():
-        out = model(send_x_to_device(x, device))
-        mu, sigma, _ = out
-    mu = mu.squeeze().cpu().numpy()
-    sigma = sigma.squeeze().cpu().numpy()
+    mu_list = []
+    sigma_list = []
+    for x in data_loader:
+        with torch.no_grad():
+            out = model(send_x_to_device(x, device))
+            mu, sigma, _ = out
+        mu_list.append(mu.squeeze().cpu().numpy())
+        sigma_list.append(sigma.squeeze().cpu().numpy())
+
+    mu = np.concatenate(mu_list, axis=0)
+    sigma = np.concatenate(sigma_list, axis=0)
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu, sigma)+1e-6)
@@ -60,102 +101,3 @@ def SSSE(states, model, device):
     return mu, sigma, max_intensity
 
 
-def determine_conflicts(data, conflict_indicator, parameters):
-    data = data.reset_index()
-
-    if conflict_indicator=='TTC':
-        ttc_threshold = parameters[0]
-        data['conflict'] = False
-        data['indicator_value'] = TwoDimTTC.TTC(data, 'values')
-        data.loc[(data['indicator_value']<ttc_threshold), 'conflict'] = True
-        return data
-    
-    elif conflict_indicator=='DRAC':
-        drac_threshold = parameters[0]
-        data['s_box'] = TwoDimTTC.CurrentD(data, 'values')
-        data.loc[data['s_box']<1e-6, 's_box'] = 1e-6
-        data['conflict'] = False
-        data['delta_v'] = np.sqrt((data['vx_i']-data['vx_j'])**2 + (data['vy_i']-data['vy_j'])**2)
-        follower_speed = data['forward'].astype(int)*data['speed_i'] + (1-data['forward'])*data['speed_j']
-        leader_speed = data['forward'].astype(int)*data['speed_j'] + (1-data['forward'])*data['speed_i']
-        data['indicator_value'] = data['delta_v']**2 / 2 / data['s_box']
-        data.loc[follower_speed<=leader_speed, 'indicator_value'] = 0.
-        data.loc[(data['indicator_value']>drac_threshold), 'conflict'] = True
-        return data
-    
-    elif conflict_indicator=='Unified':
-        n, proximity_phi = parameters
-        data['s_centroid'] = np.sqrt((data['x_i']-data['x_j'])**2 + (data['y_i']-data['y_j'])**2)
-        data = data.merge(proximity_phi, on=['trip_id','time'])
-        data['probability'] = extreme_cdf(data['s_centroid'].values, data['mu'].values, data['sigma'].values, n)
-        data['conflict'] = False
-        # 0.5 means that the probability of conflict is larger than the probability of non-conflict
-        data.loc[data['probability']>0.5, 'conflict'] = True
-        return data
-
-
-def warning(events, meta, parameters, indicator, record_data=False):
-    '''
-    Perform warning analysis on the given events and metadata.
-
-    Parameters:
-    - events: Event data.
-    - meta: Metadata.
-    - parameters: Parameters for conflict detection.
-    - indicator: Indicator for conflict detection ('TTC', 'PSD', or 'Unified').
-    - record_data: Whether to record additional data.
-
-    Returns:
-    - Warning analysis results.
-    '''
-    events = events.sort_values(['trip_id','time'])
-    events = events.set_index('trip_id')
-    meta = meta.rename(columns={'webfileid':'trip_id'}).set_index('trip_id')
-    meta = meta[['event start time','event end time','moment']].copy()
-    trip_ids = meta.index
-
-    ## Apply to each trip
-    if record_data:
-        indicated_events = []
-    for trip_id in trip_ids:
-        data = events.loc[trip_id].copy()
-        moment = meta.loc[trip_id]['moment'] # moment of the minimum distance
-
-        data = determine_conflicts(data, indicator, parameters)
-        true_warning = data[(data['conflict'])&(data['event'])]
-        event_period = data[data['event']]
-        meta.loc[trip_id,'warning period'] = len(true_warning)/len(event_period)
-
-        # the 3 seconds in the event before the moment are supposed to be dangerous
-        within_3s = data[(data['time']>=moment-3)&(data['time']<=moment)&(data['event'])]
-        true_warning = within_3s[within_3s['conflict']]
-        if len(true_warning)>0:
-            meta.loc[trip_id,'true warning'] = True
-        else:
-            meta.loc[trip_id,'true warning'] = False
-
-        # the first 3 seconds are assumed to be safe
-        beginning = data['time'].min()
-        first_3s = data[(data['time']>=beginning)&(data['time']<=beginning+3)&(~data['event'])]
-        false_warning = first_3s[first_3s['conflict']]
-        if len(false_warning)>0:
-            meta.loc[trip_id,'false warning'] = True
-        else:
-            meta.loc[trip_id,'false warning'] = False
-
-        # record the first warning before the moment
-        if record_data:
-            indicated_events.append(data)
-            warning = data[data['time']<=moment]['conflict'].astype(int).values
-            warning_change = warning[1:] - warning[:-1]
-            first_warning = np.where(warning_change==1)[0]
-            if len(first_warning)>0:
-                meta.loc[trip_id,'first warning'] = data.loc[first_warning[-1]+1,'time']
-            else:
-                meta.loc[trip_id,'first warning'] = np.nan
-        
-    if record_data:
-        indicated_events = pd.concat(indicated_events).reset_index(drop=True)
-        return meta.reset_index(), indicated_events
-    else:
-        return meta.reset_index()
