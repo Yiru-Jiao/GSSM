@@ -77,6 +77,28 @@ def main(args, events, manual_seed, path_prepared, path_result):
         model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
         os.makedirs(path_save + f'{event_cat}/pretrained/', exist_ok=True)
         os.makedirs(path_save + f'{event_cat}/not_pretrained/', exist_ok=True)
+
+        # Organise features for each event and target
+        profiles_features = []
+        current_features = []
+        spacing_list = []
+        event_id_list = []
+        target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
+        for target_id in tqdm(target_ids, desc='Target', position=0, dynamic_ncols=False, ascii=True, miniters=len(target_ids)//10):
+            df = data.loc(axis=0)[target_id, :]
+            if len(df)<25: # skip if the target was detected for less than 2.5 seconds
+                continue
+            segmented_features = get_context_representations(df, current_scaler, profiles_scaler)
+            profiles_features.append(segmented_features[0])
+            current_features.append(segmented_features[1])
+            spacing_list.append(segmented_features[2])
+            event_id_list.append(segmented_features[3])
+        profiles_features = np.concatenate(profiles_features, axis=0)
+        current_features = np.concatenate(current_features, axis=0)
+        spacing_list = np.concatenate(spacing_list, axis=0)
+        event_id_list = np.concatenate(event_id_list, axis=0)
+        assert profiles_features.shape == (len(spacing_list), 20, 3)
+            
         for model_id in range(len(model_evaluation)):
             encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
             encoder_selection = encoder_name.split('_')
@@ -91,36 +113,15 @@ def main(args, events, manual_seed, path_prepared, path_result):
             # Define and load trained model
             model = define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
 
-            # Organise features for each event and target
-            profiles_features = []
-            current_features = []
-            spacing_list = []
-            event_id_list = []
-            target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
-            for target_id in tqdm(target_ids, desc='Target', position=0, dynamic_ncols=False, ascii=True, miniters=len(target_ids)//10):
-                df = data.loc(axis=0)[target_id, :]
-                if len(df)<25: # skip if the target was detected for less than 2.5 seconds
-                    continue
-                segmented_features = get_context_representations(df, current_scaler, profiles_scaler)
-                profiles_features.append(segmented_features[0])
-                current_features.append(segmented_features[1])
-                spacing_list.append(segmented_features[2])
-                event_id_list.append(segmented_features[3])
-            profiles_features = np.concatenate(profiles_features, axis=0)
-            current_features = np.concatenate(current_features, axis=0)
-            spacing_list = np.concatenate(spacing_list, axis=0)
-            event_id_list = np.concatenate(event_id_list, axis=0)
-            assert profiles_features.shape == (len(spacing_list), 20, 3)
-            
             states = []
             if 'current' in encoder_selection:
-                states.append(current_features)
+                states.append(current_features.copy())
             if 'environment' in encoder_selection:
                 environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
                 environment_features = one_hot_encoder.transform(environment_features.values)
-                states.append(environment_features)
+                states.append(environment_features.copy())
             if 'profiles' in encoder_selection:
-                states.append(profiles_features)
+                states.append(profiles_features.copy())
             if len(states) == 1: # only current features
                 states = [states[0], spacing_list]
             else:
