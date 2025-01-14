@@ -66,7 +66,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
     # Evaluate for each event category
     path_save = path_result + 'EventEvaluation/'
-    event_categories = os.listdir(path_save)
+    event_categories = sorted(os.listdir(path_save))
     for event_cat in event_categories:
         print(f'--- Evaluating {event_cat} ---')
         event_meta = pd.read_csv(path_save + f'{event_cat}/event_meta.csv').set_index('event_id')
