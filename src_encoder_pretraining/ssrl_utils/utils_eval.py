@@ -1,5 +1,5 @@
 '''
-This script includes utility functions for evaluation of the models.
+This script includes utility functions for evaluation of the pretrained encoders.
 '''
 
 import os

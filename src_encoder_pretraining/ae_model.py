@@ -1,5 +1,5 @@
 '''
-
+This script defines the autoencoder model for encoders for current and environment features.
 '''
 
 import os

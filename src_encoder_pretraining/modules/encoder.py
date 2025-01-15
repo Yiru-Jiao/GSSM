@@ -1,6 +1,6 @@
 '''
-This script is the encoders for the models.
-TSEncoder for UEA data is adapted from TS2Vec https://github.com/zhihanyue/ts2vec
+This script defines the encoders for models.
+TSEncoder is adapted from TS2Vec https://github.com/zhihanyue/ts2vec
 '''
 
 import torch

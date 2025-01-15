@@ -1,5 +1,5 @@
 '''
-This module contains utility functions and classes for computing the contrastive loss and regularizers.
+This script contains utility functions and classes for computing the contrastive loss and regularisers.
 Functions and classes are adjusted from the original implementation in the SoftCLT repository, TopoAE repository, and GGAE repository.
 SoftCLT https://github.com/seunghan96/softclt
 TopoAE https://github.com/BorgwardtLab/topological-autoencoders

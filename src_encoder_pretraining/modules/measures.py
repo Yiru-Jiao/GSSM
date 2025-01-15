@@ -2,10 +2,11 @@
 This script defines the measure calculator class and the measure registrator class.
 The measure calculator class is used to compute the evaluation measures for the latent space.
 The measure registrator class is used to register the evaluation measures.
-These classes are reused and adapted from https://github.com/BorgwardtLab/topological-autoencoders
+These classes are reused and adapted from TopoAE https://github.com/BorgwardtLab/topological-autoencoders
 '''
 
 import numpy as np
+
 
 class MeasureRegistrator():
     k_dependent_measures = {}

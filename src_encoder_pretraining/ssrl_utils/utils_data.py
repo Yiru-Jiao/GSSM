@@ -1,5 +1,5 @@
 '''
-This file contains functions to load and preprocess datasets for training and evaluation.
+This script contains functions to load and preprocess datasets for training and evaluation of the encoder pretraining.
 '''
 
 import os

@@ -1,5 +1,5 @@
 '''
-This script defines the trainer class and grid search function for hyperparameter tuning.
+This script defines the grid search utilities for hyperparameter tuning of profile encoder pretraining.
 '''
 
 import os

@@ -1,6 +1,6 @@
 '''
-This script is used to train and evaluate models.
-Tuned hyperparameters are loaded from the hyper_parameters directory.
+This script is used to pretrain and evaluate the profile encoder.
+Tuned hyperparameters are loaded from locally saved files.
 '''
 
 import os

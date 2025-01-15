@@ -1,5 +1,5 @@
 '''
-This file contains the functions to compute the distance matrix between time series data.
+This script contains the functions to compute the distance matrix between time series data.
 '''
 
 import numpy as np

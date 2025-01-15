@@ -1,4 +1,5 @@
 '''
+This script pretrains and evaluates the encoders for current and environment features.
 '''
 
 import os

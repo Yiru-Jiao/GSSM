@@ -1,6 +1,8 @@
 '''
-This script defines the loss functions.
+This script defines the loss functions for contrastive learning for profiles.
 The hierarchical contrastive loss reuses and adapts the code of TS2Vec and SoftCLT.
+TS2Vec https://github.com/zhihanyue/ts2vec
+SoftCLT https://github.com/seunghan96/softclt
 '''
 
 import os
