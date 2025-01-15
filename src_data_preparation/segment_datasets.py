@@ -18,11 +18,12 @@ from represent_utils.coortrans import coortrans
 
 
 class TimeSeriesSegmenter(coortrans):
-    def __init__(self, data, initial_scene_id):
+    def __init__(self, data, meta, initial_scene_id):
         super().__init__()
         self.target_ids = data['target_id'].unique()
         data = data.sort_values(['target_id','time']).set_index(['target_id','time'])
         self.data = data
+        self.meta = meta
         self.current_feature_size = 10
         self.initial_scene_id = initial_scene_id
         self.events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
@@ -47,12 +48,27 @@ class TimeSeriesSegmenter(coortrans):
         event_id_list = []
         scene_id = self.initial_scene_id
 
-        for target_id in tqdm(self.target_ids, desc='Target'):
+        random_choices = np.random.rand(len(self.target_ids))
+        for idx, target_id in tqdm(enumerate(self.target_ids), desc='Target'):
             df = self.data.loc(axis=0)[target_id, :]
             if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                 continue
             else:
                 event_id = df['event_id'].iloc[0]
+                veh_dimensions = self.meta.loc[event_id, ['ego_length','target_length','other_length']].values
+                ego_length, target_length, other_length = veh_dimensions
+            if np.isnan(ego_length): # skip if the ego vehicle length is missing
+                continue
+            else:
+                if np.isnan(target_length) and np.isnan(other_length):
+                    target_length = ego_length
+                elif np.isnan(target_length):
+                    target_length = other_length
+                elif np.isnan(other_length):
+                    target_length = target_length
+                else:
+                    if random_choices[idx]<0.5:
+                        target_length = other_length
 
             df_view_ego = self.transform_coor(df, 'ego')
             df_view_relative = self.transform_coor(df, 'relative')
@@ -66,7 +82,8 @@ class TimeSeriesSegmenter(coortrans):
                     profiles['scene_id'] = scene_id
 
                     current_features = np.zeros(self.current_feature_size+1)
-                    current_features[:2] = df.iloc[idx_end][['v_ego','v_sur']]
+                    current_features[0] = ego_length
+                    current_features[1] = target_length
                     vx_ego = df.iloc[idx_end]['v_ego']*df.iloc[idx_end]['hx_ego']
                     vy_ego = df.iloc[idx_end]['v_ego']*df.iloc[idx_end]['hy_ego']
                     vx_sur = df.iloc[idx_end]['v_sur']*df.iloc[idx_end]['hx_sur']
@@ -87,7 +104,7 @@ class TimeSeriesSegmenter(coortrans):
                     scene_id += 1
         profiles_set = pd.concat(profiles_set, axis=0)
         profiles_set['scene_id'] = profiles_set['scene_id'].astype(int)
-        current_features_set = pd.DataFrame(current_features_set, columns=['v_ego','v_sur','delta_v',
+        current_features_set = pd.DataFrame(current_features_set, columns=['l_ego','l_sur','delta_v',
                                                                            'psi_sur','acc_ego',
                                                                            'v_ego2','v_sur2','delta_v2',
                                                                            'rho','s','scene_id'])
@@ -124,6 +141,8 @@ def main(path_prepared, path_processed):
     data_sur = data_sur.rename(columns={'x_ekf':'x','y_ekf':'y','v_ekf':'v'})
     data_both = data_ego.merge(data_sur, on=['event_id','time'], how='inner', suffixes=('_ego', '_sur'))
     data_ego, data_sur = [], [] ## free memory
+    meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
+    meta_both = meta_both.set_index('event_id')
 
     event_ids = data_both['event_id'].unique()
     len_event_ids = len(event_ids)
@@ -136,7 +155,6 @@ def main(path_prepared, path_processed):
     data_val = data_both[data_both['event_id'].isin(val_event_ids)]
     data_test = data_both[data_both['event_id'].isin(test_event_ids)]
 
-
     # Segment and save scenes, with profiles and current features separated
     initial_scene_id = 0
     path_save = path_prepared + 'Segments/'
@@ -145,7 +163,7 @@ def main(path_prepared, path_processed):
     bins = np.linspace(0, 40, 31)
     for data, suffix in zip([data_train, data_val, data_test], ['train', 'val', 'test']):
         print('Segmenting ' + suffix + ' set...')
-        sr = TimeSeriesSegmenter(data, initial_scene_id)
+        sr = TimeSeriesSegmenter(data, meta_both, initial_scene_id)
         sr.profiles_set.to_hdf(path_save + 'profiles_'+suffix+'.h5', key='profiles')
         sr.current_features_set.to_hdf(path_save + 'current_features_'+suffix+'.h5', key='features')
         sr.environment_features_set.to_hdf(path_save + 'environment_features_'+suffix+'.h5', key='features')
