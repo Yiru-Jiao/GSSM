@@ -19,7 +19,7 @@ def get_scaler(dataset_dir, feature):
         scaler = StandardScaler()
         scaler.fit(scaler_data)
     elif feature == 'current':
-        variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         scaler_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
         scaler_data = scaler_data[variables].values
         scaler = StandardScaler()
@@ -65,7 +65,7 @@ class DataOrganiser(Dataset):
         self.data = []
         X_current = pd.read_hdf(os.path.join(self.path_prepared, 'Segments/current_features_'+self.split+'.h5'), key='features')
         self.scene_ids = X_current['scene_id'].values
-        variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         self.data.append(torch.from_numpy(self.current_scaler.transform(X_current[variables].values)).float())
 
         if 'environment' in self.encoder_selection:

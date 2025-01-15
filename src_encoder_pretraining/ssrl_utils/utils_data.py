@@ -67,7 +67,7 @@ def load_data(dataset_dir='./PreparedData/', feature='profiles'):
         assert train_X.ndim == 3 and val_X.ndim == 3
         
     elif feature == 'current':
-        variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         train_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_train.h5', key='features')
         val_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_val.h5', key='features')
         test_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_test.h5', key='features')
