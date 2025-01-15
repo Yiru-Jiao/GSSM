@@ -18,12 +18,12 @@ from represent_utils.coortrans import coortrans
 
 
 class TimeSeriesSegmenter(coortrans):
-    def __init__(self, data, meta, initial_scene_id):
+    def __init__(self, data, veh_dimensions, initial_scene_id):
         super().__init__()
         self.target_ids = data['target_id'].unique()
         data = data.sort_values(['target_id','time']).set_index(['target_id','time'])
         self.data = data
-        self.meta = meta
+        self.veh_dimensions = veh_dimensions
         self.current_feature_size = 10
         self.initial_scene_id = initial_scene_id
         self.events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
@@ -49,26 +49,23 @@ class TimeSeriesSegmenter(coortrans):
         scene_id = self.initial_scene_id
 
         random_choices = np.random.rand(len(self.target_ids))
-        for idx, target_id in tqdm(enumerate(self.target_ids), desc='Target'):
+        for idx, target_id in tqdm(enumerate(self.target_ids), desc='Target', total=len(self.target_ids)):
             df = self.data.loc(axis=0)[target_id, :]
             if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                 continue
             else:
                 event_id = df['event_id'].iloc[0]
-                veh_dimensions = self.meta.loc[event_id, ['ego_length','target_length','other_length']].values
-                ego_length, target_length, other_length = veh_dimensions
-            if np.isnan(ego_length): # skip if the ego vehicle length is missing
-                continue
+            veh_dimension = self.veh_dimensions.loc[event_id, ['ego_length','target_length','other_length']].values
+            ego_length, target_length, other_length = veh_dimension
+            if np.isnan(target_length) and np.isnan(other_length):
+                target_length = ego_length
+            elif np.isnan(target_length):
+                target_length = other_length
+            elif np.isnan(other_length):
+                target_length = target_length
             else:
-                if np.isnan(target_length) and np.isnan(other_length):
-                    target_length = ego_length
-                elif np.isnan(target_length):
+                if random_choices[idx]<0.5:
                     target_length = other_length
-                elif np.isnan(other_length):
-                    target_length = target_length
-                else:
-                    if random_choices[idx]<0.5:
-                        target_length = other_length
 
             df_view_ego = self.transform_coor(df, 'ego')
             df_view_relative = self.transform_coor(df, 'relative')
@@ -141,8 +138,12 @@ def main(path_prepared, path_processed):
     data_sur = data_sur.rename(columns={'x_ekf':'x','y_ekf':'y','v_ekf':'v'})
     data_both = data_ego.merge(data_sur, on=['event_id','time'], how='inner', suffixes=('_ego', '_sur'))
     data_ego, data_sur = [], [] ## free memory
+
     meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
     meta_both = meta_both.set_index('event_id')
+    veh_dimensions = meta_both[['ego_width','ego_length','target_width','target_length']].copy()
+    for var in ['ego_width','ego_length']:
+        veh_dimensions.loc[veh_dimensions[var].isna(), var] = np.nanmean(veh_dimensions[var].values)
 
     event_ids = data_both['event_id'].unique()
     len_event_ids = len(event_ids)
@@ -163,13 +164,13 @@ def main(path_prepared, path_processed):
     bins = np.linspace(0, 40, 31)
     for data, suffix in zip([data_train, data_val, data_test], ['train', 'val', 'test']):
         print('Segmenting ' + suffix + ' set...')
-        sr = TimeSeriesSegmenter(data, meta_both, initial_scene_id)
+        sr = TimeSeriesSegmenter(data, veh_dimensions, initial_scene_id)
         sr.profiles_set.to_hdf(path_save + 'profiles_'+suffix+'.h5', key='profiles')
         sr.current_features_set.to_hdf(path_save + 'current_features_'+suffix+'.h5', key='features')
         sr.environment_features_set.to_hdf(path_save + 'environment_features_'+suffix+'.h5', key='features')
         initial_scene_id = sr.current_features_set['scene_id'].max() + 1
         print('Number of scenes in ' + suffix + ' set: ' + str(initial_scene_id - sr.initial_scene_id))
-        print(f'Minimum net distance: {sr.current_features_set['s'].min():.2f}, minimum ego speed: {sr.current_features_set['v_ego'].min():.2f}')
+        print(f'Minimum net distance: {sr.current_features_set['s'].min():.2f}')
         print(f'Unique scene ids in current features set: {sr.current_features_set['scene_id'].nunique()}, should be the same as the profiles set: {sr.profiles_set['scene_id'].nunique()}')
         '''
         In train set: minimum net distance: 0.23m, minimum ego speed: 0.00
