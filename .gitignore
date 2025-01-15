@@ -2,12 +2,11 @@
 **/__pycache__
 !**/*.md
 !src_trajectory_reconstruction/**/*.py
+!src_trajectory_reconstruction/**/*.ipynb
 !src_data_preparation/**/*.py
 !src_encoder_pretraining/**/*.py
 !src_posterior_inference/**/*.py
 !src_safety_evaluation/**/*.py
-# !**/*.ipynb
-test.ipynb
 !environment_test.py
 !requirements.txt
 !clean_pycache.py
