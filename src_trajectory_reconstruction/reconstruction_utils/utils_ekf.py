@@ -2,6 +2,7 @@
 This script contains functions to reconstruct the ego vehicle and
 surrounding vehicles using Extended Kalman Filter (EKF).
 '''
+
 import numpy as np
 
 
@@ -135,7 +136,6 @@ def reconstruct_ego(df_ego, params, reverse=False):
         veh = veh.iloc[::-1].reset_index(drop=True)
 
     return veh
-
 
 
 # Reconstruct the trajectory of the surrounding vehicles

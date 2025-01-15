@@ -1,6 +1,7 @@
 '''
-This script contains functions for data processing.
+This script contains functions for processing the ego and surrounding vehicles.
 '''
+
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
@@ -83,7 +84,6 @@ def create_dataframe(sample, event_id, target_id=0):
             df_forward = df_forward.reset_index()
 
     return df_ego, df_forward, target_id, reconnected_ids
-
 
 
 # reconstruct trajectory of the ego vehicle

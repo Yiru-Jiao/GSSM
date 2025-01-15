@@ -1,5 +1,6 @@
 '''
-This script 
+This script contains functions to search for the optimal parameters for 
+the Extended Kalman Filter (EKF) for ego and surrounding vehicle reconstruction.
 '''
 
 import os

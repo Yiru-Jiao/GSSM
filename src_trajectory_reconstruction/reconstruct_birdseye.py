@@ -1,6 +1,7 @@
 '''
 This script reconstructs the bird's eye view of events.
 '''
+
 import os
 from tqdm import tqdm
 import pandas as pd
@@ -54,6 +55,7 @@ for param in ekf_params.columns:
         sur_params[param.split('sur_')[1]] = ekf_params[param].values[0]
 print('Ego parameters: ', ego_params, 'Average error: ', -ekf_params['score_ego'].values[0])
 print('Surrounding parameters: ', sur_params, 'Average error: ', -ekf_params['score_sur'].values[0])
+
 
 # For each event category, reconstruct bird's eye view of events
 target_id = 0 # Initialize target_id for surrounding vehicles detected by radar

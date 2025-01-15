@@ -13,7 +13,6 @@ path_raw_das = '././RawData/DriverAssistanceSystems/'
 path_processed = '././ProcessedData/'
 
 
-# .xlsx to .csv
 print('Converting .xlsx files to .csv files...')
 
 path_xlsx = path_raw_honda + 'Insight Tables/'
