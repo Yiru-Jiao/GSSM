@@ -67,10 +67,10 @@ def main(args, manual_seed, path_prepared):
             initial_lr = 0.0002
             if 'profiles' in encoder_selection:
                 epochs = 10
-                factor_range = range(4, 10) # 16, 32, 64, 128, 256, 512
+                factor_range = range(4, 9) # 16, 32, 64, 128, 256
             else:
                 epochs = 20
-                factor_range = range(5, 11) # 32, 64, 128, 256, 512, 1024
+                factor_range = range(5, 10) # 32, 64, 128, 256, 512
             for factor in factor_range:
                 batch_size = 2**factor
                 condition = (bslr_search.encoder_selection==encoder_name)&\
