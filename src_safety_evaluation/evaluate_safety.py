@@ -73,6 +73,14 @@ def main(args, events, manual_seed, path_prepared, path_result):
         data = pd.read_hdf(path_save + f'{event_cat}/event_data.h5', key='data')
         assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
 
+        veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
+        condition = event_meta[['target_width','target_length']].isna().any(axis=1)
+        veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
+        avg_width = np.nanmean(veh_dimensions['ego_width'].values)
+        avg_length = np.nanmean(veh_dimensions['ego_length'].values)
+        for var in ['ego_width','ego_length','target_width','target_length']:
+            veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
+
         # Self-supervised traffic safety evaluation
         model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
         os.makedirs(path_save + f'{event_cat}/pretrained/', exist_ok=True)
@@ -88,7 +96,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
             df = data.loc(axis=0)[target_id, :]
             if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                 continue
-            segmented_features = get_context_representations(df, current_scaler, profiles_scaler)
+            ego_length, target_length = veh_dimensions.loc[df['event_id'].values[0], ['ego_length','target_length']].values
+            segmented_features = get_context_representations(df, current_scaler, profiles_scaler, ego_length, target_length)
             profiles_features.append(segmented_features[0])
             current_features.append(segmented_features[1])
             spacing_list.append(segmented_features[2])
@@ -98,7 +107,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         spacing_list = np.concatenate(spacing_list, axis=0)
         event_id_list = np.concatenate(event_id_list, axis=0)
         assert profiles_features.shape == (len(spacing_list), 20, 3)
-            
+
         for model_id in range(len(model_evaluation)):
             encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
             encoder_selection = encoder_name.split('_')
@@ -150,11 +159,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['vx_j'] = results['v_j']*results['hx_j']
         results['vy_j'] = results['v_j']*results['hy_j']
 
-        veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
-        condition = event_meta[['target_width','target_length']].isna().any(axis=1)
-        veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
-
         results['TTC'] = TwoDimTTC.TTC(results, 'values')
 
         results['s_box'] = TwoDimTTC.CurrentD(results, 'values')
