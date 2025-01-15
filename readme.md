@@ -1,4 +1,5 @@
-# Trajectory reconstruction of crashes, near-crashes, and baselines from SHRP2 NDS data
+# Proposal and validation of traffic interaction safety evaluation without manual labelling
+## Trajectory reconstruction and conflicting target identification of (near-)crashes in SHRP2 NDS
 
 The data were collected in the US between 2012 and 2013, covering 1,836 crashes, 6,881 manually annotated near-crashes, and 32,581 safe driving baselines. I believe this is valuable for not only my research, but also for you and your PhDs. An overview of SHRP2 is available at https://www.transportationops.org/Bigdata/NDS
 
@@ -34,10 +35,23 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 ### Posterior inference
 `src_posterior_inference/pi_search_bslr.py`, `src_posterior_inference/pi_train_eval.py`
 
-### Conflict analysis
-`src_conflict_Detection/conflict_evaluation.py` ...
+### Safety evaluation
+`src_safety_evaluation/organise_events.py`, `src_safety_evaluation/evaluate_safety.py`, `src_safety_evaluation/analyse_events.py`
 
 ## Copyright
-Free of use
+### Citation
+```latex
+@article{
+}
+```
 
-Citation
+### Repo references
+Thanks to GitHub for offering the open environment, from which this work reuses/learns/adapts the following repositories to different extents:
+- TS2Vec https://github.com/zhihanyue/ts2vec
+- SoftCLT https://github.com/seunghan96/softclt
+- TopoAE https://github.com/BorgwardtLab/topological-autoencoders
+- GGAE https://github.com/JungbinLim/GGAE-public
+- TAM https://github.com/dmfolgado/tam/
+- Multidimensional Kalman-Filter
+  - https://github.com/balzer82/Kalman/blob/master/Extended-Kalman-Filter-CTRA.ipynb
+  - https://github.com/balzer82/Kalman/blob/master/Extended-Kalman-Filter-CHCV.ipynb
