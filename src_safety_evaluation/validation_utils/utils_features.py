@@ -44,7 +44,7 @@ def get_scaler(path_prepared, feature='profiles'):
         scaler = StandardScaler()
         scaler.fit(scaler_data)
     elif feature == 'current':
-        variables = ['v_ego','v_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         scaler_data = pd.concat([pd.read_hdf(f'{path_prepared}Segments/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
         scaler_data = scaler_data[variables].values
         scaler = StandardScaler()
@@ -54,7 +54,7 @@ def get_scaler(path_prepared, feature='profiles'):
     return scaler
 
 
-def segment_data(df):
+def segment_data(df, ego_length, target_length):
     df_view_ego = coortrans.transform_coor(df, 'ego')
     df_view_relative = coortrans.transform_coor(df, 'relative')
     indices_end = np.arange(len(df)-1, 20, -1) # use 2-second history for every 0.1 second
@@ -66,7 +66,8 @@ def segment_data(df):
         assert profiles.isna().sum().sum()==0 # no missing values
 
         current_features = np.zeros(9)
-        current_features[:2] = df.iloc[idx_end][['v_ego','v_sur']]
+        current_features[0] = ego_length
+        current_features[1] = target_length
         vx_ego = df.iloc[idx_end]['v_ego']*df.iloc[idx_end]['hx_ego']
         vy_ego = df.iloc[idx_end]['v_ego']*df.iloc[idx_end]['hy_ego']
         vx_sur = df.iloc[idx_end]['v_sur']*df.iloc[idx_end]['hx_sur']
@@ -87,8 +88,8 @@ def segment_data(df):
     return np.array(profiles_set), np.array(current_features_set), np.array(spacing_set), index_set
 
 
-def get_context_representations(df, current_scaler, profiles_scaler):
-    profiles_set, current_features_set, spacing_set, index_set = segment_data(df)
+def get_context_representations(df, current_scaler, profiles_scaler, ego_length, target_length):
+    profiles_set, current_features_set, spacing_set, index_set = segment_data(df, ego_length, target_length)
     assert np.isnan(profiles_set).sum()==0
     profiles_set = profiles_scaler.transform(profiles_set.reshape(-1, 3)).reshape(profiles_set.shape)
     current_features_set = current_scaler.transform(current_features_set)
