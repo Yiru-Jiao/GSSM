@@ -12,13 +12,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
 
 
-def read_events(path_events):
+def read_events(path_events, meta_only=False):
     event_categories = sorted(os.listdir(path_events))
     event_meta = pd.concat([pd.read_csv(path_events + f'{event_cat}/event_meta.csv') for event_cat in event_categories])
     event_meta = event_meta.set_index('event_id')
-    event_data = pd.concat([pd.read_hdf(path_events + f'{event_cat}/event_data.h5', key='data') for event_cat in event_categories])
-    assert np.all(np.isin(event_data['event_id'].unique(), event_meta.index.values))
-    return event_meta, event_data
+    if meta_only:
+        return event_meta
+    else:
+        event_data = pd.concat([pd.read_hdf(path_events + f'{event_cat}/event_data.h5', key='data') for event_cat in event_categories])
+        assert np.all(np.isin(event_data['event_id'].unique(), event_meta.index.values))
+        return event_meta, event_data
 
 
 def read_evaluation(indicator, path_events, pretraining=None, encoder_name=None, cross_attention_name=None):
@@ -142,11 +145,10 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
     records = event_meta[['danger_start', 'danger_end']].copy()
     for event_id in event_ids:
         event = events.loc[event_id].copy()
-        danger = event[(event['time']>event_meta.loc[event_id, 'danger_start']/1000)&
-                        (event['time']<event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
+        danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
+                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
         if len(danger)<5:
             records.loc[event_id, 'danger_recorded'] = False
-            records.loc[event_id, 'safety_recorded'] = False
             continue
         else:
             records.loc[event_id, 'danger_recorded'] = True
@@ -176,30 +178,34 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         target_danger = danger[danger['target_id']==target_id]
 
         # Determine safety period for the conflicting target
+        '''
+        period 3 seconds before start_timestamp with 
+        * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
+        * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
+        '''
         target = event[event['target_id']==target_id]
-        target_first3s = target[(target['time']<=target['time'].min()+3.)&
-                                (target['time']<event_meta.loc[event_id, 'start_timestamp']/1000)].copy()
-        motion_states = ['acc_ego','v_ego','v_sur']
-        multi_index = pd.MultiIndex.from_arrays([target_first3s.index.values,
-                                                    target_first3s['target_id'].values,
-                                                    target_first3s['time'].values], names=('event_id','target_id','time'))
-        target_first3s[motion_states] = event_data.loc[multi_index, motion_states].values
-        if len(target_first3s)<5:
+        target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)].copy()
+        if len(target_period)<5:
             records.loc[event_id, 'safety_recorded'] = False
             continue
-        no_hard_braking = (target_first3s['acc_ego'].min()>-1.5)
-        not_in_congestion = (target_first3s.iloc[0]['v_ego']>3.)&(target_first3s.iloc[0]['v_sur']>3.)
-        if no_hard_braking and not_in_congestion:
+        motion_states = ['acc_ego','v_ego','v_sur']
+        multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
+                                                 target_period['target_id'].values,
+                                                 target_period['time'].values], names=('event_id','target_id','time'))
+        target_period[motion_states] = event_data.loc[multi_index, motion_states].values
+        no_hard_braking = (target_period['acc_ego'].min()>-1.5)
+        not_stopping = (target_period['v_ego'].min()>0.5)&(target_period['v_sur'].min()>0.5)
+        if no_hard_braking and not_stopping:
             records.loc[event_id, 'safety_recorded'] = True
-            records.loc[event_id, 'avg_acc_ego'] = target_first3s['acc_ego'].mean()
-            records.loc[event_id, 'avg_v_ego'] = target_first3s['v_ego'].mean()
-            records.loc[event_id, 'avg_v_sur'] = target_first3s['v_sur'].mean()
+            records.loc[event_id, 'avg_acc_ego'] = target_period['acc_ego'].mean()
+            records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
+            records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
         else:
             records.loc[event_id, 'safety_recorded'] = False
         
         # Determine conflict and warning
-        target_first3s = determine_conflicts(target_first3s, indicator, threshold)
-        if np.any(target_first3s['conflict']):
+        target_period = determine_conflicts(target_period, indicator, threshold)
+        if np.any(target_period['conflict']):
             records.loc[event_id, 'false warning'] = True
         else:
             records.loc[event_id, 'false warning'] = False
