@@ -1,4 +1,5 @@
 '''
+This script segments data into scenes and organises the features for model training.
 '''
 
 import os

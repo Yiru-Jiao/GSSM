@@ -1,4 +1,5 @@
 '''
+This script generates all possible combinations of the environment features for pretraining the autoencoder of them.
 '''
 
 import sys

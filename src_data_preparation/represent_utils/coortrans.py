@@ -1,5 +1,5 @@
 '''
-This file contains the methods for coordinate transformation for interaction extraction.
+This script contains the class coortrans for rotating and transforming coordinates.
 '''
 
 import numpy as np
