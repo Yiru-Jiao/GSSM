@@ -141,9 +141,8 @@ def main(path_prepared, path_processed):
 
     meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
     meta_both = meta_both.set_index('event_id')
-    veh_dimensions = meta_both[['ego_width','ego_length','target_width','target_length']].copy()
-    for var in ['ego_width','ego_length']:
-        veh_dimensions.loc[veh_dimensions[var].isna(), var] = np.nanmean(veh_dimensions[var].values)
+    veh_dimensions = meta_both[['ego_length','target_length','other_length']].copy()
+    veh_dimensions.loc[veh_dimensions['ego_length'].isna(), 'ego_length'] = np.nanmean(veh_dimensions['ego_length'].values)
 
     event_ids = data_both['event_id'].unique()
     len_event_ids = len(event_ids)
@@ -173,9 +172,9 @@ def main(path_prepared, path_processed):
         print(f'Minimum net distance: {sr.current_features_set['s'].min():.2f}')
         print(f'Unique scene ids in current features set: {sr.current_features_set['scene_id'].nunique()}, should be the same as the profiles set: {sr.profiles_set['scene_id'].nunique()}')
         '''
-        In train set: minimum net distance: 0.23m, minimum ego speed: 0.00
-        In val set: minimum net distance: 0.38m, minimum ego speed: 0.00
-        In test set: minimum net distance: 0.17m, minimum ego speed: 0.00
+        In train set: minimum net distance: 0.23m
+        In val set: minimum net distance: 0.38m
+        In test set: minimum net distance: 0.17m
         '''
         ## save a plot of speed distribution
         ax = axes[0] if suffix=='train' else axes[1] if suffix=='val' else axes[2]
