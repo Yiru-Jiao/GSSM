@@ -96,7 +96,7 @@ def main(path_prepared, path_result):
         drac_records = pd.concat(drac_records).reset_index()
         drac_records['indicator'] = 'DRAC'
         results.append(drac_records)
-        pd.concat(results).to_csv(path_result + 'Analyses/ConflictWarning.csv', index=False)
+        pd.concat(results).to_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results', mode='w')
 
         ttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
         safety_evaluation = read_evaluation('TTC', path_events)
@@ -105,7 +105,7 @@ def main(path_prepared, path_result):
         ttc_records = pd.concat(ttc_records).reset_index()
         ttc_records['indicator'] = 'TTC'
         results.append(ttc_records)
-        pd.concat(results).to_csv(path_result + 'Analyses/ConflictWarning.csv', index=False)
+        pd.concat(results).to_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results', mode='w')
 
         ssse_thresholds = np.arange(2,101)
         for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list):
@@ -117,7 +117,13 @@ def main(path_prepared, path_result):
             ssse_records['indicator'] = 'SSSE'
             ssse_records['model'] = pretraining + '_' + encoder_name + '_' + cross_attention_name
             results.append(ssse_records)
-        pd.concat(results).to_csv(path_result + 'Analyses/ConflictWarning.csv', index=False)
+
+        results = pd.concat(results).reset_index(drop=True)
+        results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
+        results.loc[results['danger_evaluated'].isna(), 'danger_evaluated'] = False
+        results.loc[results['safety_recorded'].isna(), 'safety_recorded'] = False
+        results[['danger_recorded', 'danger_evaluated', 'safety_recorded']] = results[['danger_recorded', 'danger_evaluated', 'safety_recorded']].astype(bool)
+        results.to_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results', mode='w')
         print('--- Analysis 2: Conflict detection comparison completed ---')
 
     # '''
