@@ -72,51 +72,81 @@ def main(path_prepared, path_result):
     '''
     Analysis 2 - Conflict detection comparison
     For each event, it is applicable to compare conflict detection if both safety and danger are present
-    - danger: at most 3 seconds before impact_timestamp and after start_timestamp
-    - safety: first 3 seconds before start_timestamp with 
-              * no hard braking, i.e., acceleration > -1.5 m/s^2 in the 3 seconds
-              * not in congestion, i.e., both ego and target speed > 3 m/s at the initial moment
+    - danger: period near impact_timestamp
+              * start: after start_timestamp and before impact_timestamp
+              * end: after impact_timestamp and before end_timestamp
+    - safety: period 3 seconds before start_timestamp with 
+              * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
+              * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
     The target has largest intensity/DRAC (or smallest TTC) during danger period is considered 
-    as the conflicting target, then the safe period is determined specifically
+    as the conflicting target, and the safe period is determined specifically
     Then the comparison of ROC curves is between different indicators under various thresholds
     '''
-    if os.path.exists(path_result + 'Analyses/ConflictWarning.csv'):
-        print('--- Analysis 2: Conflict detection comparison completed ---')
-    else:
-        danger_start = np.maximum(event_meta['impact_timestamp'].values-3000, event_meta['start_timestamp'].values)
-        danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
+    flag_to_compute = True
+    if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
+        existing_results = pd.read_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results')
+        analysed_models = existing_results['model'].unique()
+        ssse_models = [pretraining + '_' + encoder_name + '_' + cross_attention_name for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list)]
+        if np.all(np.isin(['drac','ttc']+ssse_models, analysed_models)):
+            print('--- Analysis 2: Conflict detection comparison completed ---')
+            flag_to_compute = False
+    if flag_to_compute:
+        danger_start = np.minimum(event_meta['impact_timestamp'].values, event_meta['start_timestamp'].values)
+        danger_end = np.minimum(event_meta['impact_timestamp'].values, event_meta['end_timestamp'].values)
         event_meta['danger_start'] = danger_start
         event_meta['danger_end'] = danger_end
         results = []
 
-        drac_thresholds = np.round(np.arange(0.05,5.,0.05),2)
-        safety_evaluation = read_evaluation('DRAC', path_events)
-        progress_bar = tqdm(drac_thresholds, desc='DRAC', ascii=True, dynamic_ncols=False)
-        drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in progress_bar)
-        drac_records = pd.concat(drac_records).reset_index()
-        drac_records['indicator'] = 'DRAC'
-        results.append(drac_records)
-        pd.concat(results).to_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results', mode='w')
+        sub_flag_to_compute = True
+        if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
+            if 'drac' in analysed_models:
+                results.append(existing_results[existing_results['model']=='drac'])
+                print('--- Analysis 2 with DRAC already completed ---')
+                sub_flag_to_compute = False
+        if sub_flag_to_compute:
+            drac_thresholds = np.round(np.arange(0.05,5.,0.05),2)
+            safety_evaluation = read_evaluation('DRAC', path_events)
+            progress_bar = tqdm(drac_thresholds, desc='DRAC', ascii=True, dynamic_ncols=False)
+            drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in progress_bar)
+            drac_records = pd.concat(drac_records).reset_index()
+            drac_records['indicator'] = 'DRAC'
+            drac_records['model'] = 'drac'
+            results.append(drac_records)
 
-        ttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
-        safety_evaluation = read_evaluation('TTC', path_events)
-        progress_bar = tqdm(ttc_thresholds, desc='TTC', ascii=True, dynamic_ncols=False)
-        ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in progress_bar)
-        ttc_records = pd.concat(ttc_records).reset_index()
-        ttc_records['indicator'] = 'TTC'
-        results.append(ttc_records)
-        pd.concat(results).to_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results', mode='w')
+        sub_flag_to_compute = True
+        if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
+            if 'ttc' in analysed_models:
+                results.append(existing_results[existing_results['model']=='ttc'])
+                print('--- Analysis 2 with TTC already completed ---')
+                sub_flag_to_compute = False
+        if sub_flag_to_compute:
+            ttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
+            safety_evaluation = read_evaluation('TTC', path_events)
+            progress_bar = tqdm(ttc_thresholds, desc='TTC', ascii=True, dynamic_ncols=False)
+            ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in progress_bar)
+            ttc_records = pd.concat(ttc_records).reset_index()
+            ttc_records['indicator'] = 'TTC'
+            ttc_records['model'] = 'ttc'
+            results.append(ttc_records)
 
         ssse_thresholds = np.arange(2,101)
         for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list):
-            print(pretraining + '_' + encoder_name + '_' + cross_attention_name)
-            safety_evaluation = read_evaluation('SSSE', path_events, pretraining, encoder_name, cross_attention_name)
-            progress_bar = tqdm(ssse_thresholds, desc='SSSE', ascii=True, dynamic_ncols=False)
-            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)
-            ssse_records = pd.concat(ssse_records).reset_index()
-            ssse_records['indicator'] = 'SSSE'
-            ssse_records['model'] = pretraining + '_' + encoder_name + '_' + cross_attention_name
-            results.append(ssse_records)
+            sub_flag_to_compute = True
+            model_name = pretraining + '_' + encoder_name + '_' + cross_attention_name
+            if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
+                if model_name in analysed_models:
+                    results.append(existing_results[existing_results['model']==model_name])
+                    print('--- Analysis 2 with', model_name, 'already completed ---')
+                    sub_flag_to_compute = False
+            if sub_flag_to_compute:
+                print('--- Analyzing', model_name, '---')
+                safety_evaluation = read_evaluation('SSSE', path_events, pretraining, encoder_name, cross_attention_name)
+                progress_bar = tqdm(ssse_thresholds, desc='SSSE', ascii=True, dynamic_ncols=False)
+                ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)
+                ssse_records = pd.concat(ssse_records).reset_index()
+                ssse_records['indicator'] = 'SSSE'
+                ssse_records['model'] = model_name
+                results.append(ssse_records)
 
         results = pd.concat(results).reset_index(drop=True)
         results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
