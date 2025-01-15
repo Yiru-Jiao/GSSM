@@ -1,4 +1,5 @@
 '''
+This script defines the encoders and decoder for the SSSE model.
 '''
 
 import os

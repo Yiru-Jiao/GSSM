@@ -1,7 +1,5 @@
 '''
-train_val_test: a class that handles the training and validation process of the SVGP model. 
-                   It creates the dataloaders, defines the model, likelihood, and loss function, 
-                   and performs the training loop.
+This script defines the training, validation, and testing procedures for the posterior inference model.
 '''
 
 import os
@@ -23,6 +21,7 @@ def get_stop_condition2(val_loss_log):
     value1 = np.sort(avg_val_loss_log[-8:-3])[1:4].mean()
     value0 = np.sort(avg_val_loss_log[-11:-6])[1:4].mean()
     return (value2>value1)&(value1>value0)&((value2-value1)>(value1-value0))
+
 
 class train_val_test():
     def __init__(self, device, path_prepared, 

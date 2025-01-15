@@ -1,9 +1,5 @@
 '''
-This file is used to train, validate, and test the model for various settings.
-Results are saved in the OutputData folder.
-
-
-The code performs the following steps:
+This script trains and evaluates the posterior inference model in various configurations.
 '''
 
 import os

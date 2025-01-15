@@ -1,5 +1,5 @@
 '''
-
+This script searches for suitable batch size and learning rate for the posterior inference model.
 '''
 
 import os
@@ -84,7 +84,7 @@ def main(args, manual_seed, path_prepared):
                 print(f"{encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
                 pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
                 pipeline.create_dataloader(batch_size)
-                pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=1)
+                pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=2)
                 avg_val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
                 bslr_search.loc[len(bslr_search)] = [encoder_name, cross_attention_name, pretraining,
                                                      initial_lr, batch_size, avg_val_loss]

@@ -1,4 +1,5 @@
 '''
+This script defines the SSSE model and loss function for posterior inference of context conditioned proximity distribution.
 '''
 
 import os

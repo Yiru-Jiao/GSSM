@@ -1,5 +1,5 @@
 '''
-
+This script contains the functions to organise data for posterior inference.
 '''
 
 import os
