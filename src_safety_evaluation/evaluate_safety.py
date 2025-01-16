@@ -146,7 +146,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             results['intensity'] = max_intensity
             results.to_hdf(path_save + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data', mode='w')
 
-        # Two-dimensional time-to-collision (2D-TTC) and Deceleration Rate to Avoid Collision (DRAC)
+        # Other safety evaluation metrics
         data = data.reset_index()
         rename_columns = dict()
         for column in data.columns:
@@ -160,17 +160,29 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['vx_j'] = results['v_j']*results['hx_j']
         results['vy_j'] = results['v_j']*results['hy_j']
 
+        # Two-dimensional time-to-collision (2D-TTC)
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
         results['TTC'] = TwoDimTTC.TTC(results, 'values')
 
+        # Deceleration Rate to Avoid Collision (DRAC)
         results['s_box'] = TwoDimTTC.CurrentD(results, 'values')
         results.loc[results['s_box']<1e-6, 's_box'] = 1e-6
         results['delta_v'] = np.sqrt((results['vx_i']-results['vx_j'])**2 + (results['vy_i']-results['vy_j'])**2)
         results['DRAC'] = results['delta_v']**2 / 2 / results['s_box']
         results.loc[results['v_i']<=results['v_j'], 'DRAC'] = 0.
 
-        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'TTC', 'DRAC']]
-        results.to_hdf(path_save + f'{event_cat}/TTC_DRAC.h5', key='data', mode='w')
+        # Modified time-to-collision (MTTC)
+        results['delta_v'] = np.sign(results['v_i']-results['v_j'])*results['delta_v']
+        squared_term = np.sqrt(results['delta_v']**2 + 2*results['acc_ego']*results['s_box'])
+        mttc_plus = (-results['delta_v'] + squared_term) / results['acc_ego']
+        mttc_minus = (-results['delta_v'] - squared_term) / results['acc_ego']
+        results.loc[mttc_minus>0, 'MTTC'] = mttc_minus.loc[mttc_minus>0].values
+        results.loc[(mttc_minus<=0)&(mttc_plus>0), 'MTTC'] = mttc_plus.loc[(mttc_minus<=0)&(mttc_plus>0)].values
+        results.loc[(mttc_minus<=0)&(mttc_plus<=0), 'MTTC'] = np.inf
+        results.loc[abs(results['acc_ego'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_ego'])<1e-6, 'TTC'].values
+
+        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'TTC', 'DRAC', 'MTTC']]
+        results.to_hdf(path_save + f'{event_cat}/TTC_DRAC_MTTC.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
