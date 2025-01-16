@@ -1,4 +1,5 @@
 '''
+This script contains utility functions for safety evaluation and analysis.
 '''
 
 import os

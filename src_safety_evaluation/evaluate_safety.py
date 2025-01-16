@@ -1,4 +1,5 @@
 '''
+This script applies different models to evaluate the safety of events.
 '''
 
 import os
@@ -12,7 +13,7 @@ import torch
 import argparse
 from sklearn.preprocessing import OneHotEncoder
 from validation_utils.utils_features import *
-from validation_utils.utils_detection import *
+from src_safety_evaluation.validation_utils.utils_evaluation import *
 import validation_utils.TwoDimTTC as TwoDimTTC
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program

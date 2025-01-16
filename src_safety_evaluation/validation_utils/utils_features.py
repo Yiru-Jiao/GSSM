@@ -1,4 +1,5 @@
 '''
+This script defines functions to prepare data for safety evaluation and analysis.
 '''
 
 import os

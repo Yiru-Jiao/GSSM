@@ -1,4 +1,5 @@
 '''
+This script is to analyse the safety evaluation results for all events.
 '''
 
 import os
@@ -9,7 +10,7 @@ from tqdm import tqdm
 import time as systime
 from joblib import Parallel, delayed
 from validation_utils.utils_features import *
-from validation_utils.utils_detection import *
+from src_safety_evaluation.validation_utils.utils_evaluation import *
 
 
 def main(path_prepared, path_result):

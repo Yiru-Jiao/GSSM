@@ -1,4 +1,5 @@
 '''
+This script organises the event data and metadata for event evaluation.
 '''
 
 import os
@@ -9,12 +10,10 @@ import numpy as np
 import pandas as pd
 from validation_utils.utils_features import read_data
 
-
 manual_seed = 131
 path_processed = './ProcessedData/'
 path_prepared = './PreparedData/'
 path_result = './ResultData/'
-
 
 
 def main(meta_both, events):
