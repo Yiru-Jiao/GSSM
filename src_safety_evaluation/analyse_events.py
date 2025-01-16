@@ -13,7 +13,7 @@ from validation_utils.utils_features import *
 from src_safety_evaluation.validation_utils.utils_evaluation import *
 
 
-def main(path_prepared, path_result):
+def main(path_result):
     initial_time = systime.time()
     print('---- available cpus:', os.cpu_count(), '----')
 
@@ -215,14 +215,14 @@ def main(path_prepared, path_result):
         results[['danger_recorded', 'danger_evaluated']] = results[['danger_recorded', 'danger_evaluated']].astype(bool)
         results.to_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results', mode='w')
 
-    # '''
-    # Analysis 4 - Conflicting target identification
-    # remark target id,
-    #
-    # '''
-
-
-    # event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
+    '''
+    Save the identified target by different models under corresponding optimal thresholds    
+    '''
+    warning_timeliness = pd.read_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results')
+    for model in warning_timeliness['model'].unique():
+        warning_model = warning_timeliness[warning_timeliness['model']==model]
+        event_meta.loc[warning_model['event_id'].values, 'target_id'] = warning_model['target_id'].values
+    event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
@@ -233,8 +233,7 @@ if __name__ == '__main__':
     manual_seed = 131
     np.random.seed(manual_seed)
 
-    path_prepared = './PreparedData/'
     path_result = './ResultData/'
     os.makedirs(path_result + 'Analyses/', exist_ok=True)
 
-    main(path_prepared, path_result)
+    main(path_result)
