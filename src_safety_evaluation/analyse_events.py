@@ -21,10 +21,10 @@ def main(path_result):
     path_events = path_result + 'EventEvaluation/'
     event_meta, event_data = read_events(path_events)
 
-    pretraining_list = ['not_pretrained']*7 + ['pretrained']*7
-    encoder_name_list = ['current', 'current_environment'] + ['current_environment_profiles']*5
+    pretraining_list = ['not_pretrained']*6 + ['pretrained']*6
+    encoder_name_list = ['current', 'current_environment'] + ['current_environment_profiles']*4
     encoder_name_list = encoder_name_list*2
-    cross_attention_name_list = ['not_crossed']*3 + ['first', 'last', 'first_last', 'first_middle_last']
+    cross_attention_name_list = ['not_crossed']*3 + ['first', 'first_last', 'first_middle_last']
     cross_attention_name_list = cross_attention_name_list*2
 
     '''
