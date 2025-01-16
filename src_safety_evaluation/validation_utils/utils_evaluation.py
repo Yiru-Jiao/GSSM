@@ -27,8 +27,8 @@ def read_events(path_events, meta_only=False):
 
 def read_evaluation(indicator, path_events, pretraining=None, encoder_name=None, cross_attention_name=None):
     event_categories = sorted(os.listdir(path_events))
-    if indicator=='TTC' or indicator=='DRAC':
-        safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/TTC_DRAC.h5', key='data') for event_cat in event_categories])
+    if indicator=='TTC' or indicator=='DRAC' or indicator=='MTTC':
+        safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/TTC_DRAC_MTTC.h5', key='data') for event_cat in event_categories])
         return safety_evaluation
     elif indicator=='SSSE':
         if pretraining is None:
@@ -122,8 +122,8 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
     evaluation = evaluation.reset_index()
     evaluation['conflict'] = False
 
-    if conflict_indicator=='TTC':
-        evaluation.loc[(evaluation['TTC']<threshold), 'conflict'] = True
+    if conflict_indicator=='TTC' or conflict_indicator=='MTTC':
+        evaluation.loc[(evaluation[conflict_indicator]<threshold), 'conflict'] = True
         return evaluation
     
     elif conflict_indicator=='DRAC':
@@ -135,6 +135,28 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
         # 0.5 means that the probability of conflict is larger than the probability of non-conflict
         evaluation.loc[evaluation['probability']>0.5, 'conflict'] = True
         return evaluation
+
+
+def determine_target(indicator, danger, records, event_id):
+    if indicator=='TTC' or indicator=='MTTC':
+        if danger[indicator].isna().all():
+            records.loc[event_id, 'danger_evaluated'] = False
+        else:
+            records.loc[event_id, 'danger_evaluated'] = True
+            target_id = danger.loc[danger[indicator].idxmin(),'target_id']
+    elif indicator=='DRAC':
+        if danger['DRAC'].isna().all():
+            records.loc[event_id, 'danger_evaluated'] = False
+        else:
+            records.loc[event_id, 'danger_evaluated'] = True
+            target_id = danger.loc[danger['DRAC'].idxmax(),'target_id']
+    elif indicator=='SSSE':
+        if danger['intensity'].isna().all():
+            records.loc[event_id, 'danger_evaluated'] = False
+        else:
+            records.loc[event_id, 'danger_evaluated'] = True
+            target_id = danger.loc[danger['intensity'].idxmax(),'target_id']
+    return target_id, records
 
 
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
@@ -155,24 +177,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'danger_recorded'] = True
 
         # Determine the conflicting target
-        if indicator=='TTC':
-            if danger['TTC'].isna().all():
-                records.loc[event_id, 'danger_evaluated'] = False
-            else:
-                records.loc[event_id, 'danger_evaluated'] = True
-                target_id = danger.loc[danger['TTC'].idxmin(),'target_id']
-        elif indicator=='DRAC':
-            if danger['DRAC'].isna().all():
-                records.loc[event_id, 'danger_evaluated'] = False
-            else:
-                records.loc[event_id, 'danger_evaluated'] = True
-                target_id = danger.loc[danger['DRAC'].idxmax(),'target_id']
-        elif indicator=='SSSE':
-            if danger['intensity'].isna().all():
-                records.loc[event_id, 'danger_evaluated'] = False
-            else:
-                records.loc[event_id, 'danger_evaluated'] = True
-                target_id = danger.loc[danger['intensity'].idxmax(),'target_id']
+        target_id, records = determine_target(indicator, danger, records, event_id)
         if not records.loc[event_id, 'danger_evaluated']:
             continue
         records.loc[event_id, 'target_id'] = target_id
@@ -219,28 +224,65 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
     return records
 
 
-# def issue_warning(evaluation, event_meta, indicator, threshold):
-#     evaluation = evaluation.sort_values(['target_id','time'])
-#     events = events.set_index('event_id')
-#     event_meta = event_meta[event_meta['reaction_covered']]
-#     event_ids = event_meta.index.values
+def optimize_threshold(warning, conflict_indicator, print_optimal=False):
+    statistics = warning.groupby(['threshold']).agg({'true warning':['sum','size'],'false warning':['sum','size']})
+    statistics['true positive rate'] = statistics['true warning']['sum']/statistics['true warning']['size']
+    statistics['false positive rate'] = statistics['false warning']['sum']/statistics['false warning']['size']
+    if conflict_indicator=='TTC' or conflict_indicator=='MTTC':
+        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold']).reset_index()
+    else:
+        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, False]).reset_index()
 
-#     for event_id in event_ids:
-#         event = events.loc[event_id].copy()
+    statistics['combined rate'] = (1-statistics['true positive rate'])**2+(statistics['false positive rate'])**2
+    optimal_rate = statistics['combined rate'].min()
+    optimal_warning = statistics[statistics['combined rate']==optimal_rate]
+    optimal_threshold = optimal_warning.iloc[0]
+    if print_optimal:
+        print(conflict_indicator, 
+              ' optimal threshold: ', optimal_threshold['threshold'], 
+              ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
+              ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
+        optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
+        return statistics, optimal_warning.set_index('event_id')
+    else:
+        return optimal_threshold['threshold']
 
-#         data = determine_conflicts(data, indicator, parameters)
-#         true_warning = data[(data['conflict'])&(data['event'])]
-#         event_period = data[data['event']]
-#         meta.loc[trip_id,'warning period'] = len(true_warning)/len(event_period)
 
-#         # record the first warning before the impact moment
-#         indicated_events.append(data)
-#         warning = data[data['time']<=moment]['conflict'].astype(int).values
-#         warning_change = warning[1:] - warning[:-1]
-#         first_warning = np.where(warning_change==1)[0]
-#         if len(first_warning)>0:
-#             meta.loc[trip_id,'first warning'] = data.loc[first_warning[-1]+1,'time']
-#         else:
-#             meta.loc[trip_id,'first warning'] = np.nan
-        
-#     return meta.reset_index()
+def issue_warning(indicator, threshold, safety_evaluation, event_data, event_meta):
+    event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
+    safety_evaluation = safety_evaluation.sort_values(['target_id','time'])
+    events = safety_evaluation.set_index('event_id')
+    event_ids = np.intersect1d(event_meta.index.values, events.index.unique())
+
+    records = event_meta[['danger_start', 'danger_end', 'reaction_timestamp']].copy()
+    for event_id in event_ids:
+        event = events.loc[event_id].copy()
+        danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
+                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
+        if len(danger)<5:
+            records.loc[event_id, 'danger_recorded'] = False
+            continue
+        else:
+            records.loc[event_id, 'danger_recorded'] = True
+
+        # Determine the conflicting target
+        target_id, records = determine_target(indicator, danger, records, event_id)
+        if not records.loc[event_id, 'danger_evaluated']:
+            continue
+        records.loc[event_id, 'target_id'] = target_id
+        target = event[event['target_id']==target_id]
+
+        # Determine first warning moment: the last safe->unsafe transition moment before impact_timestamp
+        target = determine_conflicts(target, indicator, threshold)
+
+        warning = target[target['time']<=event_meta.loc[event_id, 'impact_timestamp']/1000]['conflict'].astype(int).values
+        warning_change = warning[1:] - warning[:-1]
+        first_warning = np.where(warning_change==1)[0]
+        if len(first_warning)>0:
+            records.loc[event_id,'first_warning_timestamp'] = int(target.iloc[first_warning[-1]+1]['time']*1000)
+        else:
+            records.loc[event_id,'first_warning_timestamp'] = np.nan
+
+    records['indicator'] = indicator
+    records['optimal_threshold'] = threshold
+    return records
