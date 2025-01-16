@@ -86,6 +86,7 @@ def main(args, manual_seed, path_prepared):
                 pipeline.create_dataloader(batch_size)
                 pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=2)
                 avg_val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
+                bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
                 bslr_search.loc[len(bslr_search)] = [encoder_name, cross_attention_name, pretraining,
                                                      initial_lr, batch_size, avg_val_loss]
                 bslr_search = bslr_search.sort_values(by=['encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size'])
