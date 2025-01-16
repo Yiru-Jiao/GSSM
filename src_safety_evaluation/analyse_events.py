@@ -34,7 +34,7 @@ def main(path_prepared, path_result):
     - ground truth: Crash(3)/NearCrash(2)/CrashRelevant(1)/Not applicable(0)
     - safety evaluation: average intensity in the period [impact_timestamp-0.5 s, impact_timestamp+0.5 s]
     '''
-    if os.path.exists(path_result + 'Analyses/EventSeverity.csv'):
+    if os.path.exists(path_result + 'Analyses/EventSeverity.h5'):
         print('--- Analysis 1: Event severity completed ---')
     else:
         ground_truth = event_meta[event_meta['duration_enough']]
@@ -67,7 +67,7 @@ def main(path_prepared, path_result):
             result['model'] = pretraining + '_' + encoder_name + '_' + cross_attention_name
             results.append(result)
         results = pd.concat(results)
-        results.to_csv(path_result + f'Analyses/EventSeverity.csv', index=False)
+        results.to_hdf(path_result + f'Analyses/EventSeverity.h5', key='results', mode='w')
         print('--- Analysis 1: Event severity completed ---')
 
     '''
@@ -79,7 +79,7 @@ def main(path_prepared, path_result):
     - safety: period 3 seconds before start_timestamp with 
               * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
               * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
-    The target has largest intensity/DRAC (or smallest TTC) during danger period is considered 
+    The target has largest intensity/DRAC (or smallest TTC/MTTC) during danger period is considered 
     as the conflicting target, and the safe period is determined specifically
     Then the comparison of ROC curves is between different indicators under various thresholds
     '''
@@ -100,6 +100,22 @@ def main(path_prepared, path_result):
 
         sub_flag_to_compute = True
         if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
+            if 'ttc' in analysed_models:
+                results.append(existing_results[existing_results['model']=='ttc'])
+                print('--- Analysis 2 with TTC already completed ---')
+                sub_flag_to_compute = False
+        if sub_flag_to_compute:
+            ttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
+            safety_evaluation = read_evaluation('TTC', path_events)
+            progress_bar = tqdm(ttc_thresholds, desc='TTC', ascii=True, dynamic_ncols=False)
+            ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in progress_bar)
+            ttc_records = pd.concat(ttc_records).reset_index()
+            ttc_records['indicator'] = 'TTC'
+            ttc_records['model'] = 'ttc'
+            results.append(ttc_records)
+
+        sub_flag_to_compute = True
+        if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
             if 'drac' in analysed_models:
                 results.append(existing_results[existing_results['model']=='drac'])
                 print('--- Analysis 2 with DRAC already completed ---')
@@ -116,19 +132,19 @@ def main(path_prepared, path_result):
 
         sub_flag_to_compute = True
         if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
-            if 'ttc' in analysed_models:
-                results.append(existing_results[existing_results['model']=='ttc'])
-                print('--- Analysis 2 with TTC already completed ---')
+            if 'mttc' in analysed_models:
+                results.append(existing_results[existing_results['model']=='mttc'])
+                print('--- Analysis 2 with MTTC already completed ---')
                 sub_flag_to_compute = False
         if sub_flag_to_compute:
-            ttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
-            safety_evaluation = read_evaluation('TTC', path_events)
-            progress_bar = tqdm(ttc_thresholds, desc='TTC', ascii=True, dynamic_ncols=False)
-            ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in progress_bar)
-            ttc_records = pd.concat(ttc_records).reset_index()
-            ttc_records['indicator'] = 'TTC'
-            ttc_records['model'] = 'ttc'
-            results.append(ttc_records)
+            mttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
+            safety_evaluation = read_evaluation('MTTC', path_events)
+            progress_bar = tqdm(mttc_thresholds, desc='MTTC', ascii=True, dynamic_ncols=False)
+            mttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'MTTC') for threshold in progress_bar)
+            mttc_records = pd.concat(mttc_records).reset_index()
+            mttc_records['indicator'] = 'MTTC'
+            mttc_records['model'] = 'mttc'
+            results.append(mttc_records)
 
         ssse_thresholds = np.arange(2,101)
         for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list):
@@ -157,18 +173,52 @@ def main(path_prepared, path_result):
         results.to_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results', mode='w')
         print('--- Analysis 2: Conflict detection comparison completed ---')
 
-    # '''
-    # Analysis 3 - Warning timeliness
-    #         - reaction_covered: at least one target presented in danger also presents 1 sec earlier than reaction_timestamp
-    # '''
-    #         target_covered = target_present[target_present['min']<=event_meta.loc[event_id, 'reaction_timestamp']/1000-1.]
-    #         if len(target_covered)>0:
-    #             event_meta.loc[event_id, 'reaction_covered'] = True
-    #         else:
-    #             event_meta.loc[event_id, 'reaction_covered'] = False
+    '''
+    Analysis 3 - Warning timeliness
+    Using the optimal threshold for every model,
+    - optimal threshold: the threshold that makes true positive rate and false positive rate closest to (100%, 0%)
+    for each event, the target has largest intensity/DRAC (or smallest TTC/MTTC) during danger period is considered 
+    as the conflicting target; if a driver reaction is recorded, check if the first warning is before the reaction_timestamp
+    - first warning: the last safe->unsafe transition moment before impact_timestamp
+    '''
+    if os.path.exists(path_result + 'Analyses/WarningTimeliness.h5'):
+        print('--- Analysis 3: Warning timeliness completed ---')
+    else:
+        conflict_warning = pd.read_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results')
+        results = []
+
+        for conflict_indicator, model in zip(['DRAC', 'TTC', 'MTTC'], ['drac', 'ttc', 'mttc']):
+            filtered_warning = conflict_warning[(~conflict_warning['false warning'].isna())&
+                                                (~conflict_warning['true warning'].isna())&
+                                                (conflict_warning['model']==model)]
+            safety_evaluation = read_evaluation(conflict_indicator, path_events)
+            optimal_threshold = optimize_threshold(filtered_warning, conflict_indicator)
+            records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_data, event_meta)
+            records['model'] = model
+            results.append(records)
+
+        for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list):
+            model_name = pretraining + '_' + encoder_name + '_' + cross_attention_name
+            filtered_warning = conflict_warning[(~conflict_warning['false warning'].isna())&
+                                                (~conflict_warning['true warning'].isna())&
+                                                (conflict_warning['model']==model_name)]
+            print('--- Analyzing', model_name, '---')
+            safety_evaluation = read_evaluation('SSSE', path_events, pretraining, encoder_name, cross_attention_name)
+            optimal_threshold = optimize_threshold(filtered_warning, 'SSSE')
+            records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_data, event_meta)
+            records['model'] = model_name
+            results.append(records)
+
+        results = pd.concat(results).reset_index(drop=True)
+        results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
+        results.loc[results['danger_evaluated'].isna(), 'danger_evaluated'] = False
+        results[['danger_recorded', 'danger_evaluated']] = results[['danger_recorded', 'danger_evaluated']].astype(bool)
+        results.to_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results', mode='w')
 
     # '''
     # Analysis 4 - Conflicting target identification
+    # remark target id,
+    #
     # '''
 
 
