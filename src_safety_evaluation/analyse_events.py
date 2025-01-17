@@ -49,7 +49,7 @@ def main(path_result):
                                                 (safety_evaluation['time']<=safety_evaluation['period_end'])]
             avg_intensity = safety_evaluation.groupby(['event_id','target_id'])['intensity'].mean().reset_index().set_index('event_id')
             result = []
-            for event_id in tqdm(avg_intensity.index.unique(), desc=pretraining+'_'+encoder_name+'_'+cross_attention_name):
+            for event_id in tqdm(avg_intensity.index.unique(), desc=pretraining+'_'+encoder_name+'_'+cross_attention_name, ascii=True, dynamic_ncols=False):
                 if ground_truth.loc[event_id, 'severity_first'] >= ground_truth.loc[event_id, 'severity_second']:
                     severity_higher = ground_truth.loc[event_id, 'severity_first']
                     severity_lower = ground_truth.loc[event_id, 'severity_second']
@@ -68,6 +68,7 @@ def main(path_result):
             results.append(result)
         results = pd.concat(results)
         results.to_hdf(path_result + f'Analyses/EventSeverity.h5', key='results', mode='w')
+        event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
         print('--- Analysis 1: Event severity completed ---')
 
     '''
@@ -91,6 +92,9 @@ def main(path_result):
         if np.all(np.isin(['drac','ttc']+ssse_models, analysed_models)):
             print('--- Analysis 2: Conflict detection comparison completed ---')
             flag_to_compute = False
+        else:
+            if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
+                event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     if flag_to_compute:
         danger_start = np.minimum(event_meta['impact_timestamp'].values, event_meta['start_timestamp'].values)
         danger_end = np.minimum(event_meta['impact_timestamp'].values, event_meta['end_timestamp'].values)
@@ -171,6 +175,7 @@ def main(path_result):
         results.loc[results['safety_recorded'].isna(), 'safety_recorded'] = False
         results[['danger_recorded', 'danger_evaluated', 'safety_recorded']] = results[['danger_recorded', 'danger_evaluated', 'safety_recorded']].astype(bool)
         results.to_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results', mode='w')
+        event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
         print('--- Analysis 2: Conflict detection comparison completed ---')
 
     '''
@@ -184,6 +189,13 @@ def main(path_result):
     if os.path.exists(path_result + 'Analyses/WarningTimeliness.h5'):
         print('--- Analysis 3: Warning timeliness completed ---')
     else:
+        if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
+            event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
+        if 'danger_start' not in event_meta.columns:
+            danger_start = np.minimum(event_meta['impact_timestamp'].values, event_meta['start_timestamp'].values)
+            danger_end = np.minimum(event_meta['impact_timestamp'].values, event_meta['end_timestamp'].values)
+            event_meta['danger_start'] = danger_start
+            event_meta['danger_end'] = danger_end
         conflict_warning = pd.read_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results')
         results = []
 
@@ -214,10 +226,14 @@ def main(path_result):
         results.loc[results['danger_evaluated'].isna(), 'danger_evaluated'] = False
         results[['danger_recorded', 'danger_evaluated']] = results[['danger_recorded', 'danger_evaluated']].astype(bool)
         results.to_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results', mode='w')
+        event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
+        print('--- Analysis 3: Warning timeliness completed ---')
 
     '''
     Save the identified target by different models under corresponding optimal thresholds    
     '''
+    if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
+        event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     warning_timeliness = pd.read_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results')
     for model in warning_timeliness['model'].unique():
         warning_model = warning_timeliness[warning_timeliness['model']==model]
