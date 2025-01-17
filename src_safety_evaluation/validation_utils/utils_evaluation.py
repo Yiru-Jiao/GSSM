@@ -185,15 +185,17 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
         # Determine safety period for the conflicting target
         '''
-        period 3 seconds before start_timestamp with 
-        * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
+        first 3 seconds in an event before start_timestamp with 
+        * no hard braking, i.e., acceleration > -1.5 m/s^2 in the 3 seconds
         * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
         '''
         target = event[event['target_id']==target_id]
-        target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)].copy()
+        target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000)].copy()
         if len(target_period)<5:
             records.loc[event_id, 'safety_recorded'] = False
             continue
+        else:
+            target_period = target_period.iloc[:30]
         motion_states = ['acc_ego','v_ego','v_sur']
         multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
                                                  target_period['target_id'].values,

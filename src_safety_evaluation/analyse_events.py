@@ -74,11 +74,11 @@ def main(path_result):
     '''
     Analysis 2 - Conflict detection comparison
     For each event, it is applicable to compare conflict detection if both safety and danger are present
-    - danger: period near impact_timestamp
-              * start: after start_timestamp and before impact_timestamp
-              * end: after impact_timestamp and before end_timestamp
-    - safety: period 3 seconds before start_timestamp with 
-              * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
+    - danger: the period that sure an event happens
+              * start: at most 3 seconds before impact_timestamp and after start_timestamp
+              * end: 0.5 seconds after impact_timestamp
+    - safety: first 3 seconds in an event before start_timestamp with 
+              * no hard braking, i.e., acceleration > -1.5 m/s^2 in the 3 seconds
               * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
     The target has largest intensity/DRAC (or smallest TTC/MTTC) during danger period is considered 
     as the conflicting target, and the safe period is determined specifically
@@ -96,8 +96,8 @@ def main(path_result):
             if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
                 event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     if flag_to_compute:
-        danger_start = np.minimum(event_meta['impact_timestamp'].values, event_meta['start_timestamp'].values)
-        danger_end = np.minimum(event_meta['impact_timestamp'].values, event_meta['end_timestamp'].values)
+        danger_start = np.maximum(event_meta['impact_timestamp'].values-3000, event_meta['start_timestamp'].values)
+        danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
         event_meta['danger_start'] = danger_start
         event_meta['danger_end'] = danger_end
         results = []
@@ -192,8 +192,8 @@ def main(path_result):
         if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
             event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
         if 'danger_start' not in event_meta.columns:
-            danger_start = np.minimum(event_meta['impact_timestamp'].values, event_meta['start_timestamp'].values)
-            danger_end = np.minimum(event_meta['impact_timestamp'].values, event_meta['end_timestamp'].values)
+            danger_start = np.maximum(event_meta['impact_timestamp'].values-3000, event_meta['start_timestamp'].values)
+            danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
             event_meta['danger_start'] = danger_start
             event_meta['danger_end'] = danger_end
         conflict_warning = pd.read_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results')
