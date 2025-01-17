@@ -224,7 +224,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
     return records
 
 
-def optimize_threshold(warning, conflict_indicator, print_optimal=False):
+def optimize_threshold(warning, conflict_indicator, return_stats=False):
     statistics = warning.groupby(['threshold']).agg({'true warning':['sum','size'],'false warning':['sum','size']})
     statistics['true positive rate'] = statistics['true warning']['sum']/statistics['true warning']['size']
     statistics['false positive rate'] = statistics['false warning']['sum']/statistics['false warning']['size']
@@ -235,15 +235,16 @@ def optimize_threshold(warning, conflict_indicator, print_optimal=False):
 
     statistics['combined rate'] = (1-statistics['true positive rate'])**2+(statistics['false positive rate'])**2
     optimal_rate = statistics['combined rate'].min()
-    optimal_warning = statistics[statistics['combined rate']==optimal_rate]
+    optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate,[('threshold',''),('true positive rate',''),('false positive rate','')]]
+    optimal_warning = optimal_warning.droplevel(1, axis='columns')
     optimal_threshold = optimal_warning.iloc[0]
-    if print_optimal:
-        print(conflict_indicator, 
-              ' optimal threshold: ', optimal_threshold['threshold'], 
-              ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
-              ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
+    print(conflict_indicator, 
+          ' optimal threshold: ', optimal_threshold['threshold'], 
+          ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
+          ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
+    if return_stats:
         optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
-        return statistics, optimal_warning.set_index('event_id')
+        return statistics, optimal_warning, optimal_threshold
     else:
         return optimal_threshold['threshold']
 
