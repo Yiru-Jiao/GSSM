@@ -173,13 +173,16 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         # Modified time-to-collision (MTTC)
         results['delta_v'] = np.sign(results['v_i']-results['v_j'])*results['delta_v']
-        squared_term = np.sqrt(results['delta_v']**2 + 2*results['acc_ego']*results['s_box'])
-        mttc_plus = (-results['delta_v'] + squared_term) / results['acc_ego']
-        mttc_minus = (-results['delta_v'] - squared_term) / results['acc_ego']
+        squared_term = results['delta_v']**2 + 2*results['acc_i']*results['s_box']
+        squared_term.loc[squared_term>=0] = np.sqrt(squared_term.loc[squared_term>=0].values)
+        squared_term.loc[squared_term<0] = np.nan
+        mttc_plus = (-results['delta_v'] + squared_term) / results['acc_i']
+        mttc_minus = (-results['delta_v'] - squared_term) / results['acc_i']
         results.loc[mttc_minus>0, 'MTTC'] = mttc_minus.loc[mttc_minus>0].values
         results.loc[(mttc_minus<=0)&(mttc_plus>0), 'MTTC'] = mttc_plus.loc[(mttc_minus<=0)&(mttc_plus>0)].values
         results.loc[(mttc_minus<=0)&(mttc_plus<=0), 'MTTC'] = np.inf
-        results.loc[abs(results['acc_ego'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_ego'])<1e-6, 'TTC'].values
+        results.loc[mttc_minus.isna()|mttc_plus.isna(), 'MTTC'] = np.inf
+        results.loc[abs(results['acc_i'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_i'])<1e-6, 'TTC'].values
 
         results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'TTC', 'DRAC', 'MTTC']]
         results.to_hdf(path_save + f'{event_cat}/TTC_DRAC_MTTC.h5', key='data', mode='w')
