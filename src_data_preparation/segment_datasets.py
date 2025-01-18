@@ -21,6 +21,13 @@ def main(path_prepared, path_processed):
     print(f'Available cores for parallel processing: {multiprocessing.cpu_count()}')
 
     for safe_or_conflict in ['Safe', 'Conflict']:
+        if safe_or_conflict=='Safe' and os.path.exists(path_prepared + 'Segments/profiles_safe.h5'):
+            print('Safe set already segmented.')
+            continue
+        elif safe_or_conflict=='Conflict' and os.path.exists(path_prepared + 'Segments/profiles_train.h5'):
+            print('Conflict set already segmented.')
+            continue
+
         print('Loading data...')
         if safe_or_conflict=='Safe':
             data_ego = pd.concat([pd.read_hdf(path_processed+'SafeBaseline/Ego_birdseye_'+str(chunck_id)+'.h5', key='data') for chunck_id in range(0,5)], ignore_index=True)
@@ -52,10 +59,11 @@ def main(path_prepared, path_processed):
 
         path_save = path_prepared + 'Segments/'
         os.makedirs(path_save, exist_ok=True)
+        # Segment and save scenes, with profiles and current features separated
         if safe_or_conflict=='Safe':
             event_ids = data_both['event_id'].unique()
-            # Segment and save scenes, with profiles and current features separated
-            initial_scene_id = 300000
+            # 584,985 scenes in total
+            initial_scene_id = 500000
             fig, ax = plt.subplots(1, 1, figsize=(3.5, 2.), constrained_layout=True)
             bins = np.linspace(0, 40, 31)
             print('Segmenting safe set...')
@@ -67,7 +75,7 @@ def main(path_prepared, path_processed):
             print(f'Minimum net distance: {sr.current_features_set['s'].min():.2f}')
             print(f'Unique scene ids in current features set: {sr.current_features_set['scene_id'].nunique()}, should be the same as the profiles set: {sr.profiles_set['scene_id'].nunique()}')
             '''
-            In safe set: minimum net distance: 0.23m
+            In safe set: minimum net distance: 1.64m
             '''
             ## save a plot of speed distribution
             ax.hist(sr.profiles_set['v_ego'], bins=bins, alpha=0.5, label='Ego vehicle')
@@ -125,6 +133,8 @@ def main(path_prepared, path_processed):
             axes[1].set_title('Val set')
             axes[2].set_title('Test set')
             fig.savefig(path_save + 'speed_distribution.pdf', bbox_inches='tight', dpi=600)
+
+    
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
