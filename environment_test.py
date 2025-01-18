@@ -61,7 +61,7 @@ print('--- All the imports in src_encoder_pretraining are successful ---')
 print('--- All the imports in src_posterior_inference are successful ---')
 
 # src_conflict_detection
-from src_conflict_detection.validation_utils.utils_detection import *
+from src_conflict_detection.validation_utils.utils_evaluation import *
 from src_conflict_detection.validation_utils.utils_features import *
 print('--- All the imports in src_conflict_detection are successful ---')
 
