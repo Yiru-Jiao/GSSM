@@ -17,7 +17,7 @@ from sklearn.model_selection import ShuffleSplit
 path_raw = './RawData/'
 path_raw_honda = './RawData/HondaDataSupport/'
 path_raw_das = './RawData/DriverAssistanceSystems/'
-path_processed = './ProcessedData/'
+path_processed = './ProcessedData/SHRP2/'
 
 manual_seed = 131
 

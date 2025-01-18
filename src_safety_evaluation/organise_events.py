@@ -11,7 +11,7 @@ import pandas as pd
 from validation_utils.utils_features import read_data
 
 manual_seed = 131
-path_processed = './ProcessedData/'
+path_processed = './ProcessedData/SHRP2/'
 path_prepared = './PreparedData/'
 path_result = './ResultData/'
 

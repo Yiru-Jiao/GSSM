@@ -7,10 +7,9 @@ from tqdm import tqdm
 import pandas as pd
 import warnings
 
-path_raw = '././RawData/'
-path_raw_honda = '././RawData/HondaDataSupport/'
-path_raw_das = '././RawData/DriverAssistanceSystems/'
-path_processed = '././ProcessedData/'
+path_raw = './RawData/'
+path_raw_honda = './RawData/HondaDataSupport/'
+path_raw_das = './RawData/DriverAssistanceSystems/'
 
 
 print('Converting .xlsx files to .csv files...')

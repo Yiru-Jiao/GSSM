@@ -8,10 +8,10 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-path_raw = '././RawData/'
-path_raw_honda = '././RawData/HondaDataSupport/'
-path_raw_das = '././RawData/DriverAssistanceSystems/'
-path_processed = '././ProcessedData/'
+path_raw = './RawData/'
+path_raw_honda = './RawData/HondaDataSupport/'
+path_raw_das = './RawData/DriverAssistanceSystems/'
+path_processed = './ProcessedData/SHRP2/'
 
 
 # Set of Driving Assistance Systems
