@@ -48,10 +48,8 @@ def main(args, manual_seed, path_prepared):
                             ['current', 'environment'],
                             ['current', 'environment', 'profiles'],
                             ['current', 'environment', 'profiles'],
-                            ['current', 'environment', 'profiles'],
                             ['current', 'environment', 'profiles']]
     cross_attention_flag = [[], [], [], 
-                            ['first'], 
                             ['first','last'], 
                             ['first','middle','last']]
 
