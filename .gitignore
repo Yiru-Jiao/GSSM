@@ -5,6 +5,7 @@ RawData/**/*.*
 !src_trajectory_reconstruction/**/*.py
 !src_trajectory_reconstruction/**/*.ipynb
 !src_data_preparation/**/*.py
+!src_data_preparation/**/*.ipynb
 !src_data_preparation/INT_MapVis/**/*.*
 !src_encoder_pretraining/**/*.py
 !src_posterior_inference/**/*.py
