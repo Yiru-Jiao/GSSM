@@ -6,7 +6,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
@@ -39,17 +39,24 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
 
 
 def get_scaler(path_prepared, feature='profiles'):
+    print(f'Getting scaler for {feature}...')
     if feature == 'profiles':
-        scaler_data = pd.concat([pd.read_hdf(f'{path_prepared}Segments/profiles_{split}.h5', key='profiles') for split in ['train', 'val', 'test']], ignore_index=True)
-        scaler_data = scaler_data[['v_ego','omega_ego','v_sur']].values
-        scaler = StandardScaler()
-        scaler.fit(scaler_data)
+        scaler_data = []
+        for dataset in ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']:
+            for split in ['train', 'val']:
+                scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
+        scaler_data = pd.concat(scaler_data, ignore_index=True)
+        scaler_data = scaler_data[['v_ego','v_sur','angle']].values
+        scaler = RobustScaler().fit(scaler_data)
     elif feature == 'current':
         variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
-        scaler_data = pd.concat([pd.read_hdf(f'{path_prepared}Segments/current_features_{split}.h5', key='features') for split in ['train', 'val', 'test']], ignore_index=True)
+        scaler_data = []
+        for dataset in ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']:
+            for split in ['train', 'val']:
+                scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
+        scaler_data = pd.concat(scaler_data, ignore_index=True)
         scaler_data = scaler_data[variables].values
-        scaler = StandardScaler()
-        scaler.fit(scaler_data)
+        scaler = RobustScaler().fit(scaler_data)
     elif feature == 'environment':
         print('No scaler is needed for environment features.')
     return scaler
