@@ -23,8 +23,10 @@ path_processed = './ProcessedData/highD/'
 class LaneChangeExtractor():
     def __init__(self, data, initial_lc_id=0):
         super().__init__()
-        data = data.sort_values(['track_id','frame_id']).set_index('track_id')
-        data['acc'] = data['ax']*data['hx'] + data['ay']*data['hy'] # compute the acceleration in the heading direction
+        data['time'] = data['frame_id']/10
+        data = data.drop(columns=['frame_id'])
+        data = data.sort_values(['track_id','time']).set_index('track_id')
+        data['acc'] = np.sqrt(data['ax']**2 + data['ay']**2)
         self.data = data
         lane_change = data.groupby('track_id')['laneId'].nunique() > 1
         self.lc_track_ids = lane_change.index[lane_change].values
@@ -40,14 +42,14 @@ class LaneChangeExtractor():
             if len(preceding_vehs)==0 or len(following_vehs)==0:
                 continue # skip if the vehicle changed lane without interacting with other vehicles
             for interact_veh_id in np.concatenate([preceding_vehs, following_vehs]):
-                veh_i = self.data.loc[track_id].drop(columns=['laneId','precedingId', 'followingId'])
-                veh_j = self.data.loc[interact_veh_id].drop(columns=['laneId','precedingId', 'followingId'])
-                df = veh_i.merge(veh_j, on='frame_id', suffixes=('_i', '_j'), how='inner')
-                if len(df)<31:
-                    continue # skip if the interaction is shorter than 3 seconds
+                veh_ego = self.data.loc[track_id].drop(columns=['laneId','precedingId', 'followingId'])
+                veh_sur = self.data.loc[interact_veh_id].drop(columns=['laneId','precedingId', 'followingId'])
+                df = veh_ego.merge(veh_sur, on='time', suffixes=('_ego', '_sur'), how='inner')
+                if len(df)<25:
+                    continue # skip if the interaction is shorter than 2.5 seconds
                 df['lc_id'] = lc_id
-                df['track_id_i'] = track_id
-                df['track_id_j'] = interact_veh_id
+                df['track_id_ego'] = track_id
+                df['track_id_sur'] = interact_veh_id
                 lane_changes.append(df)
                 lc_id += 1
         return pd.concat(lane_changes, ignore_index=True)
@@ -127,7 +129,11 @@ for loc_id in range(1,7):
     data = pd.read_hdf(path_processed+'highD_0'+str(loc_id)+'.h5', key='data')
     lce = LaneChangeExtractor(data, initial_lc_id)
     lane_change = lce.extract_lanechange()
-    lane_change = lane_change.drop_duplicates(subset=['track_id_i','track_id_j','frame_id'])
+    lane_change = lane_change.drop_duplicates(subset=['track_id_ego','track_id_sur','time'])
     initial_lc_id = lane_change['lc_id'].max() + 1
+    # Mirror the coordinates as in highD the y-axis points downwards
+    lane_change = lane_change.rename(columns={'x_ego':'y_ego', 'y_ego':'x_ego', 'x_sur':'y_sur', 'y_sur':'x_sur',
+                                              'vx_ego':'vy_ego', 'vy_ego':'vx_ego', 'vx_sur':'vy_sur', 'vy_sur':'vx_sur',
+                                              'hx_ego':'hy_ego', 'hy_ego':'hx_ego', 'hx_sur':'hy_sur', 'hy_sur':'hx_sur'})
     lane_change.to_hdf(path_processed+'lane_changing/lc_0'+str(loc_id)+'.h5', key='data')
 
