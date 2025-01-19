@@ -9,6 +9,7 @@ Agent type (car/truck/cyclist/pedestrian) is implicitly defined by width and len
 The width of a car/truck is at least 1.5m, and the length is at least 3.5m.
 '''
 
+import os
 import glob
 from tqdm import tqdm
 import numpy as np
@@ -18,6 +19,7 @@ import represent_utils.get_heading_highD as ekf
 
 path_raw = './RawData/'
 path_processed = './ProcessedData/highD/'
+os.makedirs(path_processed, exist_ok=True)
 
 
 class LaneChangeExtractor():
