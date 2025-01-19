@@ -24,7 +24,7 @@ def get_stop_condition2(val_loss_log):
 
 
 class train_val_test():
-    def __init__(self, device, path_prepared, 
+    def __init__(self, device, path_prepared, dataset,
                  encoder_selection='all', 
                  cross_attention='all', 
                  pretrained_encoder=False,
@@ -32,6 +32,9 @@ class train_val_test():
         super(train_val_test, self).__init__()
         self.device = device
         self.path_prepared = path_prepared
+        self.dataset = dataset
+        dataset_name = '_'.join(dataset)
+        self.dataset_name = dataset_name
         if encoder_selection == 'all':
             encoder_selection = ['current', 'environment', 'profiles']
         encoder_name = '_'.join(encoder_selection)
@@ -42,9 +45,9 @@ class train_val_test():
         self.cross_attention_name = cross_attention_name
         if not return_attention:
             if pretrained_encoder:
-                self.path_output = path_prepared + f'PosteriorInference/pretrained/{encoder_name}_{cross_attention_name}/'
+                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained/{encoder_name}_{cross_attention_name}/'
             else:
-                self.path_output = path_prepared + f'PosteriorInference/not_pretrained/{encoder_name}_{cross_attention_name}/'
+                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/not_pretrained/{encoder_name}_{cross_attention_name}/'
             os.makedirs(self.path_output, exist_ok=True)
         self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
@@ -60,10 +63,9 @@ class train_val_test():
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
-        self.train_dataloader = DataLoader(DataOrganiser('train', self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=True)
-        self.val_dataloader = DataLoader(DataOrganiser('val', self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
-        self.test_dataloader = DataLoader(DataOrganiser('test', self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
-
+        self.train_dataloader = DataLoader(DataOrganiser('train', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=True)
+        self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
+        
     def send_x_to_device(self, x):
         if isinstance(x, list):
             return [i.to(self.device) for i in x]
@@ -137,14 +139,13 @@ class train_val_test():
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
-            loss_log = loss_log[loss_log.mean(axis=1)<1000]
+            loss_log = loss_log[loss_log.mean(axis=1)<np.inf]
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
             loss_log.to_csv(self.path_output+'loss_log.csv')
             val_loss_log = pd.DataFrame(val_loss_log[11:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-10)], columns=['val_loss'])
             val_loss_log.to_csv(self.path_output+'val_loss_log.csv')
-        else:
-            self.val_loss_log = val_loss_log
+        self.val_loss_log = val_loss_log
 
     # Validation loop
     def val_loop(self,):
@@ -161,9 +162,9 @@ class train_val_test():
     def load_model(self, batch_size=None, initial_lr=None):
         if 'path_output' not in self.__dict__:
             if self.pretrained_encoder:
-                self.path_output = self.path_prepared + f'PosteriorInference/pretrained/{self.encoder_name}_{self.cross_attention_name}/'
+                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}_{self.cross_attention_name}/'
             else:
-                self.path_output = self.path_prepared + f'PosteriorInference/not_pretrained/{self.encoder_name}_{self.cross_attention_name}/'
+                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}_{self.cross_attention_name}/'
         if batch_size is not None and initial_lr is not None:
             self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
         else:
@@ -174,17 +175,17 @@ class train_val_test():
         self.loss_func = self.loss_func.to(self.device)
         self.model.eval()
 
-    def test_model(self, batch_size=None, initial_lr=None):
-        # Load trained model
-        self.load_model(batch_size, initial_lr)
+    # def test_model(self, batch_size=None, initial_lr=None):
+    #     # Load trained model
+    #     self.load_model(batch_size, initial_lr)
 
-        # Evaluate the model
-        self.model.eval()
-        test_loss = np.zeros(len(self.test_dataloader))
-        with torch.no_grad():
-            for test_batch_iter, (x, y) in enumerate(self.test_dataloader):
-                out = self.model(self.send_x_to_device(x))
-                loss = self.loss_func(out, y.to(self.device)).item()
-                test_loss[test_batch_iter] = loss
-        self.model.train()
-        return test_loss.mean()
+    #     # Evaluate the model
+    #     self.model.eval()
+    #     test_loss = np.zeros(len(self.test_dataloader))
+    #     with torch.no_grad():
+    #         for test_batch_iter, (x, y) in enumerate(self.test_dataloader):
+    #             out = self.model(self.send_x_to_device(x))
+    #             loss = self.loss_func(out, y.to(self.device)).item()
+    #             test_loss[test_batch_iter] = loss
+    #     self.model.train()
+    #     return test_loss.mean()
