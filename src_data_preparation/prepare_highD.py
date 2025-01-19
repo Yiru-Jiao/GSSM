@@ -26,7 +26,6 @@ class LaneChangeExtractor():
         data['time'] = data['frame_id']/10
         data = data.drop(columns=['frame_id'])
         data = data.sort_values(['track_id','time']).set_index('track_id')
-        data['acc'] = np.sqrt(data['ax']**2 + data['ay']**2)
         self.data = data
         lane_change = data.groupby('track_id')['laneId'].nunique() > 1
         self.lc_track_ids = lane_change.index[lane_change].values
@@ -127,6 +126,8 @@ initial_lc_id = 0
 for loc_id in range(1,7):
     print('Extracting lane changes at location ' + str(loc_id) + '...')
     data = pd.read_hdf(path_processed+'highD_0'+str(loc_id)+'.h5', key='data')
+    data['acc'] = np.sqrt(data['ax']**2 + data['ay']**2)
+    data = data.rename(columns={'speed':'v'})
     lce = LaneChangeExtractor(data, initial_lc_id)
     lane_change = lce.extract_lanechange()
     lane_change = lane_change.drop_duplicates(subset=['track_id_ego','track_id_sur','time'])
