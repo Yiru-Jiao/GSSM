@@ -136,6 +136,7 @@ class train_val_test():
                 print(f'Validation loss increases and training stops early at Epoch {epoch_n}.')
                 break
 
+        self.val_loss_log = val_loss_log
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
@@ -145,7 +146,6 @@ class train_val_test():
             loss_log.to_csv(self.path_output+'loss_log.csv')
             val_loss_log = pd.DataFrame(val_loss_log[11:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-10)], columns=['val_loss'])
             val_loss_log.to_csv(self.path_output+'val_loss_log.csv')
-        self.val_loss_log = val_loss_log
 
     # Validation loop
     def val_loop(self,):
