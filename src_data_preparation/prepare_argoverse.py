@@ -77,5 +77,4 @@ data.loc[data['width_sur'].isna(), 'width_sur'] = 1.75
 data = data.drop(columns=['veh_type_ego','veh_type_sur'])
 
 # Saving the computed data to an HDF5 file
-print(data.head())
 data.to_hdf(path_processed + 'argo_hv.h5', key='data', mode='w')
