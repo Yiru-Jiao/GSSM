@@ -15,6 +15,7 @@ from src_posterior_inference.inference_utils.utils_train_eval_test import train_
 
 def read_events(path_events, meta_only=False):
     event_categories = sorted(os.listdir(path_events))
+    event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_events + event_cat)]
     event_meta = pd.concat([pd.read_csv(path_events + f'{event_cat}/event_meta.csv') for event_cat in event_categories])
     event_meta = event_meta.set_index('event_id')
     if meta_only:
@@ -25,26 +26,27 @@ def read_events(path_events, meta_only=False):
         return event_meta, event_data
 
 
-def read_evaluation(indicator, path_events, pretraining=None, encoder_name=None, cross_attention_name=None):
-    event_categories = sorted(os.listdir(path_events))
+def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, cross_attention_name=None, pretraining=None):
+    event_categories = sorted(os.listdir(path_results))
+    event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_results + event_cat)]
     if indicator=='TTC' or indicator=='DRAC' or indicator=='MTTC':
-        safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/TTC_DRAC_MTTC.h5', key='data') for event_cat in event_categories])
+        safety_evaluation = pd.concat([pd.read_hdf(path_results + f'{event_cat}/TTC_DRAC_MTTC.h5', key='data') for event_cat in event_categories])
         return safety_evaluation
     elif indicator=='SSSE':
-        if pretraining is None:
+        if np.any([config is None for config in [dataset_name, encoder_name, cross_attention_name, pretraining]]):
             print('Please specify model configuration for SSSE evaluation.')
             return None
         else:
-            safety_evaluation = pd.concat([pd.read_hdf(path_events + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data') for event_cat in event_categories])
+            safety_evaluation = pd.concat([pd.read_hdf(path_results + f'{event_cat}/{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data') for event_cat in event_categories])
             return safety_evaluation
 
 
-def define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder):
+def define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder):
     # Define the model
-    pipeline = train_val_test(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder, return_attention=True)
+    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder, return_attention=True)
     ## Load trained model
     pipeline.load_model()
-    print(f'Model loaded: {pipeline.encoder_name}-{pipeline.cross_attention_name}')
+    print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}-{pipeline.cross_attention_name}')
     return pipeline.model
 
 
@@ -185,12 +187,12 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
         # Determine safety period for the conflicting target
         '''
-        first 3 seconds in an event before start_timestamp with 
+        first 3 seconds in an event at least 3 seconds before start_timestamp with 
         * no hard braking, i.e., acceleration > -1.5 m/s^2 in the 3 seconds
         * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
         '''
         target = event[event['target_id']==target_id]
-        target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000)].copy()
+        target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)].copy()
         if len(target_period)<5:
             records.loc[event_id, 'safety_recorded'] = False
             continue
