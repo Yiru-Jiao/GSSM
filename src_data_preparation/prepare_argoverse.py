@@ -25,7 +25,7 @@ def get_df(motion, time_seq, veh_type):
     return df[['time','x','y','v','vx','vy','acc','hx','hy','veh_type']]
 
 
-def read_scenario(filename, root, return_map=False):
+def read_scenario(filename, root, initial_target_id, return_map=False):
     # There are multiple objects in each scenario, we are interested in the first two objects which are interacting
     dt = zarr.open(root+filename, mode='r')
     slices = dt['index'][:]
@@ -36,16 +36,22 @@ def read_scenario(filename, root, return_map=False):
     t_ego = timestep[slices[0]:slices[1]]
     motion_ego = motion[slices[0]:slices[1]]
     df_ego = get_df(motion_ego, t_ego, veh_type[0])
-    t_sur = timestep[slices[1]:slices[2]]
-    motion_sur = motion[slices[1]:slices[2]]
-    df_sur = get_df(motion_sur, t_sur, veh_type[1])
-    df = df_ego.merge(df_sur, on='time', suffixes=('_ego','_sur'), how='inner')
+    data = []
+    for i in range(1, len(veh_type)):
+        t_sur = timestep[slices[i]:slices[i+1]]
+        motion_sur = motion[slices[i]:slices[i+1]]
+        df_sur = get_df(motion_sur, t_sur, veh_type[i])
+        df_sur['target_id'] = i
+        df = df_ego.merge(df_sur, on='time', suffixes=('_ego','_sur'), how='inner')
+        data.append(df)
+    data = pd.concat(data, ignore_index=True)
+    data['target_id'] = data['target_id'] + initial_target_id
 
     if return_map:
         maps = dt.lane[:]
-        return df, maps
+        return data, maps
     else:
-        return df
+        return data
 
 
 # Set the root path for raw data
@@ -56,13 +62,16 @@ print('Processing ...')
 # Get the list of files from the root directory
 filenames = [name for name in os.listdir(root) if os.path.isdir(os.path.join(root, name))]
 data = []
+initial_target_id = -1
 for idx in tqdm(range(len(filenames))):
     filename = filenames[idx]
-    df = read_scenario(filename, root)
+    df = read_scenario(filename, root, initial_target_id)
     df['log_id'] = idx
+    initial_target_id = df['target_id'].max()
     data.append(df)
 
 data = pd.concat(data, ignore_index=True)
+data[['log_id', 'target_id']] = data[['log_id', 'target_id']].astype(int)
 # Set vehicle dimensions
 data['length_ego'] = 4.5
 data['width_ego'] = 1.75
