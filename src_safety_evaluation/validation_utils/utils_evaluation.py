@@ -143,18 +143,21 @@ def determine_target(indicator, danger, records, event_id):
     if indicator=='TTC' or indicator=='MTTC':
         if danger[indicator].isna().all():
             records.loc[event_id, 'danger_evaluated'] = False
+            target_id = np.nan
         else:
             records.loc[event_id, 'danger_evaluated'] = True
             target_id = danger.loc[danger[indicator].idxmin(),'target_id']
     elif indicator=='DRAC':
         if danger['DRAC'].isna().all():
             records.loc[event_id, 'danger_evaluated'] = False
+            target_id = np.nan
         else:
             records.loc[event_id, 'danger_evaluated'] = True
             target_id = danger.loc[danger['DRAC'].idxmax(),'target_id']
     elif indicator=='SSSE':
         if danger['intensity'].isna().all():
             records.loc[event_id, 'danger_evaluated'] = False
+            target_id = np.nan
         else:
             records.loc[event_id, 'danger_evaluated'] = True
             target_id = danger.loc[danger['intensity'].idxmax(),'target_id']
@@ -180,38 +183,35 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
         # Determine the conflicting target
         target_id, records = determine_target(indicator, danger, records, event_id)
-        if not records.loc[event_id, 'danger_evaluated']:
-            continue
         records.loc[event_id, 'target_id'] = target_id
+        if np.isnan(target_id):
+            continue
         target_danger = danger[danger['target_id']==target_id]
 
         # Determine safety period for the conflicting target
         '''
-        first 3 seconds in an event at least 3 seconds before start_timestamp with 
-        * no hard braking, i.e., acceleration > -1.5 m/s^2 in the 3 seconds
-        * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
+        the beginning in an event before start_timestamp, unlikely to be unsafe
+        * start: first timestamp in the event
+        * end: 0.5~3.5 seconds after the first timestamp, at least 3 seconds before start_timestamp
         '''
         target = event[event['target_id']==target_id]
         target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)].copy()
         if len(target_period)<5:
             records.loc[event_id, 'safety_recorded'] = False
             continue
-        else:
-            target_period = target_period.iloc[:30]
-        motion_states = ['acc_ego','v_ego','v_sur']
-        multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
-                                                 target_period['target_id'].values,
-                                                 target_period['time'].values], names=('event_id','target_id','time'))
-        target_period[motion_states] = event_data.loc[multi_index, motion_states].values
-        no_hard_braking = (target_period['acc_ego'].min()>-1.5)
-        not_stopping = (target_period['v_ego'].min()>0.5)&(target_period['v_sur'].min()>0.5)
-        if no_hard_braking and not_stopping:
-            records.loc[event_id, 'safety_recorded'] = True
-            records.loc[event_id, 'avg_acc_ego'] = target_period['acc_ego'].mean()
-            records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
-            records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
-        else:
-            records.loc[event_id, 'safety_recorded'] = False
+        target_period = target_period.iloc[:35]
+        # motion_states = ['acc_ego','v_ego','v_sur']
+        # multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
+        #                                          target_period['target_id'].values,
+        #                                          target_period['time'].values], names=('event_id','target_id','time'))
+        # target_period[motion_states] = event_data.loc[multi_index, motion_states].values
+        # no_hard_braking = (target_period['acc_ego'].min()>-1.5)
+        # not_stopping = (target_period['v_ego'].min()>0.5)&(target_period['v_sur'].min()>0.5)
+        # if no_hard_braking and not_stopping:
+        #     records.loc[event_id, 'safety_recorded'] = True
+        #     records.loc[event_id, 'avg_acc_ego'] = target_period['acc_ego'].mean()
+        #     records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
+        #     records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
         
         # Determine conflict and warning
         target_period = determine_conflicts(target_period, indicator, threshold)
