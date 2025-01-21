@@ -136,7 +136,7 @@ class train_val_test():
                 print(f'Validation loss increases and training stops early at Epoch {epoch_n}.')
                 break
 
-        self.val_loss_log = val_loss_log
+        self.val_loss_log = np.array(val_loss_log)
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
