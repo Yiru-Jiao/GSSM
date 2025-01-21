@@ -66,50 +66,67 @@ def main(args, events, manual_seed, path_prepared, path_result):
     one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
     # Evaluate for each event category
-    path_save = path_result + 'EventEvaluation/'
-    event_categories = sorted(os.listdir(path_save))[::-1]
+    event_categories = sorted(os.listdir(path_result + 'EventData/'))[::-1]
+    event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_result + f'EventData/{event_cat}')]
     for event_cat in event_categories:
         print(f'--- Evaluating {event_cat} ---')
-        event_meta = pd.read_csv(path_save + f'{event_cat}/event_meta.csv').set_index('event_id')
-        data = pd.read_hdf(path_save + f'{event_cat}/event_data.h5', key='data')
-        assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
+        data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
+        
+        if os.path.exists(path_result + f'EventData/{event_cat}/event_features.npz'):
+            event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
+            profiles_features = event_featurs['profiles']
+            current_features = event_featurs['current']
+            spacing_list = event_featurs['spacing']
+            event_id_list = event_featurs['event_id']
+            assert profiles_features.shape == (len(spacing_list), 20, 3)
+        else:
+            event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
+            assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
 
-        veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
-        condition = event_meta[['target_width','target_length']].isna().any(axis=1)
-        veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
-        avg_width = np.nanmean(veh_dimensions['ego_width'].values)
-        avg_length = np.nanmean(veh_dimensions['ego_length'].values)
-        for var in ['ego_width','ego_length','target_width','target_length']:
-            veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
+            veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
+            condition = event_meta[['target_width','target_length']].isna().any(axis=1)
+            veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
+            avg_width = np.nanmean(veh_dimensions['ego_width'].values)
+            avg_length = np.nanmean(veh_dimensions['ego_length'].values)
+            for var in ['ego_width','ego_length','target_width','target_length']:
+                veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
+
+            # Organise features for each event and target
+            profiles_features = []
+            current_features = []
+            spacing_list = []
+            event_id_list = []
+            target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
+            for target_id in tqdm(target_ids, desc='Target', position=0, dynamic_ncols=False, ascii=True, miniters=min(len(target_ids)//10, 150)):
+                df = data.loc(axis=0)[target_id, :]
+                if len(df)<25: # skip if the target was detected for less than 2.5 seconds
+                    continue
+                ego_length, target_length = veh_dimensions.loc[df['event_id'].values[0], ['ego_length','target_length']].values
+                segmented_features = get_context_representations(df, current_scaler, profiles_scaler, ego_length, target_length)
+                profiles_features.append(segmented_features[0])
+                current_features.append(segmented_features[1])
+                spacing_list.append(segmented_features[2])
+                event_id_list.append(segmented_features[3])
+            profiles_features = np.concatenate(profiles_features, axis=0)
+            current_features = np.concatenate(current_features, axis=0)
+            spacing_list = np.concatenate(spacing_list, axis=0)
+            event_id_list = np.concatenate(event_id_list, axis=0)
+            assert profiles_features.shape == (len(spacing_list), 20, 3)
+            # save the features
+            np.savez(path_result + f'EventData/{event_cat}/event_features.npz', 
+                     profiles=profiles_features, 
+                     current=current_features, 
+                     spacing=spacing_list, 
+                     event_id=event_id_list)
 
         # Self-supervised traffic safety evaluation
+        path_save = path_result + 'EventEvaluation/'
         model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
-        os.makedirs(path_save + f'{event_cat}/pretrained/', exist_ok=True)
-        os.makedirs(path_save + f'{event_cat}/not_pretrained/', exist_ok=True)
-
-        # Organise features for each event and target
-        profiles_features = []
-        current_features = []
-        spacing_list = []
-        event_id_list = []
-        target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
-        for target_id in tqdm(target_ids, desc='Target', position=0, dynamic_ncols=False, ascii=True, miniters=min(len(target_ids)//10, 150)):
-            df = data.loc(axis=0)[target_id, :]
-            if len(df)<25: # skip if the target was detected for less than 2.5 seconds
-                continue
-            ego_length, target_length = veh_dimensions.loc[df['event_id'].values[0], ['ego_length','target_length']].values
-            segmented_features = get_context_representations(df, current_scaler, profiles_scaler, ego_length, target_length)
-            profiles_features.append(segmented_features[0])
-            current_features.append(segmented_features[1])
-            spacing_list.append(segmented_features[2])
-            event_id_list.append(segmented_features[3])
-        profiles_features = np.concatenate(profiles_features, axis=0)
-        current_features = np.concatenate(current_features, axis=0)
-        spacing_list = np.concatenate(spacing_list, axis=0)
-        event_id_list = np.concatenate(event_id_list, axis=0)
-        assert profiles_features.shape == (len(spacing_list), 20, 3)
+        os.makedirs(path_save + f'{event_cat}/', exist_ok=True)
 
         for model_id in range(len(model_evaluation)):
+            dataset_name = model_evaluation.iloc[model_id]['dataset']
+            dataset = dataset_name.split('_')
             encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
             encoder_selection = encoder_name.split('_')
             pretraining = model_evaluation.iloc[model_id]['pretraining']
@@ -117,11 +134,11 @@ def main(args, events, manual_seed, path_prepared, path_result):
             cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
             cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
 
-            if os.path.exists(path_save + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5'):
+            if os.path.exists(path_save + f'{event_cat}/{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5'):
                 print(f'{event_cat} has been evaluated by {encoder_name}-{cross_attention_name}-{pretraining} encoder.')
                 continue
             # Define and load trained model
-            model = define_model(device, path_prepared, encoder_selection, cross_attention, pretrained_encoder)
+            model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
 
             states = []
             if 'current' in encoder_selection:
@@ -144,9 +161,12 @@ def main(args, events, manual_seed, path_prepared, path_result):
             results['mu'] = mu
             results['sigma'] = sigma
             results['intensity'] = max_intensity
-            results.to_hdf(path_save + f'{event_cat}/{pretraining}/{encoder_name}_{cross_attention_name}.h5', key='data', mode='w')
+            results.to_hdf(path_save + f'{event_cat}/{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data', mode='w')
 
         # Other safety evaluation metrics
+        if os.path.exists(path_save + f'{event_cat}/TTC_DRAC_MTTC.h5'):
+            print(f'{event_cat} has been evaluated by TTC, DRAC, and MTTC.')
+            continue
         data = data.reset_index()
         rename_columns = dict()
         for column in data.columns:
