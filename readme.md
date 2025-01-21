@@ -21,12 +21,13 @@ Collaborating with VITTI, we have made the processed anoynomous trajectory data 
 This offers a workflow to repeat the experiments in the paper. More detailed instructions can be found at the beginning of each script.
 
 ### Dependencies
-`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`
+`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib` ...
 
 ### Bird's eye trajectory reconstruction
 `/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
 
 ### Training data preparation
+`src_data_preparation/prepare_highD.py`, `src_data_preparation/prepare_INT.py`, `src_data_preparation/prepare_argoverse.py`
 `src_data_preparation/segment_datasets.py`, `src_data_preparation/complete_environment_samples.py`
 
 ### Encoder pretraining
@@ -55,3 +56,4 @@ Thanks to GitHub for offering the open environment, from which this work reuses/
 - Multidimensional Kalman-Filter
   - https://github.com/balzer82/Kalman/blob/master/Extended-Kalman-Filter-CTRA.ipynb
   - https://github.com/balzer82/Kalman/blob/master/Extended-Kalman-Filter-CHCV.ipynb
+- UnifiedConflictDetection https://github.com/Yiru-Jiao/UnifiedConflictDetection
