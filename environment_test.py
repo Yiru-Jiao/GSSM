@@ -21,7 +21,7 @@ from datetime import datetime
 import torch.nn.functional as F
 from joblib import Parallel, delayed
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import ShuffleSplit
 
@@ -61,9 +61,9 @@ print('--- All the imports in src_encoder_pretraining are successful ---')
 print('--- All the imports in src_posterior_inference are successful ---')
 
 # src_conflict_detection
-from src_conflict_detection.validation_utils.utils_evaluation import *
-from src_conflict_detection.validation_utils.utils_features import *
-print('--- All the imports in src_conflict_detection are successful ---')
+from src_safety_evaluation.validation_utils.utils_evaluation import *
+from src_safety_evaluation.validation_utils.utils_features import *
+print('--- All the imports in src_safety_evaluation are successful ---')
 
 
 def main():
