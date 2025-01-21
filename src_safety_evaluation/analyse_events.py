@@ -18,14 +18,15 @@ def main(path_result):
     print('---- available cpus:', os.cpu_count(), '----')
 
     # Read data for all event categories
-    path_events = path_result + 'EventEvaluation/'
+    path_events = path_result + 'EventData/'
+    path_results = path_result + 'EventEvaluation/'
     event_meta, event_data = read_events(path_events)
 
-    pretraining_list = ['not_pretrained']*6 + ['pretrained']*6
-    encoder_name_list = ['current', 'current_environment'] + ['current_environment_profiles']*4
-    encoder_name_list = encoder_name_list*2
-    cross_attention_name_list = ['not_crossed']*3 + ['first', 'first_last', 'first_middle_last']
-    cross_attention_name_list = cross_attention_name_list*2
+    model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
+    dataset_name_list = model_evaluation['dataset'].values
+    encoder_name_list = model_evaluation['encoder_selection'].values
+    cross_attention_name_list = model_evaluation['cross_attention'].values
+    pretraining_list = model_evaluation['pretraining'].values
 
     '''
     Analysis 1 - Event severity
@@ -39,8 +40,8 @@ def main(path_result):
     else:
         ground_truth = event_meta[event_meta['duration_enough']]
         results = []
-        for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list):
-            safety_evaluation = read_evaluation('SSSE', path_events, pretraining, encoder_name, cross_attention_name)
+        for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
+            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
             safety_evaluation = safety_evaluation[safety_evaluation['event_id'].isin(ground_truth.index.values)]
             safety_evaluation['impact_time'] = ground_truth.loc[safety_evaluation['event_id'].values, 'impact_timestamp'].values/1000
             safety_evaluation['period_start'] = safety_evaluation['impact_time'] - 0.5
@@ -73,13 +74,13 @@ def main(path_result):
 
     '''
     Analysis 2 - Conflict detection comparison
-    For each event, it is applicable to compare conflict detection if both safety and danger are present
-    - danger: the period that sure an event happens
+    For each event, it is applicable to compare conflict detection if safety or danger period is present
+    - danger: the period when an (near)crash happens as manually annotated by SHRP2
               * start: at most 3 seconds before impact_timestamp and after start_timestamp
-              * end: 0.5 seconds after impact_timestamp
-    - safety: first 3 seconds in an event before start_timestamp with 
-              * no hard braking, i.e., acceleration > -1.5 m/s^2 in the 3 seconds
-              * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
+              * end: 0.5 seconds after impact_timestamp and before end_timestamp
+    - safety: the beginning in an event before start_timestamp, unlikely to be unsafe
+              * start: first timestamp in the event
+              * end: 0.5~3.5 seconds after the first timestamp, at least 3 seconds before start_timestamp
     The target has largest intensity/DRAC (or smallest TTC/MTTC) during danger period is considered 
     as the conflicting target, and the safe period is determined specifically
     Then the comparison of ROC curves is between different indicators under various thresholds
@@ -88,13 +89,12 @@ def main(path_result):
     if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
         existing_results = pd.read_hdf(path_result + 'Analyses/ConflictWarning.h5', key='results')
         analysed_models = existing_results['model'].unique()
-        ssse_models = [pretraining + '_' + encoder_name + '_' + cross_attention_name for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list)]
-        if np.all(np.isin(['drac','ttc']+ssse_models, analysed_models)):
+        ssse_models = [f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}' for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list)]
+        if np.all(np.isin(['drac','ttc','mttc']+ssse_models, analysed_models)):
             print('--- Analysis 2: Conflict detection comparison completed ---')
-            flag_to_compute = False
-        else:
-            if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
-                event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
+            # flag_to_compute = False
+    if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
+        event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     if flag_to_compute:
         danger_start = np.maximum(event_meta['impact_timestamp'].values-3000, event_meta['start_timestamp'].values)
         danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
@@ -109,9 +109,9 @@ def main(path_result):
                 print('--- Analysis 2 with TTC already completed ---')
                 sub_flag_to_compute = False
         if sub_flag_to_compute:
-            ttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
-            safety_evaluation = read_evaluation('TTC', path_events)
-            progress_bar = tqdm(ttc_thresholds, desc='TTC', ascii=True, dynamic_ncols=False)
+            ttc_thresholds = np.round(np.arange(0.2,20.,0.2)**1.2,1)
+            safety_evaluation = read_evaluation('TTC', path_results)
+            progress_bar = tqdm(ttc_thresholds, desc='TTC', ascii=True, dynamic_ncols=False, miniters=10)
             ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in progress_bar)
             ttc_records = pd.concat(ttc_records).reset_index()
             ttc_records['indicator'] = 'TTC'
@@ -125,9 +125,9 @@ def main(path_result):
                 print('--- Analysis 2 with DRAC already completed ---')
                 sub_flag_to_compute = False
         if sub_flag_to_compute:
-            drac_thresholds = np.round(np.arange(0.05,5.,0.05),2)
-            safety_evaluation = read_evaluation('DRAC', path_events)
-            progress_bar = tqdm(drac_thresholds, desc='DRAC', ascii=True, dynamic_ncols=False)
+            drac_thresholds = np.round(np.arange(0.05,5.,0.05)**1.4, 2)
+            safety_evaluation = read_evaluation('DRAC', path_results)
+            progress_bar = tqdm(drac_thresholds, desc='DRAC', ascii=True, dynamic_ncols=False, miniters=10)
             drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in progress_bar)
             drac_records = pd.concat(drac_records).reset_index()
             drac_records['indicator'] = 'DRAC'
@@ -142,27 +142,26 @@ def main(path_result):
                 sub_flag_to_compute = False
         if sub_flag_to_compute:
             mttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
-            safety_evaluation = read_evaluation('MTTC', path_events)
-            progress_bar = tqdm(mttc_thresholds, desc='MTTC', ascii=True, dynamic_ncols=False)
+            safety_evaluation = read_evaluation('MTTC', path_results)
+            progress_bar = tqdm(mttc_thresholds, desc='MTTC', ascii=True, dynamic_ncols=False, miniters=10)
             mttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'MTTC') for threshold in progress_bar)
             mttc_records = pd.concat(mttc_records).reset_index()
             mttc_records['indicator'] = 'MTTC'
             mttc_records['model'] = 'mttc'
             results.append(mttc_records)
 
-        ssse_thresholds = np.arange(2,101)
-        for pretraining, encoder_name, cross_attention_name in zip(pretraining_list, encoder_name_list, cross_attention_name_list):
+        ssse_thresholds = np.round(np.arange(2,101)*1.4)
+        for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
             sub_flag_to_compute = True
-            model_name = pretraining + '_' + encoder_name + '_' + cross_attention_name
-            if os.path.exists(path_result + 'Analyses/ConflictWarning.h5'):
-                if model_name in analysed_models:
+            model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+            if os.path.exists(path_result + 'Analyses/ConflictWarning.h5') and model_name in analysed_models:
                     results.append(existing_results[existing_results['model']==model_name])
                     print('--- Analysis 2 with', model_name, 'already completed ---')
                     sub_flag_to_compute = False
             if sub_flag_to_compute:
                 print('--- Analyzing', model_name, '---')
-                safety_evaluation = read_evaluation('SSSE', path_events, pretraining, encoder_name, cross_attention_name)
-                progress_bar = tqdm(ssse_thresholds, desc='SSSE', ascii=True, dynamic_ncols=False)
+                safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
+                progress_bar = tqdm(ssse_thresholds, desc='SSSE', ascii=True, dynamic_ncols=False, miniters=10)
                 ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)
                 ssse_records = pd.concat(ssse_records).reset_index()
                 ssse_records['indicator'] = 'SSSE'
@@ -203,7 +202,7 @@ def main(path_result):
             filtered_warning = conflict_warning[(~conflict_warning['false warning'].isna())&
                                                 (~conflict_warning['true warning'].isna())&
                                                 (conflict_warning['model']==model)]
-            safety_evaluation = read_evaluation(conflict_indicator, path_events)
+            safety_evaluation = read_evaluation(conflict_indicator, path_results)
             optimal_threshold = optimize_threshold(filtered_warning, conflict_indicator)
             records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_data, event_meta)
             records['model'] = model
@@ -215,13 +214,13 @@ def main(path_result):
                                                 (~conflict_warning['true warning'].isna())&
                                                 (conflict_warning['model']==model_name)]
             print('--- Analyzing', model_name, '---')
-            safety_evaluation = read_evaluation('SSSE', path_events, pretraining, encoder_name, cross_attention_name)
+            safety_evaluation = read_evaluation('SSSE', path_results, pretraining, encoder_name, cross_attention_name)
             optimal_threshold = optimize_threshold(filtered_warning, 'SSSE')
             records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_data, event_meta)
             records['model'] = model_name
             results.append(records)
 
-        results = pd.concat(results).reset_index(drop=True)
+        results = pd.concat(results).reset_index()
         results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
         results.loc[results['danger_evaluated'].isna(), 'danger_evaluated'] = False
         results[['danger_recorded', 'danger_evaluated']] = results[['danger_recorded', 'danger_evaluated']].astype(bool)
