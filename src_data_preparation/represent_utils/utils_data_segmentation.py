@@ -48,7 +48,6 @@ def read_dataset(dataset, path_processed):
     elif dataset=='Argoverse':
         data_both = pd.read_hdf(path_processed+'Argoverse/argo_hv.h5', key='data')
         data_both['event_id'] = data_both['log_id']
-        data_both['target_id'] = data_both['log_id'] # in argoverse, one ego and one sur are selected for each event
     return data_both
 
 
