@@ -167,6 +167,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
             print(f'{event_cat} has been evaluated by TTC, DRAC, and MTTC.')
             continue
         data = data.reset_index()
+        event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+        data = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
         for column in data.columns:
             if '_ego' in column:
