@@ -70,6 +70,15 @@ def main(args, manual_seed, path_result):
     event_meta['danger_end'] = danger_end
     assert np.all(np.isin(event_data['event_id'].unique(), event_meta.index.values))
 
+    # Make sure use the same events as other methods
+    event_id_list = []
+    for event_cat in event_categories:
+        event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
+        event_id_list.append(event_featurs['event_id'])
+    event_id_list = np.concatenate(event_id_list)
+    event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+    event_data = event_data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
+        
     event_data['vx_ego'] = event_data['v_ego']*event_data['hx_ego']
     event_data['vy_ego'] = event_data['v_ego']*event_data['hy_ego']
     event_data['vx_sur'] = event_data['v_sur']*event_data['hx_sur']
