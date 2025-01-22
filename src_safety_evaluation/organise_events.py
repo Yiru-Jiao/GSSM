@@ -22,7 +22,7 @@ def main(meta_both, events):
                           (meta_both['ego_reconstructed'].astype(bool))&
                           (meta_both['surrounding_reconstructed'].astype(bool))]
     
-    path_save = path_result + 'EventEvaluation/'
+    path_save = path_result + 'EventData/'
     os.makedirs(path_save, exist_ok=True)
     for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
         event_meta = meta_both[meta_both['event_category']==event_cat].copy()
@@ -81,14 +81,15 @@ def main(meta_both, events):
             event_meta.loc[event_id, 'narrative'] = events.loc[event_id, 'finalNarrative']
 
             # Annotate duration_enough: at least one target is recorded over 2.5 seconds
-            target_time = df.groupby('target_id')['time'].agg(['min', 'max', 'count'])
-            if target_time['count'].max()>=25:
+            target_duration = df.groupby('target_id')['time'].count()
+            if target_duration.max()>=25:
                 event_meta.loc[event_id, 'duration_enough'] = True
             else:
                 event_meta.loc[event_id, 'duration_enough'] = False
 
         # Remove events with missing timestamps
         data = data.reset_index().sort_values(['target_id','time']).set_index(['target_id','time'])
+        data = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)]
         event_ids_to_remove = event_meta[event_meta[['start_timestamp', 'end_timestamp', 'impact_timestamp']].isnull().any(axis=1)].index.values
         data = data[~data['event_id'].isin(event_ids_to_remove)]
 
