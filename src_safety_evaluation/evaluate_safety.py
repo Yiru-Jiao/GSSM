@@ -71,6 +71,16 @@ def main(args, events, manual_seed, path_prepared, path_result):
     for event_cat in event_categories:
         print(f'--- Evaluating {event_cat} ---')
         data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
+        event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
+        assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
+
+        veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
+        condition = event_meta[['target_width','target_length']].isna().any(axis=1)
+        veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
+        avg_width = np.nanmean(veh_dimensions['ego_width'].values)
+        avg_length = np.nanmean(veh_dimensions['ego_length'].values)
+        for var in ['ego_width','ego_length','target_width','target_length']:
+            veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
         
         if os.path.exists(path_result + f'EventData/{event_cat}/event_features.npz'):
             event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
@@ -80,17 +90,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
             event_id_list = event_featurs['event_id']
             assert profiles_features.shape == (len(spacing_list), 20, 3)
         else:
-            event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
-            assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
-
-            veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
-            condition = event_meta[['target_width','target_length']].isna().any(axis=1)
-            veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
-            avg_width = np.nanmean(veh_dimensions['ego_width'].values)
-            avg_length = np.nanmean(veh_dimensions['ego_length'].values)
-            for var in ['ego_width','ego_length','target_width','target_length']:
-                veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
-
             # Organise features for each event and target
             profiles_features = []
             current_features = []
