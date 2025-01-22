@@ -52,39 +52,37 @@ def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
     return sim_mat
 
 
-# def load_data(dataset_dir='./PreparedData/', feature='profiles'):
-#     if feature == 'profiles':
-#         train_data = pd.read_hdf(f'{dataset_dir}Segments/profiles_train.h5', key='profiles')
-#         val_data = pd.read_hdf(f'{dataset_dir}Segments/profiles_val.h5', key='profiles')
-#         test_data = pd.read_hdf(f'{dataset_dir}Segments/profiles_test.h5', key='profiles')
+def load_data(dataset, dataset_dir='./PreparedData/', feature='profiles'):
+    if feature == 'profiles':
+        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/profiles_{ds}_train.h5', key='profiles')] for ds in dataset)
+        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/profiles_{ds}_val.h5', key='profiles')] for ds in dataset)
 
-#         scaler_data = pd.concat([train_data, val_data, test_data], ignore_index=True)
-#         scaler = RobustScaler()
-#         scaler.fit(scaler_data[['v_ego','omega_ego','v_sur']].values)
-#         train_X = scaler.transform(train_data[['v_ego','omega_ego','v_sur']].values).reshape(-1, 20, 3)
-#         val_X = scaler.transform(val_data[['v_ego','omega_ego','v_sur']].values).reshape(-1, 20, 3)
+        scaler_data = pd.concat([train_data, val_data], ignore_index=True)
+        scaler = RobustScaler()
+        scaler.fit(scaler_data[['v_ego','v_sur','angle']].values)
+        train_X = scaler.transform(train_data[['v_ego','v_sur','angle']].values).reshape(-1, 20, 3)
+        val_X = scaler.transform(val_data[['v_ego','v_sur','angle']].values).reshape(-1, 20, 3)
 
-#         assert train_X.ndim == 3 and val_X.ndim == 3
+        assert train_X.ndim == 3 and val_X.ndim == 3
         
-#     elif feature == 'current':
-#         variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
-#         train_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_train.h5', key='features')
-#         val_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_val.h5', key='features')
-#         test_data = pd.read_hdf(f'{dataset_dir}Segments/current_features_test.h5', key='features')
+    elif feature == 'current':
+        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/current_features_{ds}_train.h5', key='features') for ds in dataset])
+        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/current_features_{ds}_val.h5', key='features') for ds in dataset])
 
-#         scaler_data = pd.concat([train_data, val_data, test_data], ignore_index=True)
-#         scaler = RobustScaler()
-#         scaler.fit(scaler_data[variables].values)
-#         train_X = scaler.transform(train_data[variables].values)
-#         val_X = scaler.transform(val_data[variables].values)
+        scaler_data = pd.concat([train_data, val_data], ignore_index=True)
+        scaler = RobustScaler()
+        scaler.fit(scaler_data[variables].values)
+        train_X = scaler.transform(train_data[variables].values)
+        val_X = scaler.transform(val_data[variables].values)
 
-#     elif feature == 'environment':
-#         train_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_train_AE.h5', key='features')
-#         train_X = train_data.values
-#         val_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_val_AE.h5', key='features')
-#         val_X = val_data.values
+    elif feature == 'environment':
+        train_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_train_AE.h5', key='features')
+        train_X = train_data.values
+        val_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_val_AE.h5', key='features')
+        val_X = val_data.values
     
-#     return train_X, val_X
+    return train_X, val_X
 
 
 def assign_soft_labels(sim_mat, tau_inst):
