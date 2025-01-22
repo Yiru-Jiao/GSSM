@@ -178,28 +178,35 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         if danger.groupby('target_id')['time'].count().max()<5:
             records.loc[event_id, 'danger_recorded'] = False
             continue
-        else:
-            records.loc[event_id, 'danger_recorded'] = True
 
-        # Determine the conflicting target
+        # Determine the conflicting target and warning
+        records.loc[event_id, 'danger_recorded'] = True
         target_id, records = determine_target(indicator, danger, records, event_id)
         records.loc[event_id, 'target_id'] = target_id
         if np.isnan(target_id):
             continue
         target_danger = danger[danger['target_id']==target_id]
+        records.loc[event_id, 'danger_period'] = len(target_danger)/10
+        target_danger = determine_conflicts(target_danger, indicator, threshold)
+        if np.any(target_danger['conflict']):
+            records.loc[event_id, 'true warning'] = True
+        else:
+            records.loc[event_id, 'true warning'] = False
 
         # Determine safety period for the conflicting target
         '''
-        the beginning in an event before start_timestamp, unlikely to be unsafe
+        the beginning in an event before start_timestamp with conditions
+        * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
+        * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
         * start: first evaluatable timestamp in the event
-        * end: 0.5~3.5 seconds after the first timestamp, at least 3 seconds before start_timestamp
+        * end: 0.5~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
         '''
         target = event[event['target_id']==target_id]
         target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)].copy()
         if len(target_period)<5:
             records.loc[event_id, 'safety_recorded'] = False
             continue
-        target_period = target_period.iloc[:35]
+        target_period = target_period.iloc[:55]
         records.loc[event_id, 'safety_recorded'] = True
         motion_states = ['acc_ego','v_ego','v_sur']
         multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
@@ -209,22 +216,18 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         records.loc[event_id, 'avg_acc_ego'] = target_period['acc_ego'].mean()
         records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
         records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
-        # no_hard_braking = (target_period['acc_ego'].min()>-1.5)
-        # not_stopping = (target_period['v_ego'].min()>0.5)&(target_period['v_sur'].min()>0.5)
-        # if no_hard_braking and not_stopping:
-        #     records.loc[event_id, 'safety_recorded'] = True
-        
+        no_hard_braking = (target_period['acc_ego'].min()>-1.5)
+        not_stopping = (target_period['v_ego'].mean()>0.5)&(target_period['v_sur'].mean()>0.5)
+
         # Determine conflict and warning
-        target_period = determine_conflicts(target_period, indicator, threshold)
-        if np.any(target_period['conflict']):
-            records.loc[event_id, 'false warning'] = True
-        else:
-            records.loc[event_id, 'false warning'] = False
-        target_danger = determine_conflicts(target_danger, indicator, threshold)
-        if np.any(target_danger['conflict']):
-            records.loc[event_id, 'true warning'] = True
-        else:
-            records.loc[event_id, 'true warning'] = False
+        if no_hard_braking and not_stopping:
+            records.loc[event_id, 'safety_recorded'] = True
+            records.loc[event_id, 'safety_period'] = len(target_period)/10
+            target_period = determine_conflicts(target_period, indicator, threshold)
+            if np.any(target_period['conflict']):
+                records.loc[event_id, 'false warning'] = True
+            else:
+                records.loc[event_id, 'false warning'] = False
     records['threshold'] = threshold
     return records
 
