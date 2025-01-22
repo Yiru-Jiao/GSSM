@@ -109,19 +109,19 @@ def main(args):
 
             if eval_results[condition]['global_mean_shared_neighbours'].values[0]>0:
                 final_epoch = eval_results[condition]['model_used'].values[0].split('epo')[0].split('_')[-1]
-                print(f'--- {bslr} has been trained until epoch {final_epoch}, skipping evaluation ---')
+                print(f'--- {dataset} {bslr} has been trained until epoch {final_epoch}, skipping evaluation ---')
                 continue
 
             start_time = systime.time()
             # Train model if not already trained
             if os.path.exists(f'{save_dir}/loss_log.csv'):
-                print(f'--- {bslr} has been trained, loading final model ---')
+                print(f'--- {dataset} {bslr} has been trained, loading final model ---')
             else:
                 # Create model
                 model = autoencoder(args.encoder_name, args.lr, device, args.batch_size,
                                     after_epoch_callback = save_checkpoint_callback(save_dir, 0, unit='epoch'))
                 scheduler = 'reduced'
-                print(f'--- {bslr} training with ReduceLROnPlateau scheduler ---')
+                print(f'--- {dataset} {bslr} training with ReduceLROnPlateau scheduler ---')
                 loss_log = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
                 # Save loss log
                 loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
