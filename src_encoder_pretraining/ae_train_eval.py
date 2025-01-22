@@ -69,10 +69,10 @@ def main(args):
     if args.encoder_name == 'current':
         dataset_list = ['highD_SafeBaseline_INTERACTION_Argoverse',
                         'highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']
-        bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001', 'bs256_lr0.0001']
+        bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0002', 'bs256_lr0.0002']
     else:
         dataset_list = [None]
-        bslr_list = ['bs32_lr0.001', 'bs64_lr0.001', 'bs128_lr0.001', 'bs256_lr0.001']
+        bslr_list = ['bs64_lr0.001', 'bs128_lr0.001', 'bs256_lr0.001', 'bs512_lr0.001']
     
     if os.path.exists(results_dir):
         eval_results = pd.read_csv(results_dir)
@@ -94,6 +94,7 @@ def main(args):
             train_data, test_data = datautils.load_data([None], dataset_dir=path_prepared, feature=args.encoder_name)
         else:
             train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature=args.encoder_name)
+            test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
 
         for bslr in bslr_list:
             args.batch_size = int(bslr.split('_')[0].replace('bs',''))
@@ -146,7 +147,7 @@ def main(args):
             print(f'Evaluating with {best_model} ...')
             
             ## distance and density results
-            global_dist_dens_results = evaluate(test_data, model, batch_size=128, local=False)
+            global_dist_dens_results = evaluate(test_data, model, batch_size=256, local=False)
 
             ## loss results
             loss_results = model.compute_loss(test_data)
