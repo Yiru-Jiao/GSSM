@@ -67,7 +67,8 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     if args.encoder_name == 'current':
-        dataset_list = ['highD']
+        dataset_list = ['highD_SafeBaseline_INTERACTION_Argoverse',
+                        'highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']
         bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001', 'bs256_lr0.0001']
     else:
         dataset_list = [None]
@@ -89,7 +90,10 @@ def main(args):
     verbose = 5 # update per n_epochs // (1+verbose*4) epoch
     for dataset in dataset_list:
         print('---- Loading data ----')
-        train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature=args.encoder_name)
+        if dataset is None:
+            train_data, test_data = datautils.load_data([None], dataset_dir=path_prepared, feature=args.encoder_name)
+        else:
+            train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature=args.encoder_name)
 
         for bslr in bslr_list:
             args.batch_size = int(bslr.split('_')[0].replace('bs',''))
