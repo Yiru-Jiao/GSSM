@@ -175,7 +175,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         event = events.loc[event_id].copy()
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
-        if len(danger)<5:
+        if danger.groupby('target_id')['time'].count().max()<5:
             records.loc[event_id, 'danger_recorded'] = False
             continue
         else:
@@ -191,7 +191,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         # Determine safety period for the conflicting target
         '''
         the beginning in an event before start_timestamp, unlikely to be unsafe
-        * start: first timestamp in the event
+        * start: first evaluatable timestamp in the event
         * end: 0.5~3.5 seconds after the first timestamp, at least 3 seconds before start_timestamp
         '''
         target = event[event['target_id']==target_id]
@@ -200,18 +200,19 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'safety_recorded'] = False
             continue
         target_period = target_period.iloc[:35]
-        # motion_states = ['acc_ego','v_ego','v_sur']
-        # multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
-        #                                          target_period['target_id'].values,
-        #                                          target_period['time'].values], names=('event_id','target_id','time'))
-        # target_period[motion_states] = event_data.loc[multi_index, motion_states].values
+        records.loc[event_id, 'safety_recorded'] = True
+        motion_states = ['acc_ego','v_ego','v_sur']
+        multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
+                                                 target_period['target_id'].values,
+                                                 target_period['time'].values], names=('event_id','target_id','time'))
+        target_period[motion_states] = event_data.loc[multi_index, motion_states].values
+        records.loc[event_id, 'avg_acc_ego'] = target_period['acc_ego'].mean()
+        records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
+        records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
         # no_hard_braking = (target_period['acc_ego'].min()>-1.5)
         # not_stopping = (target_period['v_ego'].min()>0.5)&(target_period['v_sur'].min()>0.5)
         # if no_hard_braking and not_stopping:
         #     records.loc[event_id, 'safety_recorded'] = True
-        #     records.loc[event_id, 'avg_acc_ego'] = target_period['acc_ego'].mean()
-        #     records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
-        #     records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
         
         # Determine conflict and warning
         target_period = determine_conflicts(target_period, indicator, threshold)
