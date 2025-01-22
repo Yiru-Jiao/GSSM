@@ -68,7 +68,7 @@ def main(args):
     
     if args.encoder_name == 'current':
         dataset_list = ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse', 'highD_SafeBaseline_INTERACTION_Argoverse']
-        bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0002', 'bs256_lr0.0002']
+        bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001', 'bs256_lr0.0001']
     else:
         dataset_list = [None]
         bslr_list = ['bs64_lr0.001', 'bs128_lr0.001', 'bs256_lr0.001', 'bs512_lr0.001']
