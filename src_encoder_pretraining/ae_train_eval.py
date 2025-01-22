@@ -67,8 +67,7 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     if args.encoder_name == 'current':
-        dataset_list = ['highD_SafeBaseline_INTERACTION_Argoverse',
-                        'highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']
+        dataset_list = ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse', 'highD_SafeBaseline_INTERACTION_Argoverse']
         bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0002', 'bs256_lr0.0002']
     else:
         dataset_list = [None]
