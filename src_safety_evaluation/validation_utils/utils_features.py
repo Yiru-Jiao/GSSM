@@ -38,11 +38,11 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
         return data_ego, data_sur
 
 
-def get_scaler(path_prepared, feature='profiles'):
+def get_scaler(datasets, path_prepared, feature='profiles'):
     print(f'Getting scaler for {feature}...')
     if feature == 'profiles':
         scaler_data = []
-        for dataset in ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']:
+        for dataset in datasets:
             for split in ['train', 'val']:
                 scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
@@ -51,7 +51,7 @@ def get_scaler(path_prepared, feature='profiles'):
     elif feature == 'current':
         variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         scaler_data = []
-        for dataset in ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']:
+        for dataset in datasets:
             for split in ['train', 'val']:
                 scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
@@ -96,10 +96,8 @@ def segment_data(df, ego_length, target_length):
     return np.array(profiles_set), np.array(current_features_set), np.array(spacing_set), index_set
 
 
-def get_context_representations(df, current_scaler, profiles_scaler, ego_length, target_length):
+def get_context_representations(df, ego_length, target_length):
     profiles_set, current_features_set, spacing_set, index_set = segment_data(df, ego_length, target_length)
     assert np.isnan(profiles_set).sum()==0
-    profiles_set = profiles_scaler.transform(profiles_set.reshape(-1, 3)).reshape(profiles_set.shape)
-    current_features_set = current_scaler.transform(current_features_set)
     return profiles_set, current_features_set, spacing_set, index_set
 

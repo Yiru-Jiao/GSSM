@@ -52,10 +52,10 @@ def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
     return sim_mat
 
 
-def load_data(dataset, dataset_dir='./PreparedData/', feature='profiles'):
+def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
     if feature == 'profiles':
-        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/profiles_{ds}_train.h5', key='profiles')] for ds in dataset)
-        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/profiles_{ds}_val.h5', key='profiles')] for ds in dataset)
+        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles')] for dataset in datasets)
+        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles')] for dataset in datasets)
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
         scaler = RobustScaler()
@@ -67,8 +67,8 @@ def load_data(dataset, dataset_dir='./PreparedData/', feature='profiles'):
         
     elif feature == 'current':
         variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
-        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/current_features_{ds}_train.h5', key='features') for ds in dataset])
-        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{ds}/current_features_{ds}_val.h5', key='features') for ds in dataset])
+        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
+        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
         scaler = RobustScaler()

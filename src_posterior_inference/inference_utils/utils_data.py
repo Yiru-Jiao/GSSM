@@ -11,11 +11,11 @@ from torch.utils.data import Dataset
 from sklearn.preprocessing import RobustScaler
 
 
-def get_scaler(dataset_dir, feature):
+def get_scaler(datasets, dataset_dir, feature):
     print(f'Getting scaler for {feature}...')
     if feature == 'profiles':
         scaler_data = []
-        for dataset in ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']:
+        for dataset in datasets:
             for split in ['train', 'val']:
                 scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
@@ -24,7 +24,7 @@ def get_scaler(dataset_dir, feature):
     elif feature == 'current':
         variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         scaler_data = []
-        for dataset in ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']:
+        for dataset in datasets:
             for split in ['train', 'val']:
                 scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
@@ -44,9 +44,9 @@ class DataOrganiser(Dataset):
             encoder_selection = ['current', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         self.path_prepared = path_prepared
-        self.current_scaler = get_scaler(path_prepared, 'current')
+        self.current_scaler = get_scaler(dataset, path_prepared, 'current')
         if 'profiles' in encoder_selection:
-            self.profiles_scaler = get_scaler(path_prepared, 'profiles')
+            self.profiles_scaler = get_scaler(dataset, path_prepared, 'profiles')
         self.data = self.read_data()
         self.combine_features = self.define_combine_features()
 
