@@ -195,9 +195,8 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
         # Determine safety period for the conflicting target
         '''
-        the beginning in an event before start_timestamp with conditions
+        the beginning in an event before start_timestamp with no hard braking
         * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
-        * not stopping, i.e., both ego and target speed > 0.5 m/s in the period
         * start: first evaluatable timestamp in the event
         * end: 0.5~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
         '''
@@ -207,7 +206,6 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'safety_recorded'] = False
             continue
         target_period = target_period.iloc[:55]
-        records.loc[event_id, 'safety_recorded'] = True
         motion_states = ['acc_ego','v_ego','v_sur']
         multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
                                                  target_period['target_id'].values,
@@ -217,10 +215,9 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
         records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
         no_hard_braking = (target_period['acc_ego'].min()>-1.5)
-        not_stopping = (target_period['v_ego'].mean()>0.5)&(target_period['v_sur'].mean()>0.5)
 
         # Determine conflict and warning
-        if no_hard_braking and not_stopping:
+        if no_hard_braking:
             records.loc[event_id, 'safety_recorded'] = True
             records.loc[event_id, 'safety_period'] = len(target_period)/10
             target_period = determine_conflicts(target_period, indicator, threshold)
