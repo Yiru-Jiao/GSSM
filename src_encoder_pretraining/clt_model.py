@@ -102,14 +102,15 @@ class spclt():
         if n_iters is None and n_epochs is None:
             num_samples = train_data.shape[0]
             n_iters = num_samples * 32 / self.batch_size
-            sample_bounds = [100, 500, 1000, 10000, 100000]
-            coefs = [2, 1, 0.5, 0.25, 0.125]
+            sample_bounds = [100, 500, 1000, 10000, 100000, 1000000]
+            coefs = [2, 1, 1/2, 1/4, 1/8, 1/16]
             for bound, coef in zip(sample_bounds, coefs):
                 if num_samples < bound:
                     n_iters = int(n_iters * coef)
                     break
             if num_samples >= sample_bounds[-1]:
-                n_iters = int(n_iters / 16)
+                n_iters = int(n_iters / 64)
+            print(f'Number of iterations is set to {n_iters}.')
 
         # define a progress bar
         if n_epochs is not None:
