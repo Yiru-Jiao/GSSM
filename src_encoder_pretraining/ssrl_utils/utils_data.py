@@ -54,8 +54,8 @@ def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
 
 def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
     if feature == 'profiles':
-        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles')] for dataset in datasets)
-        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles')] for dataset in datasets)
+        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles') for dataset in datasets])
+        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles') for dataset in datasets])
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
         scaler = RobustScaler()
