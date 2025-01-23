@@ -142,24 +142,18 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
 def determine_target(indicator, danger, records, event_id):
     if indicator=='TTC' or indicator=='MTTC':
         if danger[indicator].isna().all():
-            records.loc[event_id, 'danger_evaluated'] = False
             target_id = np.nan
         else:
-            records.loc[event_id, 'danger_evaluated'] = True
             target_id = danger.loc[danger[indicator].idxmin(),'target_id']
     elif indicator=='DRAC':
         if danger['DRAC'].isna().all():
-            records.loc[event_id, 'danger_evaluated'] = False
             target_id = np.nan
         else:
-            records.loc[event_id, 'danger_evaluated'] = True
             target_id = danger.loc[danger['DRAC'].idxmax(),'target_id']
     elif indicator=='SSSE':
         if danger['intensity'].isna().all():
-            records.loc[event_id, 'danger_evaluated'] = False
             target_id = np.nan
         else:
-            records.loc[event_id, 'danger_evaluated'] = True
             target_id = danger.loc[danger['intensity'].idxmax(),'target_id']
     return target_id, records
 
@@ -180,18 +174,19 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             continue
 
         # Determine the conflicting target and warning
-        records.loc[event_id, 'danger_recorded'] = True
         target_id, records = determine_target(indicator, danger, records, event_id)
         records.loc[event_id, 'target_id'] = target_id
         if np.isnan(target_id):
+            records.loc[event_id, 'danger_recorded'] = False
             continue
         target_danger = danger[danger['target_id']==target_id]
+        records.loc[event_id, 'danger_recorded'] = True
         records.loc[event_id, 'danger_period'] = len(target_danger)/10
         target_danger = determine_conflicts(target_danger, indicator, threshold)
         if np.any(target_danger['conflict']):
-            records.loc[event_id, 'true warning'] = True
+            records.loc[event_id, 'true warning'] = 1
         else:
-            records.loc[event_id, 'true warning'] = False
+            records.loc[event_id, 'true warning'] = 0
 
         # Determine safety period for the conflicting target
         '''
@@ -222,31 +217,34 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'safety_period'] = len(target_period)/10
             target_period = determine_conflicts(target_period, indicator, threshold)
             if np.any(target_period['conflict']):
-                records.loc[event_id, 'false warning'] = True
+                records.loc[event_id, 'false warning'] = 1
             else:
-                records.loc[event_id, 'false warning'] = False
+                records.loc[event_id, 'false warning'] = 0
     records['threshold'] = threshold
     return records
 
 
 def optimize_threshold(warning, conflict_indicator, return_stats=False):
-    statistics = warning.groupby(['threshold']).agg({'true warning':['sum','size'],'false warning':['sum','size']})
-    statistics['true positive rate'] = statistics['true warning']['sum']/statistics['true warning']['size']
-    statistics['false positive rate'] = statistics['false warning']['sum']/statistics['false warning']['size']
+    danger = warning[warning['danger_recorded']].copy()
+    tpr = danger.groupby('threshold')['true warning'].sum()/danger.groupby('threshold')['true warning'].size()
+    tpr = tpr.reset_index().rename(columns={'true warning':'true positive rate'})
+    safety = warning[warning['safety_recorded']].copy()
+    fpr = safety.groupby('threshold')['false warning'].sum()/safety.groupby('threshold')['false warning'].size()
+    fpr = fpr.reset_index().rename(columns={'false warning':'false positive rate'})
+    statistics = tpr.reset_index().merge(fpr.reset_index(), on='threshold', how='outer')[['threshold','true positive rate','false positive rate']]
     if conflict_indicator=='TTC' or conflict_indicator=='MTTC':
-        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold']).reset_index()
+        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'])
     else:
-        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, False]).reset_index()
+        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, False])
 
     statistics['combined rate'] = (1-statistics['true positive rate'])**2+(statistics['false positive rate'])**2
     optimal_rate = statistics['combined rate'].min()
-    optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate,[('threshold',''),('true positive rate',''),('false positive rate','')]]
-    optimal_warning = optimal_warning.droplevel(1, axis='columns')
+    optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate, ['threshold','true positive rate','false positive rate']]
     optimal_threshold = optimal_warning.iloc[0]
     print(conflict_indicator, 
-          ' optimal threshold: ', optimal_threshold['threshold'], 
-          ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
-          ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
+            ' optimal threshold: ', optimal_threshold['threshold'], 
+            ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
+            ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
     if return_stats:
         optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
         return statistics, optimal_warning, optimal_threshold
