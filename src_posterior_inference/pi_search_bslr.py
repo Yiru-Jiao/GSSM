@@ -53,6 +53,7 @@ def main(args, manual_seed, path_prepared):
                 ['highD'],
                 ['SafeBaseline']]
 
+    os.makedirs(path_prepared + 'PosteriorInference/', exist_ok=True)
     if os.path.exists(path_prepared + 'PosteriorInference/bslr_search.csv'):
         bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
     else:
