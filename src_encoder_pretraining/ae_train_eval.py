@@ -29,13 +29,7 @@ def parse_args():
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
     args.reproduction = bool(args.reproduction)
-    
-    # Set default parameters
-    if args.encoder_name == 'current':
-        args.epochs = 1500
-    elif args.encoder_name == 'environment':
-        args.epochs = 1000
-
+    args.epochs = 1000
     return args
 
 
@@ -67,106 +61,88 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     if args.encoder_name == 'current':
-        dataset_list = ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse', 'highD_SafeBaseline_INTERACTION_Argoverse']
         bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001', 'bs256_lr0.0001']
     else:
-        dataset_list = [None]
         bslr_list = ['bs64_lr0.001', 'bs128_lr0.001', 'bs256_lr0.001', 'bs512_lr0.001']
     
     if os.path.exists(results_dir):
         eval_results = pd.read_csv(results_dir)
     else:
         metrics = ['global_'+metric for metric in knn_metrics]
-        if args.encoder_name == 'current':
-            eval_results = pd.DataFrame(np.zeros((len(bslr_list)*len(dataset_list), 4), dtype=np.float32), columns=metrics)
-            eval_results[['dataset', 'bslr']] = [[dataset, bslr] for dataset in dataset_list for bslr in bslr_list]
-        else:
-            eval_results = pd.DataFrame(np.zeros((len(bslr_list), 4), dtype=np.float32), columns=metrics)
-            eval_results['bslr'] = bslr_list
+        eval_results = pd.DataFrame(np.zeros((len(bslr_list), 4), dtype=np.float32), columns=metrics)
+        eval_results['bslr'] = bslr_list
         eval_results.to_csv(results_dir, index=False)
     
     # Iterate over different model sets
     verbose = 5 # update per n_epochs // (1+verbose*4) epoch
-    for dataset in dataset_list:
-        print('---- Loading data ----')
-        if dataset is None:
-            train_data, test_data = datautils.load_data([None], dataset_dir=path_prepared, feature=args.encoder_name)
+    print('---- Loading data ----')
+    datasets = ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']
+    train_data, test_data = datautils.load_data(datasets, dataset_dir=path_prepared, feature=args.encoder_name)
+    test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
+
+    for bslr in bslr_list:
+        args.batch_size = int(bslr.split('_')[0].replace('bs',''))
+        args.lr = float(bslr.split('_')[1].replace('lr',''))
+
+        save_dir = os.path.join(run_dir, f'{bslr}')
+        os.makedirs(save_dir, exist_ok=True)
+
+        if eval_results[eval_results['bslr']==bslr]['global_mean_shared_neighbours'].values[0]>0:
+            final_epoch = eval_results[eval_results['bslr']==bslr]['model_used'].values[0].split('epo')[0].split('_')[-1]
+            print(f'--- {bslr} has been trained until epoch {final_epoch}, skipping evaluation ---')
+            continue
+
+        start_time = systime.time()
+        # Train model if not already trained
+        if os.path.exists(f'{save_dir}/loss_log.csv'):
+            print(f'--- {bslr} has been trained, loading final model ---')
         else:
-            train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature=args.encoder_name)
-            test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
+            # Create model
+            model = autoencoder(args.encoder_name, args.lr, device, args.batch_size,
+                                after_epoch_callback = save_checkpoint_callback(save_dir, 0, unit='epoch'))
+            scheduler = 'reduced'
+            print(f'--- {bslr} training with ReduceLROnPlateau scheduler ---')
+            loss_log = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
+            # Save loss log
+            loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
+                                    columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
+            loss_log.to_csv(f'{save_dir}/loss_log.csv')
+            print(f'Training time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)))
+        
+        # Reserve the latest model and remove the rest
+        existing_models = glob.glob(f'{save_dir}/*_encoder.pth')
+        if len(existing_models)>1:
+            existing_models.sort(key=os.path.getmtime, reverse=True)
+            for model_epoch in existing_models[1:]:
+                os.remove(model_epoch)
+                os.remove(model_epoch.replace('_encoder.pth', '_decoder.pth'))
+        best_model = 'model' + existing_models[0].split('model')[-1].split('_encoder')[0]
 
-        for bslr in bslr_list:
-            args.batch_size = int(bslr.split('_')[0].replace('bs',''))
-            args.lr = float(bslr.split('_')[1].replace('lr',''))
+        # Load best model for evaluation
+        model = autoencoder(args.encoder_name, args.lr, device, args.batch_size)
+        model.load(f'{save_dir}/{best_model}')
 
-            if args.encoder_name=='current':
-                condition = (eval_results['dataset']==dataset)&(eval_results['bslr']==bslr)
-                save_dir = os.path.join(run_dir, f'{dataset}/{bslr}')
-            else:
-                condition = (eval_results['bslr']==bslr)
-                save_dir = os.path.join(run_dir, f'{bslr}')
-            os.makedirs(save_dir, exist_ok=True)
+        # Evaluate model
+        print(f'Evaluating with {best_model} ...')
+        
+        ## distance and density results
+        global_dist_dens_results = evaluate(test_data, model, batch_size=512, local=False)
 
-            if eval_results[condition]['global_mean_shared_neighbours'].values[0]>0:
-                final_epoch = eval_results[condition]['model_used'].values[0].split('epo')[0].split('_')[-1]
-                print(f'--- {dataset} {bslr} has been trained until epoch {final_epoch}, skipping evaluation ---')
-                continue
+        ## loss results
+        loss_results = model.compute_loss(test_data)
+        loss_results = {'rmse_loss': loss_results}
 
-            start_time = systime.time()
-            # Train model if not already trained
-            if os.path.exists(f'{save_dir}/loss_log.csv'):
-                print(f'--- {dataset} {bslr} has been trained, loading final model ---')
-            else:
-                # Create model
-                model = autoencoder(args.encoder_name, args.lr, device, args.batch_size,
-                                    after_epoch_callback = save_checkpoint_callback(save_dir, 0, unit='epoch'))
-                scheduler = 'reduced'
-                print(f'--- {dataset} {bslr} training with ReduceLROnPlateau scheduler ---')
-                loss_log = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
-                # Save loss log
-                loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
-                                        columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
-                loss_log.to_csv(f'{save_dir}/loss_log.csv')
-                print(f'Training time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)))
-            
-            # Reserve the latest model and remove the rest
-            existing_models = glob.glob(f'{save_dir}/*_encoder.pth')
-            if len(existing_models)>1:
-                existing_models.sort(key=os.path.getmtime, reverse=True)
-                for model_epoch in existing_models[1:]:
-                    os.remove(model_epoch)
-                    os.remove(model_epoch.replace('_encoder.pth', '_decoder.pth'))
-            best_model = 'model' + existing_models[0].split('model')[-1].split('_encoder')[0]
+        # Save evaluation results
+        key_values = {**loss_results, **global_dist_dens_results}
+        keys = list(key_values.keys())
+        values = np.array(list(key_values.values())).astype(np.float32)
+        eval_results = pd.read_csv(results_dir) # read saved results again to avoid overwriting
+        eval_results.loc[(eval_results['bslr']==bslr), keys] = values
+        eval_results.loc[(eval_results['bslr']==bslr), 'model_used'] = best_model
 
-            # Load best model for evaluation
-            model = autoencoder(args.encoder_name, args.lr, device, args.batch_size)
-            model.load(f'{save_dir}/{best_model}')
+        # Save evaluation results per dataset and model
+        eval_results.to_csv(results_dir, index=False)
 
-            # Evaluate model
-            print(f'Evaluating with {best_model} ...')
-            
-            ## distance and density results
-            global_dist_dens_results = evaluate(test_data, model, batch_size=256, local=False)
-
-            ## loss results
-            loss_results = model.compute_loss(test_data)
-            loss_results = {'rmse_loss': loss_results}
-
-            # Save evaluation results
-            key_values = {**loss_results, **global_dist_dens_results}
-            keys = list(key_values.keys())
-            values = np.array(list(key_values.values())).astype(np.float32)
-            eval_results = pd.read_csv(results_dir) # read saved results again to avoid overwriting
-            if args.encoder_name=='current':
-                condition = (eval_results['dataset']==dataset)&(eval_results['bslr']==bslr)
-            else:
-                condition = (eval_results['bslr']==bslr)
-            eval_results.loc[condition, keys] = values
-            eval_results.loc[condition, 'model_used'] = best_model
-
-            # Save evaluation results per dataset and model
-            eval_results.to_csv(results_dir, index=False)
-            
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
