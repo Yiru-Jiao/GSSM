@@ -71,6 +71,12 @@ class UnifiedProximity(nn.Module):
                 x_current = self.current_encoder(x_current)
                 x_environment = self.environment_encoder(x_environment)
                 return (x_current, x_environment)
+        elif self.encoder_selection==['current','profiles']:
+            def combi_encoder(x):
+                x_current, x_ts = x
+                x_current = self.current_encoder(x_current)
+                x_ts = self.ts_encoder(x_ts)
+                return (x_current, x_ts)
         elif self.encoder_selection==['current','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
