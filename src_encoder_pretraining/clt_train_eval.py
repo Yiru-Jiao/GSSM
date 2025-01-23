@@ -92,8 +92,9 @@ def main(args):
     
     # Load dataset
     print('---- Loading data ----')
-    train_data, _ = datautils.load_data(dataset_dir=path_prepared)
-    dataset = 'SafeBaseline'
+    dataset = 'highD_SafeBaseline_INTERACTION_Argoverse'
+    train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
+    test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
     train_sim_mat = None # to be computed per batch during training
     
     # Load tuned hyperparameters
@@ -153,9 +154,6 @@ def main(args):
 
         # Evaluate model for UEA datasets
         print(f'Evaluating with {best_model} ...')
-        ## reload data for evaluation
-        loaded_data = datautils.load_data(dataset_dir=path_prepared)
-        _, test_data = loaded_data
         
         ## distance and density results
         local_dist_dens_results = evaluate(test_data, model, batch_size=128, local=True)
