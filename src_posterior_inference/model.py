@@ -6,6 +6,7 @@ import os
 import sys
 import torch
 import torch.nn as nn
+import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils import modules
 
@@ -33,18 +34,33 @@ class UnifiedProximity(nn.Module):
                                                            return_attention=return_attention)
         self.combi_encoder = self.define_combi_encoder()
 
+    def select_best_model(pretraining_evaluation):
+        pretraining_evaluation = pretraining_evaluation.copy()
+        order_columns = []
+        for column in pretraining_evaluation.columns:
+            if 'global_' in column:
+                if 'dist' in column:
+                    pretraining_evaluation[f'order_{column}'] = pretraining_evaluation[column].rank(ascending=True)
+                else:
+                    pretraining_evaluation[f'order_{column}'] = pretraining_evaluation[column].rank(ascending=False)
+                order_columns.append(f'order_{column}')
+        pretraining_evaluation['avg_order'] = pretraining_evaluation[order_columns].mean(axis=1)
+        best_model = pretraining_evaluation.sort_values(by='avg_order').iloc[0]
+        return best_model
+
     def load_pretrained_encoders(self, path_prepared='../PreparedData/'):
-        '''
-        current: bs256_lr0.001
-        environment: bs64_lr0.001
-        time series: topo-ts2vec
-        '''
         if 'current' in self.encoder_selection:
-            self.current_encoder.load('bs256_lr0.001', self.device, path_prepared)
+            pretraining_evaluation = pd.read_csv(path_prepared + 'EncoderPretraining/current_autoencoder/evaluation.csv')
+            best_model = self.select_best_model(pretraining_evaluation)
+            self.current_encoder.load(best_model['bslr'], self.device, path_prepared)
         if 'environment' in self.encoder_selection:
-            self.environment_encoder.load('bs64_lr0.001', self.device, path_prepared)
+            pretraining_evaluation = pd.read_csv(path_prepared + 'EncoderPretraining/environment_autoencoder/evaluation.csv')
+            best_model = self.select_best_model(pretraining_evaluation)
+            self.environment_encoder.load(best_model['bslr'], self.device, path_prepared)
         if 'profiles' in self.encoder_selection:
-            self.ts_encoder.load('topo-ts2vec', self.device, path_prepared)
+            pretraining_evaluation = pd.read_csv(path_prepared + 'EncoderPretraining/spclt/evaluation.csv')
+            best_model = self.select_best_model(pretraining_evaluation)
+            self.ts_encoder.load(best_model['model'], self.device, path_prepared)
 
     def define_combi_encoder(self,):
         if self.encoder_selection==['current']:
