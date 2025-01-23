@@ -78,7 +78,8 @@ def main(args):
     print('---- Loading data ----')
     datasets = ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']
     train_data, test_data = datautils.load_data(datasets, dataset_dir=path_prepared, feature=args.encoder_name)
-    test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
+    if args.encoder_name == 'current':
+        test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
 
     for bslr in bslr_list:
         args.batch_size = int(bslr.split('_')[0].replace('bs',''))
