@@ -100,7 +100,7 @@ class ContextSegmenter(coortrans):
             for idx_end in indices_end:
                 # sample 2-second scenes every 1 second
                 profiles = df.iloc[idx_end-20:idx_end][['v_ego','v_sur']] # speed of ego and surrounding
-                profiles['angle'] = self.angle(1, 0, # angle between ego and surrounding in the ego's view
+                profiles['angle'] = self.angle(0, 1, # angle between ego and surrounding in the ego's view
                                                df_view_ego.iloc[idx_end-20:idx_end]['hx_sur'].values,
                                                df_view_ego.iloc[idx_end-20:idx_end]['hy_sur'].values)
 
@@ -113,7 +113,7 @@ class ContextSegmenter(coortrans):
                     current_features[1] = df.iloc[idx_end]['length_sur']
                     vx_ego, vy_ego, vx_sur, vy_sur = df.iloc[idx_end][['vx_ego','vy_ego','vx_sur','vy_sur']].values
                     current_features[2] = np.sqrt((vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2)
-                    current_features[3] = self.angle(1, 0, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
+                    current_features[3] = self.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
                     current_features[4] = df.iloc[idx_end]['acc_ego']
                     current_features[5] = df.iloc[idx_end]['v_ego']**2
                     current_features[6] = df.iloc[idx_end]['v_sur']**2
