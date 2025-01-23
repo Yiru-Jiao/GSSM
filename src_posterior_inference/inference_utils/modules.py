@@ -72,7 +72,7 @@ class current_encoder(nn.Module):
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
         self.load_state_dict(state_dict)
-        print(f'Pretrained encoder for current features loaded: {best_model.split('trained_models/')[-1]}')
+        print(f"Pretrained encoder for current features loaded: {best_model.split('trained_models/')[-1]}")
 
     def forward(self, x):
         x = x.unsqueeze(-1) # (batch_size, 9, 1)
@@ -99,7 +99,7 @@ class environment_encoder(nn.Module):
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
         self.load_state_dict(state_dict)
-        print(f'Pretrained encoder for environment features loaded: {best_model.split('trained_models/')[-1]}')
+        print(f"Pretrained encoder for environment features loaded: {best_model.split('trained_models/')[-1]}")
 
     def forward(self, x):
         x = x.view(x.size(0), 1, -1) # (batch_size, 1, 27)
