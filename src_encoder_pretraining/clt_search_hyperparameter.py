@@ -43,7 +43,6 @@ import ssrl_utils.utils_data as datautils
 
 manual_seed = 131 
 path_prepared = './PreparedData/'
-path_processed = './ProcessedData/'
 
 
 def parse_args():
