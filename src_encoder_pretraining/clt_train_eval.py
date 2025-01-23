@@ -81,7 +81,7 @@ def main(args):
         eval_results = eval_results.set_index('model')
         return eval_results
     
-    model_list = ['ts2vec', 'topo-ts2vec', 'ggeo-ts2vec', 'softclt', 'topo-softclt', 'ggeo-softclt']
+    model_list = ['ts2vec', 'topo-ts2vec','softclt', 'topo-softclt']
     if os.path.exists(results_dir):
         eval_results = read_saved_results()
     else:
