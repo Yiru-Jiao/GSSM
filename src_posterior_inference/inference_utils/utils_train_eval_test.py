@@ -26,7 +26,7 @@ def get_stop_condition2(val_loss_log):
 class train_val_test():
     def __init__(self, device, path_prepared, dataset,
                  encoder_selection='all', 
-                 cross_attention='all', 
+                 cross_attention=[],
                  pretrained_encoder=False,
                  return_attention=False):
         super(train_val_test, self).__init__()
@@ -39,8 +39,6 @@ class train_val_test():
             encoder_selection = ['current', 'environment', 'profiles']
         encoder_name = '_'.join(encoder_selection)
         self.encoder_name = encoder_name
-        if cross_attention == 'all':
-            cross_attention = ['first', 'middle', 'last']
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention) > 0 else 'not_crossed'
         self.cross_attention_name = cross_attention_name
         if not return_attention:

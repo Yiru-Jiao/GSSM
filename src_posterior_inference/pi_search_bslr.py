@@ -76,7 +76,9 @@ def main(args, manual_seed, path_prepared):
                 print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
                 continue
             print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
-            pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, [], False)
+            pipeline = train_val_test(device, path_prepared, dataset, 
+                                      encoder_selection=encoder_selection, 
+                                      cross_attention=[], pretrained_encoder=False)
             pipeline.create_dataloader(batch_size)
             pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=2)
             avg_val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()

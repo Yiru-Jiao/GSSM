@@ -12,13 +12,11 @@ from src_posterior_inference.inference_utils import modules
 
 
 class UnifiedProximity(nn.Module):
-    def __init__(self, device, encoder_selection='all', cross_attention='all', return_attention=False, mask_mode=None):
+    def __init__(self, device, encoder_selection='all', cross_attention=[], return_attention=False, mask_mode=None):
         super(UnifiedProximity, self).__init__()
         self.device = device
         if encoder_selection=='all':
             encoder_selection = ['current', 'environment', 'profiles']
-        if cross_attention=='all':
-            cross_attention = ['first', 'middle', 'last']
         self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
         if 'current' in encoder_selection:
