@@ -87,7 +87,7 @@ class ContextSegmenter(coortrans):
         event_id_list = []
         scene_id = self.initial_scene_id
 
-        for target_id in tqdm(self.target_ids, desc='Target', total=len(self.target_ids)):
+        for id_count, target_id in tqdm(enumerate(self.target_ids), desc='Target', total=len(self.target_ids)):
             df = self.data.loc(axis=0)[target_id, :]
             if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                 continue
@@ -122,7 +122,10 @@ class ContextSegmenter(coortrans):
                     current_features[9] = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2)
                     current_features[-1] = scene_id
 
-                    profiles_set.append(profiles)
+                    if id_count%1000==999: # concat per every 1000 targets to speed up
+                        profiles_set = [pd.concat(profiles_set, axis=0), profiles]
+                    else:
+                        profiles_set.append(profiles)
                     current_features_set.append(current_features)
                     event_id_list.append([event_id, target_id, scene_id])
                     scene_id += 1
