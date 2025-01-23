@@ -18,7 +18,6 @@ from ssrl_utils.utils_eval import *
 
 manual_seed = 131
 path_prepared = './PreparedData/'
-path_processed = './ProcessedData/'
 
 
 def parse_args():
