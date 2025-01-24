@@ -92,11 +92,11 @@ def main(args, manual_seed, path_result):
         veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
     event_data[['length_ego','length_sur']] = veh_dimensions.loc[event_data['event_id'].values, ['ego_length','target_length']].values
 
-    if os.path.exists(path_save + 'All_ucd.h5'):
-        safety_evaluation = pd.read_hdf(path_save + 'All_ucd.h5', key='data')
+    if os.path.exists(path_save + 'highD_ucd.h5'):
+        safety_evaluation = pd.read_hdf(path_save + 'highD_ucd.h5', key='data')
     else:
         safety_evaluation = UCD(event_data, device)
-        safety_evaluation.to_hdf(path_save + f'All_ucd.h5', key='data', mode='w')
+        safety_evaluation.to_hdf(path_save + f'highD_ucd.h5', key='data', mode='w')
 
     ucd_thresholds = np.round(np.arange(1,100)**1.5)
     print('--- Analyzing ---')
