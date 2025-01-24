@@ -46,76 +46,78 @@ def main(args, manual_seed, path_prepared):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    datasets = [['highD'],
-                ['SafeBaseline'],
-                ['INTERACTION'],
-                ['Argoverse'],
-                ['SafeBaseline']]
-                # ['INTERACTION', 'highD'],
-                # ['SafeBaseline', 'INTERACTION'],
-                # ['SafeBaseline', 'highD'],
-                # ['SafeBaseline', 'INTERACTION', 'highD']]
-    encoder_combinations = [['current'],
-                            ['current'],
-                            ['current'],
-                            ['current'],
-                            ['current', 'environment']]
-                            # ['current'],
-                            # ['current'],
-                            # ['current'],
-                            # ['current']]
-                            # ['current', 'environment', 'profiles']]
-    cross_attention_flag = [[], [], [], [], []]
-                            # ['first','last'], 
-                            # ['first','middle','last']]
+    exp_config = [[['highD'], ['current'], [], False],
+                  [['SafeBaseline'], ['current'], [], False],
+                  [['SafeBaseline'], ['current', 'environment'], [], False],
+                  [['INTERACTION'], ['current'], [], False],
+                  [['Argoverse'], ['current'], [], False],
+                #   [[], ['current'], [], False],
+                #   [[], ['current'], [], False],
+                #   [[], ['current'], [], False],
+                  [['highD'], ['current'], [], True],
+                  [['SafeBaseline'], ['current'], [], True],
+                  [['INTERACTION'], ['current'], [], True],
+                  [['Argoverse'], ['current'], [], True],
+                #   [[], ['current','profiles'], [], False],
+                #   [[], ['current','profiles'], [], True], # need to determine if pretrain
+                #   [[], ['current','profiles'], ['first'], False],
+                #   [[], ['current','profiles'], ['first'], True],
+                #   [[], ['current','profiles'], ['last'], False],
+                #   [[], ['current','profiles'], ['last'], True],
+                #   [[], ['current','profiles'], ['first','last'], False],
+                #   [[], ['current','profiles'], ['first','last'], True],
+                  ]
+    dataset_factor = {'highD': 1, 'SafeBaseline': 469087/355570, 'INTERACTION': 456849/355570, 'Argoverse': 1037541/355570}
     if args.reversed_list:
-        datasets = datasets[::-1]
-        encoder_combinations = encoder_combinations[::-1]
-        cross_attention_flag = cross_attention_flag[::-1]
-    
+        exp_config = exp_config[::-1]
+
+    datasets = [exp[0] for exp in exp_config]
+    encoder_combinations = [exp[1] for exp in exp_config]
+    cross_attention_flag = [exp[2] for exp in exp_config]
+    pretraining_flag = [exp[3] for exp in exp_config]
+
     if os.path.exists(path_prepared + 'PosteriorInference/evaluation.csv'):
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     else:
         evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'val_loss'])
     bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
-    for pretrained_encoder in [False, True]:
+    for dataset, encoder_selection, cross_attention, pretrained_encoder in zip(datasets, encoder_combinations, cross_attention_flag, pretraining_flag):
+        dataset_name = '_'.join(dataset)
+        encoder_name = '_'.join(encoder_selection)
+        cross_attention_name = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
-        for dataset, encoder_selection, cross_attention in zip(datasets, encoder_combinations, cross_attention_flag):
-            if (not 'highD' in dataset) and pretrained_encoder:
-                continue 
-            dataset_name = '_'.join(dataset)
-            encoder_name = '_'.join(encoder_selection)
-            cross_attention_name = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
-            epochs = 300
+        epochs = 300
 
-            bslr = bslr_search[bslr_search['encoder_selection']==encoder_name].sort_values(by='avg_val_loss')
-            batch_size = int(bslr['batch_size'].values[0])
-            initial_lr = round(float(bslr['initial_lr'].values[0]), 4)
+        bslr = bslr_search[bslr_search['encoder_selection']==encoder_name].sort_values(by='avg_val_loss')
+        batch_size = int(float(bslr['batch_size'].values[0]) * sum([dataset_factor[ds] for ds in dataset]))
+        initial_lr = round(float(bslr['initial_lr'].values[0]) * sum([dataset_factor[ds] for ds in dataset])**0.5, 5)
 
-            condition = (evaluation['dataset']==dataset_name)&\
-                        (evaluation['encoder_selection']==encoder_name)&\
-                        (evaluation['cross_attention']==cross_attention_name)&\
-                        (evaluation['pretraining']==pretraining)&\
-                        (evaluation['initial_lr']==initial_lr)&\
-                        (evaluation['batch_size']==batch_size)
-            if len(evaluation[condition])>0 and not np.isnan(evaluation.loc[condition, 'val_loss'].values[0]):
-                print(f"{dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
-                continue
-            print(f"{dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
-            pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
-            pipeline.create_dataloader(batch_size)
-            if os.path.exists(pipeline.path_output + f'val_loss_log.csv'):
-                print(f"Loading trained model: {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}.")
-                pipeline.load_model()
-                val_loss = pd.read_csv(pipeline.path_output + 'val_loss_log.csv')
-                val_loss = np.sort(val_loss['val_loss'].values[-5:])[1:4].mean()
-            else:
-                pipeline.train_model(epochs, initial_lr, verbose=5)
-                val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
-            evaluation.loc[len(evaluation)] = [dataset_name, encoder_name, cross_attention_name, pretraining,
-                                               initial_lr, batch_size, val_loss]
-            evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'cross_attention', 'pretraining'])
-            evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
+        condition = (evaluation['dataset']==dataset_name)&\
+                    (evaluation['encoder_selection']==encoder_name)&\
+                    (evaluation['cross_attention']==cross_attention_name)&\
+                    (evaluation['pretraining']==pretraining)&\
+                    (evaluation['initial_lr']==initial_lr)&\
+                    (evaluation['batch_size']==batch_size)
+        if len(evaluation[condition])>0 and not np.isnan(evaluation.loc[condition, 'val_loss'].values[0]):
+            print(f"Already done {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}")
+            continue
+        else:
+            print(f"Start training {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}")
+        pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
+        pipeline.create_dataloader(batch_size)
+        if os.path.exists(pipeline.path_output + f'val_loss_log.csv'):
+            print(f"Loading trained model: {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}")
+            pipeline.load_model()
+            val_loss = pd.read_csv(pipeline.path_output + 'val_loss_log.csv')
+            val_loss = np.sort(val_loss['val_loss'].values[-5:])[1:4].mean()
+        else:
+            pipeline.train_model(epochs, initial_lr, verbose=5)
+            val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
+        evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
+        evaluation.loc[len(evaluation)] = [dataset_name, encoder_name, cross_attention_name, pretraining,
+                                           initial_lr, batch_size, val_loss]
+        evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'cross_attention', 'pretraining'])
+        evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
