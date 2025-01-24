@@ -97,7 +97,7 @@ class custom_dataset(Dataset):
         return self.get_item(idx)
     
 
-def SSSE(states, model, device):
+def SSSE(states, model, device, relative_angle):
     contexts, proximity = states
     data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
 
@@ -112,6 +112,10 @@ def SSSE(states, model, device):
 
     mu = np.concatenate(mu_list, axis=0)
     sigma = np.concatenate(sigma_list, axis=0)
+
+    # Modify mu when ego and sur are leaving each other
+    leaving = (relative_angle<0)
+    mu[leaving] = proximity[leaving]
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu, sigma)+1e-6)
@@ -139,7 +143,7 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
         return evaluation
 
 
-def determine_target(indicator, danger, records, event_id):
+def determine_target(indicator, danger):
     if indicator=='TTC' or indicator=='MTTC':
         if danger[indicator].isna().all():
             target_id = np.nan
@@ -155,7 +159,7 @@ def determine_target(indicator, danger, records, event_id):
             target_id = np.nan
         else:
             target_id = danger.loc[danger['intensity'].idxmax(),'target_id']
-    return target_id, records
+    return target_id
 
 
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
@@ -174,7 +178,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             continue
 
         # Determine the conflicting target and warning
-        target_id, records = determine_target(indicator, danger, records, event_id)
+        target_id, records = determine_target(indicator, danger)
         records.loc[event_id, 'target_id'] = target_id
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
@@ -270,7 +274,7 @@ def issue_warning(indicator, threshold, safety_evaluation, event_data, event_met
             records.loc[event_id, 'danger_recorded'] = True
 
         # Determine the conflicting target
-        target_id, records = determine_target(indicator, danger, records, event_id)
+        target_id, records = determine_target(indicator, danger)
         if not records.loc[event_id, 'danger_evaluated']:
             continue
         records.loc[event_id, 'target_id'] = target_id
