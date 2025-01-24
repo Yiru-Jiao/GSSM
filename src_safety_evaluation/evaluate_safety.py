@@ -59,12 +59,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    # Define scaler and one-hot encoder for normalisation
-    current_scaler = get_scaler(path_prepared, feature='current')
-    profiles_scaler = get_scaler(path_prepared, feature='profiles')
-    environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
-    one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
-
     # Evaluate for each event category
     event_categories = sorted(os.listdir(path_result + 'EventData/'))[::-1]
     event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_result + f'EventData/{event_cat}')]
@@ -101,9 +95,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
                 if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                     continue
                 ego_length, target_length = veh_dimensions.loc[df['event_id'].values[0], ['ego_length','target_length']].values
-                segmented_features = get_context_representations(df, current_scaler, profiles_scaler, ego_length, target_length)
-                profiles_features.append(segmented_features[0])
-                current_features.append(segmented_features[1])
+                segmented_features = get_context_representations(df, ego_length, target_length)
+                profiles_features.append(segmented_features[0]) # will need normalisation when being used
+                current_features.append(segmented_features[1]) # will need normalisation when being used
                 spacing_list.append(segmented_features[2])
                 event_id_list.append(segmented_features[3])
             profiles_features = np.concatenate(profiles_features, axis=0)
@@ -111,7 +105,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             spacing_list = np.concatenate(spacing_list, axis=0)
             event_id_list = np.concatenate(event_id_list, axis=0)
             assert profiles_features.shape == (len(spacing_list), 20, 3)
-            # save the features
+            # Save the features
             np.savez(path_result + f'EventData/{event_cat}/event_features.npz', 
                      profiles=profiles_features, 
                      current=current_features, 
@@ -128,10 +122,16 @@ def main(args, events, manual_seed, path_prepared, path_result):
             dataset = dataset_name.split('_')
             encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
             encoder_selection = encoder_name.split('_')
-            pretraining = model_evaluation.iloc[model_id]['pretraining']
-            pretrained_encoder = True if pretraining=='pretrained' else False
             cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
             cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
+            pretraining = model_evaluation.iloc[model_id]['pretraining']
+            pretrained_encoder = True if pretraining=='pretrained' else False
+
+            # Define scaler and one-hot encoder for normalisation
+            current_scaler = get_scaler(dataset, path_prepared, feature='current')
+            profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
+            environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
+            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
             if os.path.exists(path_save + f'{event_cat}/{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5'):
                 print(f'{event_cat} has been evaluated by {encoder_name}-{cross_attention_name}-{pretraining} encoder.')
@@ -141,19 +141,19 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
             states = []
             if 'current' in encoder_selection:
-                states.append(current_features.copy())
+                states.append(current_scaler.transform(current_features))
             if 'environment' in encoder_selection:
                 environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
                 environment_features = one_hot_encoder.transform(environment_features.values)
                 states.append(environment_features.copy())
             if 'profiles' in encoder_selection:
-                states.append(profiles_features.copy())
+                states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
             if len(states) == 1: # only current features
                 states = [states[0], spacing_list]
             else:
                 states = [tuple(states), spacing_list]
 
-            mu, sigma, max_intensity = SSSE(states, model, device)
+            mu, sigma, max_intensity = SSSE(states, model, device, current_features[:,-1])
             results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
             results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
             results['proximity'] = spacing_list
