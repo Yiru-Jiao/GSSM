@@ -59,11 +59,11 @@ def main(args, events, manual_seed, path_prepared, path_result):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    # Evaluate for each event category
+    # Load/save event features
+    print('--- Loading or saving event features ---')
     event_categories = sorted(os.listdir(path_result + 'EventData/'))[::-1]
     event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_result + f'EventData/{event_cat}')]
     for event_cat in event_categories:
-        print(f'--- Evaluating {event_cat} ---')
         data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
         event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
         assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
@@ -112,61 +112,80 @@ def main(args, events, manual_seed, path_prepared, path_result):
                      spacing=spacing_list, 
                      event_id=event_id_list)
 
-        # Self-supervised traffic safety evaluation
-        path_save = path_result + 'EventEvaluation/'
-        model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
-        os.makedirs(path_save + f'{event_cat}/', exist_ok=True)
+    # Traffic safety evaluation
+    path_save = path_result + 'EventEvaluation/'
+    model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
+    os.makedirs(path_save, exist_ok=True)
 
-        for model_id in range(len(model_evaluation)):
-            dataset_name = model_evaluation.iloc[model_id]['dataset']
-            dataset = dataset_name.split('_')
-            encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
-            encoder_selection = encoder_name.split('_')
-            cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
-            cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
-            pretraining = model_evaluation.iloc[model_id]['pretraining']
-            pretrained_encoder = True if pretraining=='pretrained' else False
+    data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
+    profiles_features = []
+    current_features = []
+    spacing_list = []
+    event_id_list = []
+    for event_cat in event_categories:
+        event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
+        profiles_features.append(event_featurs['profiles'])
+        current_features.append(event_featurs['current'])
+        spacing_list.append(event_featurs['spacing'])
+        event_id_list.append(event_featurs['event_id'])
+    profiles_features = np.concatenate(profiles_features, axis=0)
+    current_features = np.concatenate(current_features, axis=0)
+    spacing_list = np.concatenate(spacing_list, axis=0)
+    event_id_list = np.concatenate(event_id_list, axis=0)
 
-            # Define scaler and one-hot encoder for normalisation
-            current_scaler = get_scaler(dataset, path_prepared, feature='current')
-            profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
-            environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
-            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
+    # SSSE models in this study
+    for model_id in range(len(model_evaluation)):
+        dataset_name = model_evaluation.iloc[model_id]['dataset']
+        dataset = dataset_name.split('_')
+        encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
+        encoder_selection = encoder_name.split('_')
+        cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
+        cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
+        pretraining = model_evaluation.iloc[model_id]['pretraining']
+        pretrained_encoder = True if pretraining=='pretrained' else False
+        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+        print(f'--- Evaluating {model_name} ---')
 
-            if os.path.exists(path_save + f'{event_cat}/{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5'):
-                print(f'{event_cat} has been evaluated by {encoder_name}-{cross_attention_name}-{pretraining} encoder.')
-                continue
-            # Define and load trained model
-            model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
-
-            states = []
-            if 'current' in encoder_selection:
-                states.append(current_scaler.transform(current_features))
-            if 'environment' in encoder_selection:
-                environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
-                environment_features = one_hot_encoder.transform(environment_features.values)
-                states.append(environment_features.copy())
-            if 'profiles' in encoder_selection:
-                states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
-            if len(states) == 1: # only current features
-                states = [states[0], spacing_list]
-            else:
-                states = [tuple(states), spacing_list]
-
-            mu, sigma, max_intensity = SSSE(states, model, device, current_features[:,-1])
-            results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-            results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
-            results['proximity'] = spacing_list
-            results['mu'] = mu
-            results['sigma'] = sigma
-            results['intensity'] = max_intensity
-            results.to_hdf(path_save + f'{event_cat}/{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data', mode='w')
-
-        # Other safety evaluation metrics
-        if os.path.exists(path_save + f'{event_cat}/TTC_DRAC_MTTC.h5'):
-            print(f'{event_cat} has been evaluated by TTC, DRAC, and MTTC.')
+        if os.path.exists(path_save + f'{model_name}.h5'):
+            print(f'The events has been evaluated by {model_name}.')
             continue
-        data = data.reset_index()
+
+        # Define scaler and one-hot encoder for normalisation
+        current_scaler = get_scaler(dataset, path_prepared, feature='current')
+        profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
+        environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
+        one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
+
+        # Define and load trained model
+        model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
+
+        states = []
+        if 'current' in encoder_selection:
+            states.append(current_scaler.transform(current_features))
+        if 'environment' in encoder_selection:
+            environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
+            environment_features = one_hot_encoder.transform(environment_features.values)
+            states.append(environment_features.copy())
+        if 'profiles' in encoder_selection:
+            states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
+        if len(states) == 1: # only current features
+            states = [states[0], spacing_list]
+        else:
+            states = [tuple(states), spacing_list]
+
+        mu, sigma, max_intensity = SSSE(states, model, device, current_features[:,-1])
+        results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+        results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
+        results['proximity'] = spacing_list
+        results['mu'] = mu
+        results['sigma'] = sigma
+        results['intensity'] = max_intensity
+        results.to_hdf(path_save + f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data', mode='w')
+
+    # Other safety evaluation metrics
+    if os.path.exists(path_save + f'TTC_DRAC_MTTC.h5'):
+        print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
+    else:
         event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
         data = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
@@ -175,7 +194,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
                 rename_columns[column] = column.replace('_ego','_i')
             elif '_sur' in column:
                 rename_columns[column] = column.replace('_sur','_j')
-        results = data.rename(columns=rename_columns).copy()
+        results = data.copy().rename(columns=rename_columns)
         results['vx_i'] = results['v_i']*results['hx_i']
         results['vy_i'] = results['v_i']*results['hy_i']
         results['vx_j'] = results['v_j']*results['hx_j']
@@ -206,7 +225,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.loc[abs(results['acc_i'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_i'])<1e-6, 'TTC'].values
 
         results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'TTC', 'DRAC', 'MTTC']]
-        results.to_hdf(path_save + f'{event_cat}/TTC_DRAC_MTTC.h5', key='data', mode='w')
+        results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
