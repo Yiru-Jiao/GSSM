@@ -32,7 +32,7 @@ class UnifiedProximity(nn.Module):
                                                            return_attention=return_attention)
         self.combi_encoder = self.define_combi_encoder()
 
-    def select_best_model(pretraining_evaluation):
+    def select_best_model(self, pretraining_evaluation):
         pretraining_evaluation = pretraining_evaluation.copy()
         order_columns = []
         for column in pretraining_evaluation.columns:
