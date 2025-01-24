@@ -80,6 +80,7 @@ def main(args, manual_seed, path_prepared):
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     else:
         evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'val_loss'])
+        evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
     for dataset, encoder_selection, cross_attention, pretrained_encoder in zip(datasets, encoder_combinations, cross_attention_flag, pretraining_flag):
         dataset_name = '_'.join(dataset)
