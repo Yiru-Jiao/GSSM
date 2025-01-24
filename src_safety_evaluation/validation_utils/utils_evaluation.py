@@ -15,7 +15,6 @@ from src_posterior_inference.inference_utils.utils_train_eval_test import train_
 
 def read_events(path_events, meta_only=False):
     event_categories = sorted(os.listdir(path_events))
-    event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_events + event_cat)]
     event_meta = pd.concat([pd.read_csv(path_events + f'{event_cat}/event_meta.csv') for event_cat in event_categories])
     event_meta = event_meta.set_index('event_id')
     if meta_only:

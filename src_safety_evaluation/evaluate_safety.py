@@ -70,7 +70,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
     # Load/save event features
     print('--- Loading or saving event features ---')
-    event_categories = sorted(os.listdir(path_result + 'EventData/'))[::-1]
+    event_categories = sorted(os.listdir(path_result + 'EventData/'))
     event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
     avg_width = np.nanmean(event_meta['ego_width'].values)
     avg_length = np.nanmean(event_meta['ego_length'].values)

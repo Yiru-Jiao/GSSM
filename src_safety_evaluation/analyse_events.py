@@ -100,6 +100,7 @@ def main(path_result):
     danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
     event_meta['danger_start'] = danger_start
     event_meta['danger_end'] = danger_end
+    event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
     
     if os.path.exists(path_result + 'Analyses/Warning_ttc.h5'):
         print('--- Analysis 2 with TTC already completed ---')
@@ -124,6 +125,7 @@ def main(path_result):
         drac_thresholds = np.round(np.arange(0.05,5.,0.05)**1.4, 2)
         safety_evaluation = read_evaluation('DRAC', path_results)
         drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in drac_thresholds)
+        drac_records = pd.concat(drac_records).reset_index()
         drac_records['indicator'] = 'DRAC'
         drac_records['model'] = 'drac'
         drac_records = fill_na_warning(drac_records)
@@ -147,8 +149,6 @@ def main(path_result):
 
     ssse_thresholds = np.round(np.arange(1,100)**1.5)
     for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
-        if pretraining=='pretrained':
-            continue
         model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
             print('--- Analysis 2 with', model_name, 'already completed ---')
@@ -164,7 +164,6 @@ def main(path_result):
             ssse_records.to_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results', mode='w')
             print(model_name, 'time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
-    event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
     print('--- Analysis 2: Conflict detection comparison completed ---')
 
     # '''

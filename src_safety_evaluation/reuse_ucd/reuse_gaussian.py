@@ -57,14 +57,13 @@ def main(args, manual_seed, path_result):
 
     # Read event data
     path_save = path_result + 'EventEvaluation/'
-    event_categories = sorted(os.listdir(path_result + 'EventData/'))[::-1]
-    event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_result + f'EventData/{event_cat}')]
+    event_categories = sorted(os.listdir(path_result + 'EventData/'))
     event_data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
     if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
         event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     else:
         event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
-    danger_start = np.maximum(event_meta['impact_timestamp'].values-3000, event_meta['start_timestamp'].values)
+    danger_start = np.maximum(event_meta['impact_timestamp'].values-5000, event_meta['start_timestamp'].values)
     danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
     event_meta['danger_start'] = danger_start
     event_meta['danger_end'] = danger_end
@@ -109,6 +108,7 @@ def main(args, manual_seed, path_result):
     ucd_records.loc[ucd_records['danger_recorded'].isna(), 'danger_recorded'] = False
     ucd_records.loc[ucd_records['safety_recorded'].isna(), 'safety_recorded'] = False
     ucd_records[['danger_recorded', 'safety_recorded']] = ucd_records[['danger_recorded', 'safety_recorded']].astype(bool)
+    ucd_records[['indicator', 'model']] = ucd_records[['indicator', 'model']].astype(str)
     ucd_records.to_hdf(path_result + 'Analyses/Warning_ucd.h5', key='results', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
