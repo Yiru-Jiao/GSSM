@@ -15,9 +15,8 @@ from src_safety_evaluation.validation_utils.utils_evaluation import *
 
 def fill_na_warning(results):
     results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
-    results.loc[results['danger_evaluated'].isna(), 'danger_evaluated'] = False
     results.loc[results['safety_recorded'].isna(), 'safety_recorded'] = False
-    results[['danger_recorded', 'danger_evaluated', 'safety_recorded']] = results[['danger_recorded', 'danger_evaluated', 'safety_recorded']].astype(bool)
+    results[['danger_recorded', 'safety_recorded']] = results[['danger_recorded', 'safety_recorded']].astype(bool)
     results[['indicator', 'model']] = results[['indicator', 'model']].astype(str)
     return results
 
@@ -213,8 +212,7 @@ def main(path_result):
 
     #     results = pd.concat(results).reset_index()
     #     results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
-    #     results.loc[results['danger_evaluated'].isna(), 'danger_evaluated'] = False
-    #     results[['danger_recorded', 'danger_evaluated']] = results[['danger_recorded', 'danger_evaluated']].astype(bool)
+    #     results['danger_recorded'] = results['danger_recorded']].astype(bool)
     #     results.to_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results', mode='w')
     #     event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
     #     print('--- Analysis 3: Warning timeliness completed ---')

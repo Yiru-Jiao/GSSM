@@ -268,14 +268,13 @@ def issue_warning(indicator, threshold, safety_evaluation, event_data, event_met
         if len(danger)<5:
             records.loc[event_id, 'danger_recorded'] = False
             continue
-        else:
-            records.loc[event_id, 'danger_recorded'] = True
 
         # Determine the conflicting target
         target_id = determine_target(indicator, danger)
-        if not records.loc[event_id, 'danger_evaluated']:
-            continue
         records.loc[event_id, 'target_id'] = target_id
+        if np.isnan(target_id):
+            records.loc[event_id, 'danger_recorded'] = False
+            continue
         target = event[event['target_id']==target_id]
 
         # Determine first warning moment: the last safe->unsafe transition moment before impact_timestamp
