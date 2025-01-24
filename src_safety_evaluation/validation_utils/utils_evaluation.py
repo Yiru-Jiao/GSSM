@@ -176,7 +176,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             continue
 
         # Determine the conflicting target and warning
-        target_id, records = determine_target(indicator, danger)
+        target_id = determine_target(indicator, danger)
         records.loc[event_id, 'target_id'] = target_id
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
@@ -272,7 +272,7 @@ def issue_warning(indicator, threshold, safety_evaluation, event_data, event_met
             records.loc[event_id, 'danger_recorded'] = True
 
         # Determine the conflicting target
-        target_id, records = determine_target(indicator, danger)
+        target_id = determine_target(indicator, danger)
         if not records.loc[event_id, 'danger_evaluated']:
             continue
         records.loc[event_id, 'target_id'] = target_id
