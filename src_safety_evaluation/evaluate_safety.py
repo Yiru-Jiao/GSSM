@@ -40,6 +40,17 @@ def create_categorical_encoder(events, environment_feature_names):
     return categorical_encoder
 
 
+def set_veh_dimensions(event_meta):
+    veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
+    condition = event_meta[['target_width','target_length']].isna().any(axis=1)
+    veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
+    avg_width = np.nanmean(veh_dimensions['ego_width'].values)
+    avg_length = np.nanmean(veh_dimensions['ego_length'].values)
+    for var in ['ego_width','ego_length','target_width','target_length']:
+        veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
+    return veh_dimensions
+
+
 def main(args, events, manual_seed, path_prepared, path_result):
     initial_time = systime.time()
     print('Available cpus:', torch.get_num_threads(), 'available gpus:', torch.cuda.device_count())
@@ -67,15 +78,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
         data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
         event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
         assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
+        veh_dimensions = set_veh_dimensions(event_meta)
 
-        veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
-        condition = event_meta[['target_width','target_length']].isna().any(axis=1)
-        veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
-        avg_width = np.nanmean(veh_dimensions['ego_width'].values)
-        avg_length = np.nanmean(veh_dimensions['ego_length'].values)
-        for var in ['ego_width','ego_length','target_width','target_length']:
-            veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
-        
         if os.path.exists(path_result + f'EventData/{event_cat}/event_features.npz'):
             event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
             profiles_features = event_featurs['profiles']
@@ -118,6 +122,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
     os.makedirs(path_save, exist_ok=True)
 
     data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
+    event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
+    veh_dimensions = set_veh_dimensions(event_meta)
+    
     profiles_features = []
     current_features = []
     spacing_list = []
