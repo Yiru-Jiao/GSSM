@@ -180,7 +180,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['mu'] = mu
         results['sigma'] = sigma
         results['intensity'] = max_intensity
-        results.to_hdf(path_save + f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data', mode='w')
+        results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
 
     # Other safety evaluation metrics
     if os.path.exists(path_save + f'TTC_DRAC_MTTC.h5'):
