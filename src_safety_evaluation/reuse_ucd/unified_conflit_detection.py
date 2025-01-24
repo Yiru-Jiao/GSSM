@@ -129,7 +129,7 @@ def UCD(data, device):
 
     # Modify mu when ego and sur are leaving each other
     leaving = (interaction_context['rho'].values<0)
-    mu_list[leaving] = proximity[leaving]
+    mu_list[leaving] = np.log(proximity[leaving])
 
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu_list, sigma_list)+1e-6)
     max_intensity = np.maximum(1., max_intensity)
