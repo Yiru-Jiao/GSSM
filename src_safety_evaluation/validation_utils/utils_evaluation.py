@@ -27,17 +27,15 @@ def read_events(path_events, meta_only=False):
 
 
 def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, cross_attention_name=None, pretraining=None):
-    event_categories = sorted(os.listdir(path_results))
-    event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_results + event_cat)]
     if indicator=='TTC' or indicator=='DRAC' or indicator=='MTTC':
-        safety_evaluation = pd.concat([pd.read_hdf(path_results + f'{event_cat}/TTC_DRAC_MTTC.h5', key='data') for event_cat in event_categories])
+        safety_evaluation = pd.read_hdf(path_results + f'TTC_DRAC_MTTC.h5', key='data')
         return safety_evaluation
     elif indicator=='SSSE':
         if np.any([config is None for config in [dataset_name, encoder_name, cross_attention_name, pretraining]]):
             print('Please specify model configuration for SSSE evaluation.')
             return None
         else:
-            safety_evaluation = pd.concat([pd.read_hdf(path_results + f'{event_cat}/{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data') for event_cat in event_categories])
+            safety_evaluation = pd.read_hdf(path_results + f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data')
             return safety_evaluation
 
 
