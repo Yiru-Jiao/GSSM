@@ -40,12 +40,10 @@ def create_categorical_encoder(events, environment_feature_names):
     return categorical_encoder
 
 
-def set_veh_dimensions(event_meta):
+def set_veh_dimensions(event_meta, avg_width, avg_length):
     veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
     condition = event_meta[['target_width','target_length']].isna().any(axis=1)
     veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
-    avg_width = np.nanmean(veh_dimensions['ego_width'].values)
-    avg_length = np.nanmean(veh_dimensions['ego_length'].values)
     for var in ['ego_width','ego_length','target_width','target_length']:
         veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
     return veh_dimensions
@@ -73,12 +71,14 @@ def main(args, events, manual_seed, path_prepared, path_result):
     # Load/save event features
     print('--- Loading or saving event features ---')
     event_categories = sorted(os.listdir(path_result + 'EventData/'))[::-1]
-    event_categories = [event_cat for event_cat in event_categories if os.path.isdir(path_result + f'EventData/{event_cat}')]
+    event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
+    avg_width = np.nanmean(event_meta['ego_width'].values)
+    avg_length = np.nanmean(event_meta['ego_length'].values)
     for event_cat in event_categories:
         data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
         event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
         assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
-        veh_dimensions = set_veh_dimensions(event_meta)
+        veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
 
         if os.path.exists(path_result + f'EventData/{event_cat}/event_features.npz'):
             event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
@@ -116,14 +116,14 @@ def main(args, events, manual_seed, path_prepared, path_result):
                      spacing=spacing_list, 
                      event_id=event_id_list)
 
-    # Traffic safety evaluation
+    # Safety evaluation
     path_save = path_result + 'EventEvaluation/'
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     os.makedirs(path_save, exist_ok=True)
 
     data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
     event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
-    veh_dimensions = set_veh_dimensions(event_meta)
+    veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
     
     profiles_features = []
     current_features = []
@@ -160,8 +160,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
         # Define scaler and one-hot encoder for normalisation
         current_scaler = get_scaler(dataset, path_prepared, feature='current')
         profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
-        environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
-        one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
+        if 'environment' in encoder_selection:
+            environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
+            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
         # Define and load trained model
         model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
@@ -194,14 +195,14 @@ def main(args, events, manual_seed, path_prepared, path_result):
         print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
     else:
         event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-        data = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
+        results = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
-        for column in data.columns:
+        for column in results.columns:
             if '_ego' in column:
                 rename_columns[column] = column.replace('_ego','_i')
             elif '_sur' in column:
                 rename_columns[column] = column.replace('_sur','_j')
-        results = data.copy().rename(columns=rename_columns)
+        results = results.rename(columns=rename_columns)
         results['vx_i'] = results['v_i']*results['hx_i']
         results['vy_i'] = results['v_i']*results['hy_i']
         results['vx_j'] = results['v_j']*results['hx_j']
@@ -231,7 +232,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.loc[mttc_minus.isna()|mttc_plus.isna(), 'MTTC'] = np.inf
         results.loc[abs(results['acc_i'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_i'])<1e-6, 'TTC'].values
 
-        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'TTC', 'DRAC', 'MTTC']]
+        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'acc_i', 'TTC', 'DRAC', 'MTTC']]
         results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
