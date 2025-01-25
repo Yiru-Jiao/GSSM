@@ -20,8 +20,10 @@ def parse_args():
     parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
+    parser.add_argument('--reversed_list', type=int, default=0, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
     args.reproduction = bool(args.reproduction)
+    args.reversed_list = bool(args.reversed_list)
     return args
 
 
@@ -48,10 +50,8 @@ def main(args, manual_seed, path_prepared):
                             ['current', 'environment'],
                             ['current', 'profiles'],
                             ['current', 'environment', 'profiles']]
-    datasets = [['highD'],
-                ['SafeBaseline'],
-                ['highD'],
-                ['SafeBaseline']]
+    if args.reversed_list:
+        encoder_combinations = encoder_combinations[::-1]
 
     os.makedirs(path_prepared + 'PosteriorInference/', exist_ok=True)
     if os.path.exists(path_prepared + 'PosteriorInference/bslr_search.csv'):
@@ -59,7 +59,7 @@ def main(args, manual_seed, path_prepared):
     else:
         bslr_search = pd.DataFrame(columns=['encoder_selection', 'initial_lr', 'batch_size', 'avg_val_loss'])
         bslr_search.to_csv(path_prepared + 'PosteriorInference/bslr_search.csv', index=False)
-    for dataset, encoder_selection in zip(datasets, encoder_combinations):
+    for encoder_selection in encoder_combinations:
         encoder_name = '_'.join(encoder_selection)
         initial_lr = 0.0002
         if 'profiles' in encoder_selection:
@@ -68,6 +68,8 @@ def main(args, manual_seed, path_prepared):
         else:
             epochs = 20
             factor_range = range(5, 10) # 32, 64, 128, 256, 512
+        if args.reversed_list:
+            factor_range = factor_range[::-1]
         for factor in factor_range:
             sub_initial_time = systime.time()
             batch_size = 2**factor
@@ -78,7 +80,7 @@ def main(args, manual_seed, path_prepared):
                 print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
                 continue
             print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
-            pipeline = train_val_test(device, path_prepared, dataset, 
+            pipeline = train_val_test(device, path_prepared, ['SafeBaseline'], 
                                       encoder_selection=encoder_selection, 
                                       cross_attention=[], pretrained_encoder=False)
             pipeline.create_dataloader(batch_size)
