@@ -107,7 +107,7 @@ def main(path_result):
     else:
         print('--- Analyzing with TTC ---')
         sub_initial_time = systime.time()
-        ttc_thresholds = np.round(np.arange(0.2,20.,0.2)**1.2,1)
+        ttc_thresholds = np.unique(np.round(10**np.arange(0,1.98,0.019),1))-1
         safety_evaluation = read_evaluation('TTC', path_results)
         ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in ttc_thresholds)
         ttc_records = pd.concat(ttc_records).reset_index()
@@ -122,7 +122,7 @@ def main(path_result):
     else:
         print('--- Analyzing with DRAC ---')
         sub_initial_time = systime.time()
-        drac_thresholds = np.round(np.arange(0.05,5.,0.05)**1.4, 2)
+        drac_thresholds = np.unique(np.round(10**np.arange(0,1.,0.0102),2))-1
         safety_evaluation = read_evaluation('DRAC', path_results)
         drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in drac_thresholds)
         drac_records = pd.concat(drac_records).reset_index()
@@ -137,7 +137,7 @@ def main(path_result):
     else:
         print('--- Analyzing with MTTC ---')
         sub_initial_time = systime.time()
-        mttc_thresholds = np.round(np.arange(0.2,20.,0.2),1)
+        mttc_thresholds = np.unique(np.round(10**np.arange(0,1.5,0.013),1))-1
         safety_evaluation = read_evaluation('MTTC', path_results)
         mttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'MTTC') for threshold in mttc_thresholds)
         mttc_records = pd.concat(mttc_records).reset_index()
@@ -147,7 +147,7 @@ def main(path_result):
         mttc_records.to_hdf(path_result + 'Analyses/Warning_mttc.h5', key='results', mode='w')
         print('MTTC time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
-    ssse_thresholds = np.round(np.arange(1,100)**1.5)
+    ssse_thresholds = np.unique(np.round(10**np.arange(0,3.5,0.0275))).astype(int)
     for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
