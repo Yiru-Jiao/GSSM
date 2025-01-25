@@ -69,6 +69,7 @@ def main(args, manual_seed, path_prepared):
             epochs = 20
             factor_range = range(5, 10) # 32, 64, 128, 256, 512
         for factor in factor_range:
+            sub_initial_time = systime.time()
             batch_size = 2**factor
             condition = (bslr_search.encoder_selection==encoder_name)&\
                         (bslr_search.initial_lr==initial_lr)&\
@@ -87,6 +88,7 @@ def main(args, manual_seed, path_prepared):
             bslr_search.loc[len(bslr_search)] = [encoder_name, initial_lr, batch_size, avg_val_loss]
             bslr_search = bslr_search.sort_values(by=['encoder_selection', 'initial_lr', 'batch_size'])
             bslr_search.to_csv(path_prepared + 'PosteriorInference/bslr_search.csv', index=False)
+            print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} done, time elapsed: {systime.time()-sub_initial_time:.2f}s.")
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
