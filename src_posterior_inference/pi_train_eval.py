@@ -69,7 +69,8 @@ def main(args, manual_seed, path_prepared):
                 #   [[], ['current','profiles'], ['first','last'], False],
                 #   [[], ['current','profiles'], ['first','last'], True],
                   ]
-    dataset_factor = {'highD': 1, 'SafeBaseline': 469087/355570, 'INTERACTION': 456849/355570, 'Argoverse': 1037541/355570}
+    dataset_factor = {'highD': 355570, 'SafeBaseline': 469087, 'INTERACTION': 456849, 'Argoverse': 1037541}
+    dataset_factor = {k: v/469087 for k, v in dataset_factor.items()}
     if args.reversed_list:
         exp_config = exp_config[::-1]
 
