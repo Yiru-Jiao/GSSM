@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import warnings
 from torch.utils.data import Dataset
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import StandardScaler
 
 
 def get_scaler(datasets, dataset_dir, feature):
@@ -20,7 +20,7 @@ def get_scaler(datasets, dataset_dir, feature):
                 scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
         scaler_data = scaler_data[['v_ego','v_sur','angle']].values
-        scaler = RobustScaler().fit(scaler_data)
+        scaler = StandardScaler().fit(scaler_data)
     elif feature == 'current':
         variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
         scaler_data = []
@@ -29,7 +29,7 @@ def get_scaler(datasets, dataset_dir, feature):
                 scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
         scaler_data = scaler_data[variables].values
-        scaler = RobustScaler().fit(scaler_data)
+        scaler = StandardScaler().fit(scaler_data)
     elif feature == 'environment':
         print('No scaler is needed for environment features.')
     return scaler

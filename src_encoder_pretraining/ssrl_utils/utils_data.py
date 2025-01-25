@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import StandardScaler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_distance_matrix import *
 
@@ -58,7 +58,7 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles') for dataset in datasets])
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
-        scaler = RobustScaler()
+        scaler = StandardScaler()
         scaler.fit(scaler_data[['v_ego','v_sur','angle']].values)
         train_X = scaler.transform(train_data[['v_ego','v_sur','angle']].values).reshape(-1, 20, 3)
         val_X = scaler.transform(val_data[['v_ego','v_sur','angle']].values).reshape(-1, 20, 3)
@@ -71,7 +71,7 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
-        scaler = RobustScaler()
+        scaler = StandardScaler()
         scaler.fit(scaler_data[variables].values)
         train_X = scaler.transform(train_data[variables].values)
         val_X = scaler.transform(val_data[variables].values)

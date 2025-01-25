@@ -21,7 +21,7 @@ from datetime import datetime
 import torch.nn.functional as F
 from joblib import Parallel, delayed
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import ShuffleSplit
 
