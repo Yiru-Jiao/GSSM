@@ -112,7 +112,7 @@ class ContextSegmenter(coortrans):
                     current_features[0] = df.iloc[idx_end]['length_ego']
                     current_features[1] = df.iloc[idx_end]['length_sur']
                     vx_ego, vy_ego, vx_sur, vy_sur = df.iloc[idx_end][['vx_ego','vy_ego','vx_sur','vy_sur']].values
-                    current_features[2] = np.sqrt((vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2)
+                    current_features[2] = np.sqrt((vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2) * np.sign(df.iloc[idx_end]['v_ego']-df.iloc[idx_end]['v_sur'])
                     current_features[3] = self.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
                     current_features[4] = df.iloc[idx_end]['acc_ego']
                     current_features[5] = df.iloc[idx_end]['v_ego']**2
