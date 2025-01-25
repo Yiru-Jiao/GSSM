@@ -51,13 +51,15 @@ def main(args, manual_seed, path_prepared):
                   [['SafeBaseline'], ['current', 'environment'], [], False],
                   [['INTERACTION'], ['current'], [], False],
                   [['Argoverse'], ['current'], [], False],
-                #   [[], ['current'], [], False],
-                #   [[], ['current'], [], False],
-                #   [[], ['current'], [], False],
+                  [['SafeBaseline', 'Argoverse'], ['current'], [], False],
+                  [['SafeBaseline', 'Argoverse', 'INTERACTION'], ['current'], [], False],
+                  [['SafeBaseline', 'Argoverse', 'INTERACTION', 'highD'], ['current'], [], False],
                   [['highD'], ['current'], [], True],
                   [['SafeBaseline'], ['current'], [], True],
                   [['INTERACTION'], ['current'], [], True],
                   [['Argoverse'], ['current'], [], True],
+                  [['SafeBaseline'], ['current','environment','profiles'], [], False],
+                #   [['SafeBaseline'], ['current','environment','profiles'], [], True],
                 #   [[], ['current','profiles'], [], False],
                 #   [[], ['current','profiles'], [], True], # need to determine if pretrain
                 #   [[], ['current','profiles'], ['first'], False],
@@ -91,7 +93,7 @@ def main(args, manual_seed, path_prepared):
 
         bslr = bslr_search[bslr_search['encoder_selection']==encoder_name].sort_values(by='avg_val_loss')
         batch_size = int(float(bslr['batch_size'].values[0]) * sum([dataset_factor[ds] for ds in dataset]))
-        initial_lr = round(float(bslr['initial_lr'].values[0]) * sum([dataset_factor[ds] for ds in dataset])**0.5, 5)
+        initial_lr = round(float(bslr['initial_lr'].values[0]) * sum([dataset_factor[ds] for ds in dataset])**0.5, 6)
 
         condition = (evaluation['dataset']==dataset_name)&\
                     (evaluation['encoder_selection']==encoder_name)&\
