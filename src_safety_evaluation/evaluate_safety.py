@@ -233,7 +233,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.loc[mttc_minus.isna()|mttc_plus.isna(), 'MTTC'] = np.inf
         results.loc[abs(results['acc_i'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_i'])<1e-6, 'TTC'].values
 
-        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'acc_i', 'TTC', 'DRAC', 'MTTC']]
+        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'rho', 'acc_i', 'TTC', 'DRAC', 'MTTC']]
         results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
