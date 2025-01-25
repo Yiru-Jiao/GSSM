@@ -58,6 +58,7 @@ def main(args, manual_seed, path_result):
     # Read event data
     path_save = path_result + 'EventEvaluation/'
     os.makedirs(path_save, exist_ok=True)
+    os.makedirs(path_result + 'Analyses/', exist_ok=True)
     event_categories = sorted(os.listdir(path_result + 'EventData/'))
     event_data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
     if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
