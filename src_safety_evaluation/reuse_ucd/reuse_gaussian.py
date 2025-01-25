@@ -97,7 +97,7 @@ def main(args, manual_seed, path_result):
         safety_evaluation = UCD(event_data, device)
         safety_evaluation.to_hdf(path_save + f'highD_ucd.h5', key='data', mode='w')
 
-    ucd_thresholds = np.unique(np.round(10**np.arange(0,3.5,0.0275))).astype(int)
+    ucd_thresholds = np.unique(np.round(10**np.arange(0,3.5,0.0275))).astype(int)+1
     print('--- Analyzing ---')
     progress_bar = tqdm(ucd_thresholds, desc='UCD', ascii=True, dynamic_ncols=False, miniters=10)
     ucd_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)

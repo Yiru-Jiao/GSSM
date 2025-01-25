@@ -147,7 +147,7 @@ def main(path_result):
         mttc_records.to_hdf(path_result + 'Analyses/Warning_mttc.h5', key='results', mode='w')
         print('MTTC time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
-    ssse_thresholds = np.unique(np.round(10**np.arange(0,3.5,0.0275))).astype(int)
+    ssse_thresholds = np.unique(np.round(10**np.arange(0,3.5,0.0275))).astype(int)+1
     for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
