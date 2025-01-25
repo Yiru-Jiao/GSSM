@@ -81,7 +81,7 @@ def main(args, manual_seed, path_prepared):
     if os.path.exists(path_prepared + 'PosteriorInference/evaluation.csv'):
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     else:
-        evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'val_loss'])
+        evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'val_loss', 'model_size'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
     for dataset, encoder_selection, cross_attention, pretrained_encoder in zip(datasets, encoder_combinations, cross_attention_flag, pretraining_flag):
@@ -116,9 +116,10 @@ def main(args, manual_seed, path_prepared):
         else:
             pipeline.train_model(epochs, initial_lr, verbose=5)
             val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
+        model_size = sum(p.numel() for p in pipeline.model.parameters())
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
         evaluation.loc[len(evaluation)] = [dataset_name, encoder_name, cross_attention_name, pretraining,
-                                           initial_lr, batch_size, val_loss]
+                                           initial_lr, batch_size, val_loss, model_size]
         evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'cross_attention', 'pretraining'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
