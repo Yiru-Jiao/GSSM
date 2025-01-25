@@ -195,7 +195,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
         print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
     else:
         event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-        event_id_list['rho'] = current_features[:,-1]
         results = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
         for column in results.columns:
@@ -218,7 +217,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.loc[results['s_box']<1e-6, 's_box'] = 1e-6
         results['delta_v'] = np.sqrt((results['vx_i']-results['vx_j'])**2 + (results['vy_i']-results['vy_j'])**2)
         results['DRAC'] = results['delta_v']**2 / 2 / results['s_box']
-        results.loc[results['rho']<0, 'DRAC'] = 0. # ego and sur are leaving each other when rho<0
+        results.loc[results['v_i']<=results['v_j'], 'DRAC'] = 0.
 
         # Modified time-to-collision (MTTC)
         results['delta_v'] = np.sign(results['v_i']-results['v_j'])*results['delta_v']
@@ -233,7 +232,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.loc[mttc_minus.isna()|mttc_plus.isna(), 'MTTC'] = np.inf
         results.loc[abs(results['acc_i'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_i'])<1e-6, 'TTC'].values
 
-        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'rho', 'acc_i', 'TTC', 'DRAC', 'MTTC']]
+        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'acc_i', 'TTC', 'DRAC', 'MTTC']]
         results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
