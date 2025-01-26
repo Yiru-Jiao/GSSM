@@ -84,7 +84,7 @@ def main(path_result):
     Analysis 2 - Conflict detection comparison
     For each event, it is applicable to compare conflict detection if safety or danger period is present
     - danger: the period when an (near)crash happens as manually annotated by SHRP2
-              * start: at most 5 seconds before impact_timestamp and after start_timestamp
+              * start: at most 4.5 seconds before impact_timestamp and after start_timestamp
               * end: 0.5 second after impact_timestamp and before end_timestamp
     - safety: the beginning in an event before start_timestamp with no hard braking
               * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
@@ -96,7 +96,7 @@ def main(path_result):
     '''
     if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
         event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
-    danger_start = np.maximum(event_meta['impact_timestamp'].values-5000, event_meta['start_timestamp'].values)
+    danger_start = np.maximum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
     danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
     event_meta['danger_start'] = danger_start
     event_meta['danger_end'] = danger_end

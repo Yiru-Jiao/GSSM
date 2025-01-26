@@ -65,7 +65,7 @@ def main(args, manual_seed, path_result):
         event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     else:
         event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
-    danger_start = np.maximum(event_meta['impact_timestamp'].values-5000, event_meta['start_timestamp'].values)
+    danger_start = np.maximum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
     danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
     event_meta['danger_start'] = danger_start
     event_meta['danger_end'] = danger_end

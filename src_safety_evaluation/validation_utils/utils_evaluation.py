@@ -201,7 +201,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         if len(target_period)<5:
             records.loc[event_id, 'safety_recorded'] = False
             continue
-        target_period = target_period.iloc[:55]
+        target_period = target_period.iloc[:50]
         motion_states = ['acc_ego','v_ego','v_sur']
         multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
                                                  target_period['target_id'].values,
