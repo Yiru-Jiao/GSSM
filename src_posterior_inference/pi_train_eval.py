@@ -70,7 +70,6 @@ def main(args, manual_seed, path_prepared):
                 #   [[], ['current','profiles'], ['first','last'], True],
                   ]
     dataset_factor = {'highD': 355570, 'SafeBaseline': 469087, 'INTERACTION': 456849, 'Argoverse': 1037541}
-    dataset_factor = {k: v/469087 for k, v in dataset_factor.items()}
     if args.reversed_list:
         exp_config = exp_config[::-1]
 
@@ -93,9 +92,10 @@ def main(args, manual_seed, path_prepared):
         epochs = 300
 
         bslr = bslr_search[bslr_search['encoder_selection']==encoder_name].sort_values(by='avg_val_loss')
-        batch_size = int(float(bslr['batch_size'].values[0]) * sum([dataset_factor[ds] for ds in dataset]))
-        initial_lr = round(float(bslr['initial_lr'].values[0]) * sum([dataset_factor[ds] for ds in dataset])**0.5, 6)
-
+        bslr_factor = max(1., sum([dataset_factor[ds] for ds in dataset]) / dataset_factor['SafeBaseline'])
+        initial_lr = round(float(bslr['initial_lr'].values[0]) * bslr_factor**0.5, 5)
+        batch_size = int(float(bslr['batch_size'].values[0]) * bslr_factor)
+        
         condition = (evaluation['dataset']==dataset_name)&\
                     (evaluation['encoder_selection']==encoder_name)&\
                     (evaluation['cross_attention']==cross_attention_name)&\
