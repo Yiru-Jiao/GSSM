@@ -72,7 +72,7 @@ def main(args):
 
     # Create the directory to save the evaluation results
     run_dir = f'{path_prepared}EncoderPretraining/spclt/trained_models/'
-    results_dir = f'{path_prepared}EncoderPretraining/spclt/evaluation_r.csv'
+    results_dir = f'{path_prepared}EncoderPretraining/spclt/evaluation.csv'
     os.makedirs(run_dir, exist_ok=True)
 
     # Define metrics
