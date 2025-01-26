@@ -61,13 +61,12 @@ def main(args, manual_seed, path_prepared):
         bslr_search.to_csv(path_prepared + 'PosteriorInference/bslr_search.csv', index=False)
     for encoder_selection in encoder_combinations:
         encoder_name = '_'.join(encoder_selection)
-        initial_lr = 0.0002
+        initial_lr = 0.0001
         if 'profiles' in encoder_selection:
             epochs = 10
-            factor_range = range(4, 9) # 16, 32, 64, 128, 256
         else:
             epochs = 20
-            factor_range = range(5, 10) # 32, 64, 128, 256, 512
+        factor_range = range(4, 9) # 16, 32, 64, 128, 256
         if args.reversed_list:
             factor_range = factor_range[::-1]
         for factor in factor_range:
