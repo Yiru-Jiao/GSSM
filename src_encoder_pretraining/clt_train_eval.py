@@ -28,8 +28,10 @@ def parse_args():
     parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
+    parser.add_argument('--reversed_list', type=int, default=0, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
     args.reproduction = bool(args.reproduction)
+    args.reversed_list = bool(args.reversed_list)
 
     # Set default parameters
     args.sliding_padding = 0
@@ -41,9 +43,9 @@ def parse_args():
     args.regularizer = None
     args.bandwidth = 1.
     args.iters = None
-    args.epochs = 50
+    args.epochs = 20
     args.batch_size = 8
-    args.lr = 0.002
+    args.lr = 0.001
     args.weight_lr = 0.01
 
     return args
@@ -70,7 +72,7 @@ def main(args):
 
     # Create the directory to save the evaluation results
     run_dir = f'{path_prepared}EncoderPretraining/spclt/trained_models/'
-    results_dir = f'{path_prepared}EncoderPretraining/spclt/evaluation.csv'
+    results_dir = f'{path_prepared}EncoderPretraining/spclt/evaluation_r.csv'
     os.makedirs(run_dir, exist_ok=True)
 
     # Define metrics
@@ -82,6 +84,8 @@ def main(args):
         return eval_results
     
     model_list = ['ts2vec', 'topo-ts2vec','softclt', 'topo-softclt']
+    if args.reversed_list:
+        model_list = model_list[::-1]
     if os.path.exists(results_dir):
         eval_results = read_saved_results()
     else:

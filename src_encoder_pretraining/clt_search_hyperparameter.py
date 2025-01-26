@@ -2,7 +2,7 @@
 This script searches the hyperparameters for the contrastive learning training of the profile encoder.
 
 Search strategy:
-Fix `lr`=0.002, the training score is the contrastive learning loss (without regularization)
+Fix `lr`=0.001, the training score is the contrastive learning loss (without regularization)
 
 - TS2Vec (no soft labels, no regularizer):
   Phase 1: with other parameters default, search for best `batch_size`
