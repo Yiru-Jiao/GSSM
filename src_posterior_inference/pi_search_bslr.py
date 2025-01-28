@@ -68,6 +68,7 @@ def main(args, manual_seed, path_prepared):
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
 
+        initial_lr = 0.0001
         factor_range = range(5, 10) # 32, 64, 128, 256, 512
         if args.reversed_list:
             factor_range = factor_range[::-1]
@@ -75,27 +76,26 @@ def main(args, manual_seed, path_prepared):
             sub_initial_time = systime.time()
             batch_size = 2**factor
             epochs = 6 * batch_size//32 # maintain the same number of gradient updates
-            for initial_lr in [0.0001, 0.001, 0.003]:
-                condition = (bslr_search['dataset']==dataset_name)&\
-                            (bslr_search['encoder_selection']==encoder_name)&\
-                            (bslr_search['cross_attention']==cross_attention_name)&\
-                            (bslr_search['pretraining']==pretraining)&\
-                            (bslr_search['initial_lr']==initial_lr)&\
-                            (bslr_search['batch_size']==batch_size)
-                if len(bslr_search[condition])>0 and not np.isnan(bslr_search.loc[condition, 'avg_val_loss'].values[0]):
-                    print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
-                    continue
-                print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
-                pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
-                pipeline.create_dataloader(batch_size)
-                pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=2)
-                avg_val_loss = pipeline.val_loss_log[-batch_size//32:].mean() # average over the same number of gradient updates
-                bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
-                bslr_search.loc[len(bslr_search)] = [dataset_name, encoder_name, cross_attention_name, pretraining,
-                                                     initial_lr, batch_size, avg_val_loss]
-                bslr_search = bslr_search.sort_values(by=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'batch_size', 'initial_lr'])
-                bslr_search.to_csv(path_prepared + 'PosteriorInference/bslr_search.csv', index=False)
-            print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} done, time elapsed: {systime.time()-sub_initial_time:.2f}s.")
+            condition = (bslr_search['dataset']==dataset_name)&\
+                        (bslr_search['encoder_selection']==encoder_name)&\
+                        (bslr_search['cross_attention']==cross_attention_name)&\
+                        (bslr_search['pretraining']==pretraining)&\
+                        (bslr_search['initial_lr']==initial_lr)&\
+                        (bslr_search['batch_size']==batch_size)
+            if len(bslr_search[condition])>0 and not np.isnan(bslr_search.loc[condition, 'avg_val_loss'].values[0]):
+                print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} already done.")
+                continue
+            print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} start training.")
+            pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
+            pipeline.create_dataloader(batch_size)
+            pipeline.train_model(epochs, initial_lr, lr_schedule=False, verbose=2)
+            avg_val_loss = pipeline.val_loss_log[-batch_size//32:].mean() # average over the same number of gradient updates
+            bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
+            bslr_search.loc[len(bslr_search)] = [dataset_name, encoder_name, cross_attention_name, pretraining,
+                                                    initial_lr, batch_size, avg_val_loss]
+            bslr_search = bslr_search.sort_values(by=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'batch_size', 'initial_lr'])
+            bslr_search.to_csv(path_prepared + 'PosteriorInference/bslr_search.csv', index=False)
+        print(f"{encoder_name}, initial_lr: {initial_lr}, batch_size: {batch_size} done, time elapsed: {systime.time()-sub_initial_time:.2f}s.")
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
