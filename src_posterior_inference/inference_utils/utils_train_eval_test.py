@@ -141,6 +141,8 @@ class train_val_test():
             progress_bar = tqdm(range(num_epochs), unit='epoch', ascii=True, dynamic_ncols=False)
         else:
             progress_bar = range(num_epochs)
+
+        break_flag = False
         for epoch_n in progress_bar:
             for train_batch_iter, (x, y) in enumerate(self.train_dataloader):
                 out = self.model(self.send_x_to_device(x))
