@@ -120,7 +120,7 @@ class train_val_test():
         # Training
         num_batches = len(self.train_dataloader)
         loss_log = np.ones((num_epochs, num_batches))*np.inf
-        val_loss_log = [101., 100., 99., 98., 97., 96., 95., 94., 93., 92., 91.]
+        val_loss_log = []
 
         self.model.train()
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
@@ -163,14 +163,18 @@ class train_val_test():
                 if epoch_n % self.verbose < 1:
                     progress_bar.update(self.verbose)
 
-            stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
-            stop_condition2 = get_stop_condition2(val_loss_log)
-            # Early stopping if validation loss converges
-            if stop_condition1:
-                print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
-                break
-            if stop_condition2:
-                print(f'Validation loss increases and training stops early at Epoch {epoch_n}.')
+            if self.optimizer.param_groups[0]['lr'] < 5e-5 and self.epoch_n > 15:
+                stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
+                stop_condition2 = get_stop_condition2(val_loss_log)
+                # Early stopping if validation loss converges
+                if stop_condition1:
+                    break_flag = True
+                    message = f'Validation loss converges and training stops early at Epoch {epoch_n}.'
+                if stop_condition2:
+                    break_flag = True
+                    message = f'Validation loss increases and training stops early at Epoch {epoch_n}.'
+            if break_flag:
+                print(message)
                 break
 
         self.val_loss_log = np.array(val_loss_log)
