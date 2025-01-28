@@ -165,7 +165,7 @@ class train_val_test():
                 if epoch_n % self.verbose < 1:
                     progress_bar.update(self.verbose)
 
-            if self.optimizer.param_groups[0]['lr'] < 5e-5 and self.epoch_n > 15:
+            if self.optimizer.param_groups[0]['lr'] < 5e-5 and epoch_n > 15:
                 stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
                 stop_condition2 = get_stop_condition2(val_loss_log)
                 # Early stopping if validation loss converges
