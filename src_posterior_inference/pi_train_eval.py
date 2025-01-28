@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 import argparse
-from inference_utils.utils_train_eval_test import train_val_test
+from inference_utils.utils_train_eval_test import set_experiments, train_val_test
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 
@@ -46,29 +46,7 @@ def main(args, manual_seed, path_prepared):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    exp_config = [[['highD'], ['current'], [], False],
-                  [['SafeBaseline'], ['current'], [], False],
-                  [['SafeBaseline'], ['current', 'environment'], [], False],
-                  [['INTERACTION'], ['current'], [], False],
-                  [['Argoverse'], ['current'], [], False],
-                  [['SafeBaseline', 'Argoverse'], ['current'], [], False],
-                  [['SafeBaseline', 'Argoverse', 'INTERACTION'], ['current'], [], False],
-                  [['SafeBaseline', 'Argoverse', 'INTERACTION', 'highD'], ['current'], [], False],
-                  [['highD'], ['current'], [], True],
-                  [['SafeBaseline'], ['current'], [], True],
-                  [['INTERACTION'], ['current'], [], True],
-                  [['Argoverse'], ['current'], [], True],
-                  [['SafeBaseline'], ['current','environment','profiles'], [], False],
-                #   [['SafeBaseline'], ['current','environment','profiles'], [], True],
-                #   [[], ['current','profiles'], [], False],
-                #   [[], ['current','profiles'], [], True], # need to determine if pretrain
-                #   [[], ['current','profiles'], ['first'], False],
-                #   [[], ['current','profiles'], ['first'], True],
-                #   [[], ['current','profiles'], ['last'], False],
-                #   [[], ['current','profiles'], ['last'], True],
-                #   [[], ['current','profiles'], ['first','last'], False],
-                #   [[], ['current','profiles'], ['first','last'], True],
-                  ]
+    exp_config = set_experiments(stage=[1,2])
     if args.reversed_list:
         exp_config = exp_config[::-1]
 
@@ -88,11 +66,14 @@ def main(args, manual_seed, path_prepared):
         encoder_name = '_'.join(encoder_selection)
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
-        epochs = 300
 
-        bslr = bslr_search[bslr_search['encoder_selection']==encoder_name].sort_values(by='avg_val_loss')
+        bslr = bslr_search[(bslr_search['dataset']==dataset_name)&
+                           (bslr_search['encoder_selection']==encoder_name)&
+                           (bslr_search['cross_attention']==cross_attention_name)&
+                           (bslr_search['pretraining']==pretraining)].sort_values(by='avg_val_loss')
         initial_lr = round(float(bslr['initial_lr'].values[0]), 4)
         batch_size = int(bslr['batch_size'].values[0])
+        epochs = int(300 * np.sqrt(batch_size // 32))
         
         condition = (evaluation['dataset']==dataset_name)&\
                     (evaluation['encoder_selection']==encoder_name)&\
