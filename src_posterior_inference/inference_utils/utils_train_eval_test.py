@@ -54,14 +54,6 @@ def set_experiments(stage=[1,2,3,4]):
     return exp_config
 
 
-def get_stop_condition2(val_loss_log):
-    avg_val_loss_log = np.array(val_loss_log[-11:])
-    value2 = np.sort(avg_val_loss_log[-5:])[1:4].mean()
-    value1 = np.sort(avg_val_loss_log[-8:-3])[1:4].mean()
-    value0 = np.sort(avg_val_loss_log[-11:-6])[1:4].mean()
-    return (value2>value1)&(value1>value0)&((value2-value1)>(value1-value0))
-
-
 class train_val_test():
     def __init__(self, device, path_prepared, dataset,
                  encoder_selection='all', 
@@ -128,12 +120,12 @@ class train_val_test():
         if lr_schedule:
             if 'profiles' in self.encoder_selection:
                 self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
+                    self.optimizer, mode='min', factor=0.6, patience=4, cooldown=4,
                     threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                 )
             else:
                 self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.optimizer, mode='min', factor=0.6, patience=5, cooldown=10,
+                    self.optimizer, mode='min', factor=0.6, patience=4, cooldown=8,
                     threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                 )
 
@@ -165,18 +157,13 @@ class train_val_test():
                 if epoch_n % self.verbose < 1:
                     progress_bar.update(self.verbose)
 
-            if self.optimizer.param_groups[0]['lr'] < 5e-5 and epoch_n > 15:
-                stop_condition1 = np.all(abs(np.diff(val_loss_log)[-5:]/val_loss_log[-5:])<1e-3)
-                stop_condition2 = get_stop_condition2(val_loss_log)
-                # Early stopping if validation loss converges
-                if stop_condition1:
+            # Early stopping if validation loss converges
+            if epoch_n > 15:
+                stop_condition = np.all(abs(np.diff(val_loss_log)[-4:]/val_loss_log[-4:])<1e-3)
+                if stop_condition:
                     break_flag = True
-                    message = f'Validation loss converges and training stops early at Epoch {epoch_n}.'
-                if stop_condition2:
-                    break_flag = True
-                    message = f'Validation loss increases and training stops early at Epoch {epoch_n}.'
             if break_flag:
-                print(message)
+                print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
         self.val_loss_log = np.array(val_loss_log)
