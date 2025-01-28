@@ -55,41 +55,35 @@ def main(args, manual_seed, path_prepared):
     cross_attention_flag = [exp[2] for exp in exp_config]
     pretraining_flag = [exp[3] for exp in exp_config]
 
+    os.makedirs(path_prepared + 'PosteriorInference/', exist_ok=True)
     if os.path.exists(path_prepared + 'PosteriorInference/evaluation.csv'):
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     else:
-        evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'initial_lr', 'batch_size', 'val_loss', 'model_size'])
+        evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'cross_attention', 'pretraining', 'val_loss', 'model_size'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
-    bslr_search = pd.read_csv(path_prepared + 'PosteriorInference/bslr_search.csv')
     for dataset, encoder_selection, cross_attention, pretrained_encoder in zip(datasets, encoder_combinations, cross_attention_flag, pretraining_flag):
         dataset_name = '_'.join(dataset)
         encoder_name = '_'.join(encoder_selection)
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
 
-        bslr = bslr_search[(bslr_search['dataset']==dataset_name)&
-                           (bslr_search['encoder_selection']==encoder_name)&
-                           (bslr_search['cross_attention']==cross_attention_name)&
-                           (bslr_search['pretraining']==pretraining)].sort_values(by='avg_val_loss')
-        initial_lr = round(float(bslr['initial_lr'].values[0]), 4)
-        batch_size = int(bslr['batch_size'].values[0])
-        epochs = int(300 * np.sqrt(batch_size // 32))
+        initial_lr = 0.0001
+        batch_size = 32
+        epochs = 300
         
         condition = (evaluation['dataset']==dataset_name)&\
                     (evaluation['encoder_selection']==encoder_name)&\
                     (evaluation['cross_attention']==cross_attention_name)&\
-                    (evaluation['pretraining']==pretraining)&\
-                    (evaluation['initial_lr']==initial_lr)&\
-                    (evaluation['batch_size']==batch_size)
+                    (evaluation['pretraining']==pretraining)
         if len(evaluation[condition])>0 and not np.isnan(evaluation.loc[condition, 'val_loss'].values[0]):
-            print(f"Already done {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}")
+            print(f"Already done {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}")
             continue
         else:
-            print(f"Start training {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}")
+            print(f"Start training {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}")
         pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
         pipeline.create_dataloader(batch_size)
         if os.path.exists(pipeline.path_output + f'val_loss_log.csv'):
-            print(f"Loading trained model: {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}, initial_lr: {initial_lr}, batch_size: {batch_size}")
+            print(f"Loading trained model: {dataset_name}, {encoder_name}, {cross_attention_name}, {pretraining}")
             pipeline.load_model()
             val_loss = pd.read_csv(pipeline.path_output + 'val_loss_log.csv')
             val_loss = np.sort(val_loss['val_loss'].values[-5:])[1:4].mean()
@@ -99,7 +93,7 @@ def main(args, manual_seed, path_prepared):
         model_size = sum(p.numel() for p in pipeline.model.parameters())
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
         evaluation.loc[len(evaluation)] = [dataset_name, encoder_name, cross_attention_name, pretraining,
-                                           initial_lr, batch_size, val_loss, model_size]
+                                           val_loss, model_size]
         evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'cross_attention', 'pretraining'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
