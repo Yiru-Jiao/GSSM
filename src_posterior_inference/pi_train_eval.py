@@ -46,7 +46,7 @@ def main(args, manual_seed, path_prepared):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    exp_config = set_experiments(stage=[1,2])
+    exp_config = set_experiments(stage=[1,2,3,4])
     if args.reversed_list:
         exp_config = exp_config[::-1]
 
