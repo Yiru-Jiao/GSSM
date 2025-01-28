@@ -71,7 +71,6 @@ def main(args, manual_seed, path_prepared):
                            (bslr_search['encoder_selection']==encoder_name)&
                            (bslr_search['cross_attention']==cross_attention_name)&
                            (bslr_search['pretraining']==pretraining)].sort_values(by='avg_val_loss')
-        bslr = bslr.iloc[:3].sort_values(by=['initial_lr', 'batch_size'])
         initial_lr = round(float(bslr['initial_lr'].values[0]), 4)
         batch_size = int(bslr['batch_size'].values[0])
         epochs = int(300 * np.sqrt(batch_size // 32))
