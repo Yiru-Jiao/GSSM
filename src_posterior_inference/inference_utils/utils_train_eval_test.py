@@ -15,6 +15,45 @@ from model import UnifiedProximity, LogNormalNLL
 from torch.utils.data import DataLoader
 
 
+def set_experiments(stage=[1,2,3,4]):
+    exp_config = []
+    if 1 in stage:
+        exp_config.extend([
+            [['highD'], ['current'], [], False],
+            [['SafeBaseline'], ['current'], [], False],
+            [['SafeBaseline'], ['current', 'environment'], [], False],
+            [['INTERACTION'], ['current'], [], False],
+            [['Argoverse'], ['current'], [], False],
+        ])
+    if 2 in stage:
+        exp_config.extend([
+            [['highD'], ['current'], [], True],
+            [['SafeBaseline'], ['current'], [], True],
+            [['INTERACTION'], ['current'], [], True],
+            [['Argoverse'], ['current'], [], True],
+        ])
+    if 3 in stage:
+        exp_config.extend([
+            [['SafeBaseline', 'Argoverse'], ['current'], [], False],
+            [['SafeBaseline', 'Argoverse', 'INTERACTION'], ['current'], [], False],
+            [['SafeBaseline', 'Argoverse', 'INTERACTION', 'highD'], ['current'], [], False],
+        ])
+    if 4 in stage:
+        exp_config.extend([
+            [['SafeBaseline'], ['current','environment','profiles'], [], False],
+            # [['SafeBaseline'], ['current','environment','profiles'], [], True],
+        ])
+            # [[], ['current','profiles'], [], False],
+            # [[], ['current','profiles'], [], True], # need to determine if pretrain
+            # [[], ['current','profiles'], ['first'], False],
+            # [[], ['current','profiles'], ['first'], True],
+            # [[], ['current','profiles'], ['last'], False],
+            # [[], ['current','profiles'], ['last'], True],
+            # [[], ['current','profiles'], ['first','last'], False],
+            # [[], ['current','profiles'], ['first','last'], True],
+    return exp_config
+
+
 def get_stop_condition2(val_loss_log):
     avg_val_loss_log = np.array(val_loss_log[-11:])
     value2 = np.sort(avg_val_loss_log[-5:])[1:4].mean()
