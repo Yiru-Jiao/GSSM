@@ -207,7 +207,7 @@ class spclt():
                 val_loss_log = np.zeros((n_epochs+4, len(val_loader), 2)) * np.nan
             else:
                 val_loss_log = np.zeros((int(n_iters/len(val_loader))+4, len(val_loader), 2)) * np.nan
-            val_loss_log[:4,...] = np.array([[[init_loss]*2]*len(val_loader) for init_loss in range(100, 96, -1)])
+            val_loss_log[:8,...] = np.array([[[init_loss]*2]*len(val_loader) for init_loss in range(100, 92, -1)])
         else:
             ValueError("Undefined scheduler: should be either 'constant' or 'reduced'.")
 
@@ -240,7 +240,7 @@ class spclt():
         continue_training = True
         while continue_training:
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
-                if train_batch_iter > train_iters:
+                if n_epochs is not None and train_batch_iter > train_iters:
                     break # use 50% of the total iterations per epoch
 
                 if train_soft_assignments is None:
