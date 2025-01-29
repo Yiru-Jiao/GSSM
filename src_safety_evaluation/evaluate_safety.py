@@ -69,7 +69,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     # Load/save event features
-    print('--- Loading or saving event features ---')
     event_categories = sorted(os.listdir(path_result + 'EventData/'))
     event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
     avg_width = np.nanmean(event_meta['ego_width'].values)
@@ -81,13 +80,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
         veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
 
         if os.path.exists(path_result + f'EventData/{event_cat}/event_features.npz'):
-            event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
-            profiles_features = event_featurs['profiles']
-            current_features = event_featurs['current']
-            spacing_list = event_featurs['spacing']
-            event_id_list = event_featurs['event_id']
-            assert profiles_features.shape == (len(spacing_list), 20, 3)
+            print(f'Loading event features for {event_cat}.')
         else:
+            print(f'Saving event features for {event_cat}.')
             # Organise features for each event and target
             profiles_features = []
             current_features = []
