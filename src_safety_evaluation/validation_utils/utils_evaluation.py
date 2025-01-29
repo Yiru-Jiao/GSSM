@@ -290,3 +290,26 @@ def issue_warning(indicator, threshold, safety_evaluation, event_data, event_met
     records['indicator'] = indicator
     records['optimal_threshold'] = threshold
     return records
+
+
+def encode_get_attention(states, model, device):
+    contexts, proximity = states
+    data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
+
+    mu_list = []
+    sigma_list = []
+    attention_list = []
+    for x in data_loader:
+        with torch.no_grad():
+            out = model(send_x_to_device(x, device))
+            mu, sigma, attention_matrices = out
+        mu_list.append(mu.squeeze().cpu().numpy())
+        sigma_list.append(sigma.squeeze().cpu().numpy())
+        attention_list.append({key: value.squeeze().cpu().numpy() for key, value in attention_matrices.items()})
+
+    mu = np.concatenate(mu_list, axis=0)
+    sigma = np.concatenate(sigma_list, axis=0)
+    attention_matrices = {key: np.concatenate([attention[key] for attention in attention_list], axis=0) for key in attention_list[0].keys()}
+
+
+    return 
