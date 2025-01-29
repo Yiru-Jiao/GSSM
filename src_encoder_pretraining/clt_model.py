@@ -240,6 +240,9 @@ class spclt():
         continue_training = True
         while continue_training:
             for train_batch_iter, (x, idx) in enumerate(train_loader[:train_iters], start=1):
+                if train_batch_iter > train_iters:
+                    break # use 50% of the total iterations per epoch
+
                 if train_soft_assignments is None:
                     soft_labels = None
                 elif isinstance(train_soft_assignments, str):
