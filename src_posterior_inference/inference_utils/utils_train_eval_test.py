@@ -34,9 +34,9 @@ def set_experiments(stage=[1,2,3,4]):
         ])
     if 3 in stage:
         exp_config.extend([
-            [['SafeBaseline', 'Argoverse'], ['current'], [], False],
-            [['SafeBaseline', 'Argoverse', 'INTERACTION'], ['current'], [], False],
-            [['SafeBaseline', 'Argoverse', 'INTERACTION', 'highD'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline', 'INTERACTION'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], False],
         ])
     if 4 in stage:
         exp_config.extend([
