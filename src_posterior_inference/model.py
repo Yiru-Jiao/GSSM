@@ -7,11 +7,40 @@ import sys
 import torch
 import torch.nn as nn
 import pandas as pd
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils import modules
-from src_safety_evaluation.validation_utils.utils_evaluation import custom_dataset, send_x_to_device
 
+
+def send_x_to_device(x, device):
+    if isinstance(x, list):
+        return [i.to(device) for i in x]
+    else:
+        return x.to(device)
+
+
+class custom_dataset(Dataset): 
+    def __init__(self, X):
+        self.X = X
+        if isinstance(X, tuple):
+            def get_length():
+                return len(self.X[0])
+            def get_item(idx):
+                return [torch.from_numpy(x_i[idx]).float() for x_i in self.X]
+        else:
+            def get_length():
+                return len(self.X)
+            def get_item(idx):
+                return torch.from_numpy(self.X[idx]).float()
+        self.get_length = get_length
+        self.get_item = get_item
+
+    def __len__(self): 
+        return self.get_length()
+
+    def __getitem__(self, idx): 
+        return self.get_item(idx)
+    
 
 class UnifiedProximity(nn.Module):
     def __init__(self, device, encoder_selection='all', cross_attention=[], return_attention=False, mask_mode=None):
