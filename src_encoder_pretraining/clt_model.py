@@ -239,7 +239,7 @@ class spclt():
                                                    ## When training on a very long sequence, increasing this helps to reduce the cost of time and memory.
         continue_training = True
         while continue_training:
-            for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
+            for train_batch_iter, (x, idx) in enumerate(train_loader[:train_iters], start=1):
                 if train_soft_assignments is None:
                     soft_labels = None
                 elif isinstance(train_soft_assignments, str):
@@ -282,10 +282,6 @@ class spclt():
                 self.iter_n += 1
                 if n_iters is not None and self.iter_n >= n_iters:
                     continue_training = False
-                    break
-
-                if n_epochs is not None and self.iter_n >= train_iters:
-                    # early stopping to reduce training time
                     break
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
