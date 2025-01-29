@@ -91,12 +91,15 @@ class Multi_Evaluation:
         return results
 
 
-def evaluate(data, model, batch_size, local=False):
+def evaluate(data, model, batch_size, local=False, states=None):
     # encode data into latent space
     if local:
         latent = model.encode(data, batch_size=batch_size).detach().cpu().numpy() # (N, T, P)
     else:
-        latent = model.encode(data, batch_size=batch_size, encoding_window='full_series').detach().cpu().numpy() # (N, P)
+        if states is None:
+            latent = model.encode(data, batch_size=batch_size, encoding_window='full_series').detach().cpu().numpy() # (N, P)
+        else:
+            latent = model.encode(states, batch_size=batch_size, encoding_window='full_series').detach().cpu().numpy()
 
     evaluator = Multi_Evaluation(data, latent)
     ev_result = evaluator.get_multi_evals(local)
