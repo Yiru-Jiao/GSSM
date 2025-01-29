@@ -74,15 +74,14 @@ def main(args, events, manual_seed, path_prepared, path_result):
     avg_width = np.nanmean(event_meta['ego_width'].values)
     avg_length = np.nanmean(event_meta['ego_length'].values)
     for event_cat in event_categories:
-        data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
-        event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
-        assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
-        veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
-
         if os.path.exists(path_result + f'EventData/{event_cat}/event_features.npz'):
             print(f'Loading event features for {event_cat}.')
         else:
             print(f'Saving event features for {event_cat}.')
+            data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
+            event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
+            assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
+            veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
             # Organise features for each event and target
             profiles_features = []
             current_features = []
