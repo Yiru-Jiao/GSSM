@@ -179,13 +179,13 @@ class spclt():
             
             # define scheduler
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=3, cooldown=1,
+                self.optimizer, mode='min', factor=0.6, patience=3, cooldown=2,
                 threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
                 )
             
             if self.regularizer_config['reserve'] is not None:
                 self.scheduler_weight = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.optimizer_weight, mode='min', factor=0.6, patience=3, cooldown=1,
+                    self.optimizer_weight, mode='min', factor=0.6, patience=3, cooldown=2,
                     threshold=1e-3, threshold_mode='rel', min_lr=self.weight_lr*0.6**15
                     )
                 def scheduler_update(val_loss_log, val_batch_iter, val_loss):
@@ -214,7 +214,7 @@ class spclt():
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
-        train_iters = int(len(train_loader)*0.6) # use 60% of the total iterations per epoch
+        train_iters = int(len(train_loader)*0.5) # use 50% of the total iterations per epoch
         if n_iters is None:
             log_len = n_epochs*train_iters
         else:
@@ -309,8 +309,10 @@ class spclt():
                                                      val_loss_config, 
                                                      self.regularizer_config)
                         val_loss_log = scheduler_update(val_loss_log, val_batch_iter, val_loss)
-                scheduler_step(val_loss_log[self.epoch_n+4, :, 0].mean(),
-                               val_loss_log[self.epoch_n+4, :, 1].mean())
+                # update learning rate after cold start of 5 epochs
+                if self.epoch_n >= 4:
+                    scheduler_step(val_loss_log[self.epoch_n+4, :, 0].mean(),
+                                   val_loss_log[self.epoch_n+4, :, 1].mean())
                 self.train()
 
                 stop_condition1 = np.all(abs(np.diff(val_loss_log[self.epoch_n:self.epoch_n+4, :, 0].mean(axis=1)))<1e-3)

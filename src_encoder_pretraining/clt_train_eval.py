@@ -43,7 +43,7 @@ def parse_args():
     args.regularizer = None
     args.bandwidth = 1.
     args.iters = None
-    args.epochs = 25
+    args.epochs = 30
     args.batch_size = 8
     args.lr = 0.001
     args.weight_lr = 0.01
@@ -83,7 +83,7 @@ def main(args):
         eval_results = eval_results.set_index('model')
         return eval_results
     
-    model_list = ['ts2vec', 'topo-ts2vec','softclt', 'topo-softclt']
+    model_list = ['topo-ts2vec', 'ts2vec', 'softclt', 'topo-softclt']
     if args.reversed_list:
         model_list = model_list[::-1]
     if os.path.exists(results_dir):
