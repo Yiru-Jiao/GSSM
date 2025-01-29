@@ -214,8 +214,9 @@ class spclt():
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
+        train_iters = int(len(train_loader)*0.6) # use 60% of the total iterations per epoch
         if n_iters is None:
-            log_len = n_epochs*len(train_loader)
+            log_len = n_epochs*train_iters
         else:
             log_len = n_iters
         if self.regularizer_config['reserve'] is None:
@@ -281,6 +282,10 @@ class spclt():
                 self.iter_n += 1
                 if n_iters is not None and self.iter_n >= n_iters:
                     continue_training = False
+                    break
+
+                if n_epochs is not None and self.iter_n >= train_iters:
+                    # early stopping to reduce training time
                     break
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
