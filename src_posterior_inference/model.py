@@ -7,8 +7,10 @@ import sys
 import torch
 import torch.nn as nn
 import pandas as pd
+from torch.utils.data import DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils import modules
+from src_safety_evaluation.validation_utils.utils_evaluation import custom_dataset, send_x_to_device
 
 
 class UnifiedProximity(nn.Module):
@@ -91,7 +93,20 @@ class UnifiedProximity(nn.Module):
     def forward(self, x):
         latent = self.combi_encoder(x)
         out = self.attention_decoder(latent)
-        return out # (mu, sigma) if return_attention=False; (mu, sigma, attention) if return_attention=True
+        return out # (mu, sigma) if return_attention=False; (mu, sigma, hidden_states) if return_attention=True
+
+    def encode(self, states, batch_size, encoding_window=None):
+        contexts, _ = states
+        data_loader = DataLoader(custom_dataset(contexts), batch_size=batch_size, shuffle=False)
+
+        hidden_representations = []
+        for x in data_loader:
+            with torch.no_grad():
+                latent = self.combi_encoder(send_x_to_device(x, self.device))
+                _, _, hidden_states = self.attention_decoder(latent)
+                hidden_representations.append(hidden_states[0])
+        hidden_representations = torch.cat(hidden_representations, dim=0) # (n_samples, n_compressed_features)
+        return hidden_representations.cpu().numpy()
 
 
 class LogNormalNLL(nn.Module):
