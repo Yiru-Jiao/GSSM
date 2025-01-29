@@ -239,7 +239,7 @@ class spclt():
                                                    ## When training on a very long sequence, increasing this helps to reduce the cost of time and memory.
         continue_training = True
         while continue_training:
-            for train_batch_iter, (x, idx) in enumerate(train_loader[:train_iters], start=1):
+            for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 if train_batch_iter > train_iters:
                     break # use 50% of the total iterations per epoch
 
