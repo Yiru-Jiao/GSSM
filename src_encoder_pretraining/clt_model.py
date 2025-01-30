@@ -239,7 +239,7 @@ class spclt():
                                                    ## When training on a very long sequence, increasing this helps to reduce the cost of time and memory.
         continue_training = True
         while continue_training:
-            for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
+            for train_batch_iter, (x, idx) in enumerate(train_loader):
                 if n_epochs is not None and train_batch_iter >= train_iters:
                     break # use 50% of the total iterations per epoch
 
@@ -327,7 +327,7 @@ class spclt():
 
             # update progress bar if n_epochs is specified
             if n_epochs is not None and verbose:
-                avg_batch_loss = loss_log[self.iter_n-train_batch_iter:self.iter_n, 0].mean()
+                avg_batch_loss = loss_log[self.iter_n-train_iters:self.iter_n, 0].mean()
                 if scheduler == 'reduced':
                     avg_val_loss = val_loss_log[self.epoch_n+4, :, 0].mean()
                     current_lr = self.optimizer.param_groups[0]['lr']
