@@ -240,7 +240,7 @@ class spclt():
         continue_training = True
         while continue_training:
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
-                if n_epochs is not None and train_batch_iter > train_iters:
+                if n_epochs is not None and train_batch_iter >= train_iters:
                     break # use 50% of the total iterations per epoch
 
                 if train_soft_assignments is None:
