@@ -131,6 +131,7 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
     
     elif conflict_indicator=='DRAC':
         evaluation.loc[(evaluation['DRAC']>threshold), 'conflict'] = True
+        evaluation.loc[(evaluation['DRAC']<0), 'conflict'] = True # DRAC==-1 means overlapping bounding boxes
         return evaluation
     
     elif conflict_indicator=='SSSE':
