@@ -14,7 +14,7 @@ import argparse
 from sklearn.preprocessing import OneHotEncoder
 from validation_utils.utils_features import *
 from src_safety_evaluation.validation_utils.utils_evaluation import *
-import validation_utils.TwoDimTTC as TwoDimTTC
+import src_safety_evaluation.validation_utils.TwoDimSSM as TwoDimSSM
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
@@ -188,6 +188,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
     if os.path.exists(path_save + f'TTC_DRAC_MTTC.h5'):
         print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
     else:
+        print('--- Evaluating with TTC, DRAC, and MTTC ---')
         event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
         results = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
@@ -201,30 +202,12 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['vy_i'] = results['v_i']*results['hy_i']
         results['vx_j'] = results['v_j']*results['hx_j']
         results['vy_j'] = results['v_j']*results['hy_j']
-
-        # Two-dimensional time-to-collision (2D-TTC)
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
-        results['TTC'] = TwoDimTTC.TTC(results, 'values')
-
-        # Deceleration Rate to Avoid Collision (DRAC)
-        results['s_box'] = TwoDimTTC.CurrentD(results, 'values')
-        results.loc[results['s_box']<1e-6, 's_box'] = 1e-6
-        results['delta_v'] = np.sqrt((results['vx_i']-results['vx_j'])**2 + (results['vy_i']-results['vy_j'])**2)
-        results['DRAC'] = results['delta_v']**2 / 2 / results['s_box']
-        results.loc[results['v_i']<=results['v_j'], 'DRAC'] = 0.
-
-        # Modified time-to-collision (MTTC)
-        results['delta_v'] = np.sign(results['v_i']-results['v_j'])*results['delta_v']
-        squared_term = results['delta_v']**2 + 2*results['acc_i']*results['s_box']
-        squared_term.loc[squared_term>=0] = np.sqrt(squared_term.loc[squared_term>=0].values)
-        squared_term.loc[squared_term<0] = np.nan
-        mttc_plus = (-results['delta_v'] + squared_term) / results['acc_i']
-        mttc_minus = (-results['delta_v'] - squared_term) / results['acc_i']
-        results.loc[mttc_minus>0, 'MTTC'] = mttc_minus.loc[mttc_minus>0].values
-        results.loc[(mttc_minus<=0)&(mttc_plus>0), 'MTTC'] = mttc_plus.loc[(mttc_minus<=0)&(mttc_plus>0)].values
-        results.loc[(mttc_minus<=0)&(mttc_plus<=0), 'MTTC'] = np.inf
-        results.loc[mttc_minus.isna()|mttc_plus.isna(), 'MTTC'] = np.inf
-        results.loc[abs(results['acc_i'])<1e-6, 'MTTC'] = results.loc[abs(results['acc_i'])<1e-6, 'TTC'].values
+        
+        ttc, drac, mttc = TwoDimSSM.TTC_DRAC_MTTC(results, 'values')
+        results['TTC'] = ttc
+        results['DRAC'] = drac
+        results['MTTC'] = mttc
 
         results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'acc_i', 'TTC', 'DRAC', 'MTTC']]
         results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
