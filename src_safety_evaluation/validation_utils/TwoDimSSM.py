@@ -235,7 +235,7 @@ def DRAC(samples, toreturn='dataframe'):
         delta_v = np.sqrt((samples['vx_i']-samples['vx_j'])**2+(samples['vy_i']-samples['vy_j'])**2)
         dtc_ij, leaving_ij = DTC_ij(samples)
         drac_ij = delta_v**2/dtc_ij/2
-        drac_ij[leaving_ij<20] = np.inf # inf means the two vehicles will not collide if they keep current velocity
+        drac_ij[leaving_ij<20] = 0. # the two vehicles will not collide if they keep current velocity
         drac_ij[(leaving_ij>20)&(leaving_ij%20!=0)] = -1 # -1 means the bounding boxes of the two vehicles are overlapping
 
         keys = [var+'_i' for var in ['x','y','vx','vy','hx','hy','length','width']]
@@ -245,7 +245,7 @@ def DRAC(samples, toreturn='dataframe'):
         rename_dict = {keys[i]: values[i] for i in range(len(keys))}
         dtc_ji, leaving_ji = DTC_ij(samples.rename(columns=rename_dict))
         drac_ji = delta_v**2/dtc_ji/2
-        drac_ji[leaving_ji<20] = np.inf
+        drac_ji[leaving_ji<20] = 0.
         drac_ji[(leaving_ji>20)&(leaving_ji%20!=0)] = -1
 
         if toreturn=='dataframe':
@@ -311,7 +311,7 @@ def TTC_DRAC_MTTC(samples, toreturn='dataframe'):
         ttc_ij[leaving_ij<20] = np.inf # inf means the two vehicles will not collide if they keep current velocity
         ttc_ij[(leaving_ij>20)&(leaving_ij%20!=0)] = -1 # -1 means the bounding boxes of the two vehicles are overlapping
         drac_ij = delta_v**2/dtc_ij/2
-        drac_ij[leaving_ij<20] = np.inf # inf means the two vehicles will not collide if they keep current velocity
+        drac_ij[leaving_ij<20] = 0. # the two vehicles will not collide if they keep current velocity
         drac_ij[(leaving_ij>20)&(leaving_ij%20!=0)] = -1 # -1 means the bounding boxes of the two vehicles are overlapping
 
         keys = [var+'_i' for var in ['x','y','vx','vy','hx','hy','length','width']]
@@ -324,7 +324,7 @@ def TTC_DRAC_MTTC(samples, toreturn='dataframe'):
         ttc_ji[leaving_ji<20] = np.inf
         ttc_ji[(leaving_ji>20)&(leaving_ji%20!=0)] = -1
         drac_ji = delta_v**2/dtc_ji/2
-        drac_ji[leaving_ji<20] = np.inf
+        drac_ji[leaving_ji<20] = 0.
         drac_ji[(leaving_ji>20)&(leaving_ji%20!=0)] = -1
 
         dtc = np.minimum(dtc_ij, dtc_ji)
