@@ -208,8 +208,10 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['TTC'] = ttc
         results['DRAC'] = drac
         results['MTTC'] = mttc
+        s_box = TwoDimSSM.CurrentD(results, 'values')
+        results['s_box'] = s_box
 
-        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','s_box', 'delta_v', 'acc_i', 'TTC', 'DRAC', 'MTTC']]
+        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','acc_i','s_box', 'TTC', 'DRAC', 'MTTC']]
         results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
