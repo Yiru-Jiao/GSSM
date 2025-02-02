@@ -50,14 +50,19 @@ def main(args, manual_seed):
     num_inducing_points = 100
 
     # Training
-    pipeline = train_val_test(device, num_inducing_points, 
-                              path_input='./PreparedData/Segments/highD/',
-                              path_output='./src_safety_evaluation/reuse_ucd/')
-    pipeline.create_dataloader(batch_size, beta)
-    print('Training...')
-    pipeline.train_model(num_qepochs, initial_lr)
+    existing_files = os.listdir('./src_safety_evaluation/reuse_ucd/')
+    existing_files = [file for file in existing_files if file.endswith('.pth')]
+    if len(existing_files) > 0:
+        print('Model already trained. Exiting...')
+    else:
+        pipeline = train_val_test(device, num_inducing_points, 
+                                path_input='./PreparedData/Segments/highD/',
+                                path_output='./src_safety_evaluation/reuse_ucd/')
+        pipeline.create_dataloader(batch_size, beta)
+        print('Training...')
+        pipeline.train_model(num_qepochs, initial_lr)
 
-    print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
+        print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
 
