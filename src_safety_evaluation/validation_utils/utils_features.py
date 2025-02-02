@@ -80,12 +80,12 @@ def segment_data(df, ego_length, target_length):
         vy_ego = df.iloc[idx_end]['v_ego']*df.iloc[idx_end]['hy_ego']
         vx_sur = df.iloc[idx_end]['v_sur']*df.iloc[idx_end]['hx_sur']
         vy_sur = df.iloc[idx_end]['v_sur']*df.iloc[idx_end]['hy_sur']
-        current_features[2] = np.sqrt((vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2)
+        current_features[2] = np.sqrt((vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2) * np.sign(df.iloc[idx_end]['v_ego']-df.iloc[idx_end]['v_sur'])
         current_features[3] = coortrans.angle(1, 0, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
         current_features[4] = df.iloc[idx_end]['acc_ego']
         current_features[5] = df.iloc[idx_end]['v_ego']**2
         current_features[6] = df.iloc[idx_end]['v_sur']**2
-        current_features[7] = current_features[2]**2
+        current_features[7] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2
         current_features[8] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
         spacing = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2)
 
