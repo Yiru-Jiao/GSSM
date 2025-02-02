@@ -253,8 +253,8 @@ def UCD(data, device):
     data['psi_sur'] = coortrans.angle(1, 0, data['hx_sur'], data['hy_sur'])
 
     ## Transform coordinates and formulate input data
-    data['delta_v'] = np.sqrt((data['vx_ego']-data['vx_sur'])**2 + (data['vy_ego']-data['vy_sur'])**2)
-    data['delta_v2'] = data['delta_v']**2
+    data['delta_v2'] = (data['vx_ego']-data['vx_sur'])**2 + (data['vy_ego']-data['vy_sur'])**2
+    data['delta_v'] = np.sqrt(data['delta_v2']) * np.sign(data['v_ego']-data['v_sur'])
     data['v_ego2'] = data['v_ego']**2
     data['v_sur2'] = data['v_sur']**2
     data_view_ego = coortrans.transform_coor(data, view='i')
@@ -263,7 +263,7 @@ def UCD(data, device):
     rho = coortrans.angle(1, 0, data_relative['x_sur'], data_relative['y_sur']).reset_index().rename(columns={0:'rho'})
     rho[['target_id','time']] = data_relative[['target_id','time']]
     interaction_context = data.drop(columns=['hx_sur','hy_sur']).merge(heading_sur, on=['target_id','time']).merge(rho, on=['target_id','time'])
-    features = ['length_ego','length_sur','hx_sur','hy_sur','delta_v','delta_v2','v_ego2','v_sur2','acc_ego','rho']
+    features = ['length_ego','length_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
     interaction_context = interaction_context[features+['event_id','target_id','time']].sort_values(['target_id','time'])
     data_relative = data_relative.merge(interaction_context[['target_id','time']], on=['target_id','time']).sort_values(['target_id','time'])
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
