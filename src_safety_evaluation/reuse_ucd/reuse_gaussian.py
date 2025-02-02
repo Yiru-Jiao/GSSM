@@ -20,12 +20,6 @@ from joblib import Parallel, delayed
 from src_safety_evaluation.validation_utils.utils_evaluation import *
 
 
-
-# Set input and output paths
-path_input = './Data/InputData/'
-path_output = './Data/OutputData/'
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
