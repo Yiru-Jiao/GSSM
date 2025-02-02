@@ -214,7 +214,7 @@ class spclt():
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
-        train_iters = int(len(train_loader)*0.5) # use 50% of the total iterations per epoch
+        train_iters = int(len(train_loader)*0.45) # use 45% of the total iterations per epoch
         if n_iters is None:
             log_len = n_epochs*train_iters
         else:
@@ -241,7 +241,7 @@ class spclt():
         while continue_training:
             for train_batch_iter, (x, idx) in enumerate(train_loader):
                 if n_epochs is not None and train_batch_iter >= train_iters:
-                    break # use 50% of the total iterations per epoch
+                    break # use 45% of the total iterations per epoch, after 10 epochs 99.966% of the data is used
 
                 if train_soft_assignments is None:
                     soft_labels = None
