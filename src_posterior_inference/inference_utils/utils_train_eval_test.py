@@ -15,7 +15,7 @@ from model import UnifiedProximity, LogNormalNLL
 from torch.utils.data import DataLoader
 
 
-def set_experiments(stage=[1,2,3,4]):
+def set_experiments(stage=[1,2,3,4,5,6]):
     exp_config = []
     if 1 in stage:
         exp_config.extend([
@@ -37,20 +37,31 @@ def set_experiments(stage=[1,2,3,4]):
             [['Argoverse', 'SafeBaseline'], ['current'], [], False],
             [['Argoverse', 'SafeBaseline', 'INTERACTION'], ['current'], [], False],
             [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], False],
+            [['SafeBaseline', 'Argoverse', 'highD'], ['current'], [], False],
         ])
     if 4 in stage:
         exp_config.extend([
+            [['Argoverse', 'SafeBaseline'], ['current'], [], True],
+            [['Argoverse', 'SafeBaseline', 'INTERACTION'], ['current'], [], True],
+            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], True],
+            [['SafeBaseline', 'Argoverse', 'highD'], ['current'], [], True],
+        ])
+    if 5 in stage:
+        exp_config.extend([
+            [['highD'], ['current','profiles'], [], False],
             [['SafeBaseline'], ['current','environment','profiles'], [], False],
             # [['SafeBaseline'], ['current','environment','profiles'], [], True],
+            # [['Argoverse', 'SafeBaseline'], ['current','profiles'], [], True],
         ])
-            # [[], ['current','profiles'], [], False],
-            # [[], ['current','profiles'], [], True], # need to determine if pretrain
+    # if 6 in stage:
+    #     exp_config.extend([
             # [[], ['current','profiles'], ['first'], False],
             # [[], ['current','profiles'], ['first'], True],
             # [[], ['current','profiles'], ['last'], False],
             # [[], ['current','profiles'], ['last'], True],
             # [[], ['current','profiles'], ['first','last'], False],
             # [[], ['current','profiles'], ['first','last'], True],
+        # ])
     return exp_config
 
 
@@ -153,7 +164,7 @@ class train_val_test():
             # Add information to progress bar with learning rate and loss values
             if self.verbose > 0:
                 progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
-                                            train_loss=loss_log[epoch_n].mean(), val_loss=val_loss, refresh=False)
+                                         train_loss=loss_log[epoch_n].mean(), val_loss=val_loss, refresh=False)
                 if epoch_n % self.verbose < 1:
                     progress_bar.update(self.verbose)
 
