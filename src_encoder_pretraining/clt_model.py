@@ -314,9 +314,9 @@ class spclt():
                                    val_loss_log[self.epoch_n+4, :, 1].mean())
                 self.train()
 
-                stop_condition1 = np.all(abs(np.diff(val_loss_log[self.epoch_n:self.epoch_n+4, :, 0].mean(axis=1)))<1e-3)
-                stop_condition2 = np.all(abs(np.diff(val_loss_log[self.epoch_n:self.epoch_n+3, :, 0].mean(axis=1)))<5e-4)
-                if stop_condition1 or stop_condition2:
+                stop_condition = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5, :, 0].mean(axis=1))
+                stop_condition = np.all(abs(stop_condition/val_loss_log[self.epoch_n:self.epoch_n+4, :, 0].mean(axis=1))<1e-3)
+                if stop_condition:
                     # early stopping if validation loss converges
                     Warning('Early stopping due to validation loss convergence.')
                     break
