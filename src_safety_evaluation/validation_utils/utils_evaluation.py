@@ -149,6 +149,8 @@ def determine_target(indicator, danger, before_danger):
                 # the selected target vehicle is not the conflicting target and the real conflicting target might be missed
                 target_id = np.nan
     elif indicator=='DRAC' or indicator=='SSSE':
+        if indicator == 'SSSE':
+            indicator = 'intensity'
         if danger[indicator].isna().all() or before_danger[indicator].isna().all():
             target_id = np.nan
         else:
