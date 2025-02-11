@@ -35,7 +35,7 @@ def parse_args():
 
     # Set default parameters
     args.sliding_padding = 0
-    args.repr_dims = 64
+    args.repr_dims = 128
     args.dist_metric = 'DTW'
     args.tau_inst = 0
     args.tau_temp = 0
@@ -43,7 +43,7 @@ def parse_args():
     args.regularizer = None
     args.bandwidth = 1.
     args.iters = None
-    args.epochs = 30
+    args.epochs = 100
     args.batch_size = 8
     args.lr = 0.001
     args.weight_lr = 0.01
@@ -83,7 +83,7 @@ def main(args):
         eval_results = eval_results.set_index('model')
         return eval_results
     
-    model_list = ['topo-ts2vec', 'ts2vec', 'softclt', 'topo-softclt']
+    model_list = ['softclt', 'topo-softclt', 'ggeo-softclt']
     if args.reversed_list:
         model_list = model_list[::-1]
     if os.path.exists(results_dir):
@@ -148,7 +148,7 @@ def main(args):
             existing_models.sort(key=os.path.getmtime, reverse=True)
             for model_epoch in existing_models[1:]:
                 os.remove(model_epoch)
-                if model_type in ['topo-ts2vec', 'topo-softclt']:
+                if model_type in ['topo-softclt', 'ggeo-softclt']:
                     os.remove(model_epoch.replace('_net.pth', '_loss_log_vars.npy'))
         best_model = 'model' + existing_models[0].split('model')[-1].split('_net')[0]
 
