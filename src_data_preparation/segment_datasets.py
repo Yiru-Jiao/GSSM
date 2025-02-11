@@ -45,7 +45,10 @@ def main(path_prepared, path_processed):
         # Segment and save scenes
         initial_scene_id = 0
         fig, axes = plt.subplots(1, 2, figsize=(5., 2.), constrained_layout=True)
-        bins = np.linspace(0, 50, 31)
+        if dataset=='Argoverse' or dataset=='INTERACTION':
+            bins = np.linspace(0, 20, 21)
+        else:
+            bins = np.linspace(0, 40, 31)
         for data, suffix in zip([data_train, data_val], ['train', 'val']):
             print('Segmenting ' + dataset + ' ' + suffix + ' set...')
             segmenter = ContextSegmenter(data, initial_scene_id, dataset)
@@ -66,7 +69,7 @@ def main(path_prepared, path_processed):
             ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
             ax.set_ylabel('Frequency')
         handles, labels = ax.get_legend_handles_labels()
-        fig.legend(handles, labels, loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.05))
+        fig.legend(handles, labels, loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.1))
         axes[0].set_title('Train set')
         axes[1].set_title('Val set')
         fig.savefig(path_save + f'speed_distribution_{dataset}.pdf', bbox_inches='tight', dpi=600)
