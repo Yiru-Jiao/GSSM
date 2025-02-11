@@ -144,8 +144,9 @@ class autoencoder():
                         x = x.to(self.device)
                         val_loss = self.loss_func(x, self.net(x))
                         val_loss_log[self.epoch_n+4, val_batch_iter] = val_loss.item()
-                self.scheduler.step(val_loss_log[self.epoch_n+4].mean())
                 self.train()
+                if self.epoch_n >= 20: # start scheduler after 20 epochs
+                    self.scheduler.step(val_loss_log[self.epoch_n+4].mean())
 
                 stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5,:].mean(axis=1))
                 stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold)
