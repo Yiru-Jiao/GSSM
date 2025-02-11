@@ -141,23 +141,24 @@ def determine_target(indicator, danger, before_danger):
     if indicator=='TTC' or indicator=='MTTC':
         if danger[indicator].isna().all() or before_danger[indicator].isna().all():
             target_id = np.nan
+            median_before_danger = np.nan
+            median_danger = np.nan
         else:
             target_id = danger.loc[danger[indicator].idxmin(),'target_id']
-            if before_danger[before_danger['target_id']!=target_id][indicator].median()<danger[danger['target_id']==target_id][indicator].median():
-                # If the median conflict levels of other surrounding vehicles before the danger period is higher than 
-                # the median conflict level of the selected target vehicle during the danger period,
-                # the selected target vehicle is not the conflicting target and the real conflicting target might be missed
-                target_id = np.nan
+            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
+            median_danger = danger[danger['target_id']==target_id][indicator].median()
     elif indicator=='DRAC' or indicator=='SSSE':
         if indicator == 'SSSE':
             indicator = 'intensity'
         if danger[indicator].isna().all() or before_danger[indicator].isna().all():
             target_id = np.nan
+            median_before_danger = np.nan
+            median_danger = np.nan
         else:
             target_id = danger.loc[danger[indicator].idxmax(),'target_id']
-            if before_danger[before_danger['target_id']!=target_id][indicator].median()>danger[danger['target_id']==target_id][indicator].median():
-                target_id = np.nan
-    return target_id
+            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
+            median_danger = danger[danger['target_id']==target_id][indicator].median()
+    return target_id, median_before_danger, median_danger
 
 
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
@@ -177,8 +178,10 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             continue
 
         # Determine the conflicting target and warning
-        target_id = determine_target(indicator, danger, before_danger)
+        target_id, median_before_danger, median_danger = determine_target(indicator, danger, before_danger)
         records.loc[event_id, 'target_id'] = target_id
+        records.loc[event_id, 'median_before_danger'] = median_before_danger
+        records.loc[event_id, 'median_danger'] = median_danger
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
             continue
