@@ -75,10 +75,10 @@ class autoencoder():
 
     def loss_func(self, input, target):
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
-        loss = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
+        loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
         loss_topo = topo_loss(self, input)
-        loss += 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_topo*(1-torch.exp(-loss_topo)) + 0.5 * self.loss_log_vars[1]
-        return loss
+        loss_topo = 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_topo*(1-torch.exp(-loss_topo)) + 0.5 * self.loss_log_vars[1]
+        return loss_ae + loss_topo
         
 
     def fit(self, train_data, n_epochs=100, scheduler='constant', verbose=0):
@@ -214,16 +214,14 @@ class autoencoder():
         org_training = self.net.training
         self.eval()
 
-        if isinstance(val_data, torch.Tensor):
-            dataset = datautils.custom_dataset(val_data)
-        else:
-            dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
+        if not isinstance(val_data, torch.Tensor):
+            val_data = torch.from_numpy(val_data).float()
         
-        if val_data.size[0] < batch_size:
+        if val_data.size(0) < batch_size:
             with torch.no_grad():
-                dataset = dataset.to(self.device)
-                encoded_data = self.net.encoder(dataset)
+                encoded_data = self.net.encoder(val_data) # val_data is already on the device
         else:
+            dataset = datautils.custom_dataset(val_data)
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
             with torch.no_grad():
                 encoded_data = []
