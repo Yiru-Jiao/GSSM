@@ -257,7 +257,7 @@ class spclt():
                 train_loss_config['soft_labels'] = soft_labels
 
                 optimizer_zero_grad()
-                with torch.amp.autocast():  # Enables Mixed Precision
+                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
                     loss, loss_comp = self.loss_func(self, x.to(self.device),
                                                      train_loss_config, 
                                                      self.regularizer_config)
