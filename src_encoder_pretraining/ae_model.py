@@ -12,6 +12,7 @@ import ssrl_utils.utils_data as datautils
 from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.modules import current_encoder, environment_encoder
+from src_encoder_pretraining.modules.regularizers import *
 
 
 class shared_decoder(nn.Module):
@@ -31,8 +32,8 @@ class model(nn.Module):
     def __init__(self, encoder_name):
         super(model, self).__init__()
         if encoder_name == 'current':
-            self.encoder = current_encoder(input_dims=9, output_dims=64)
-            self.decoder = shared_decoder(input_dims=9*64, output_dims=9)
+            self.encoder = current_encoder(input_dims=11, output_dims=64)
+            self.decoder = shared_decoder(input_dims=11*64, output_dims=11)
         elif encoder_name == 'environment':
             self.encoder = environment_encoder(input_dims=27, output_dims=64)
             self.decoder = shared_decoder(input_dims=64, output_dims=27)
@@ -53,26 +54,44 @@ class autoencoder():
         self.batch_size = batch_size
         self.device = device
         self.net = model(encoder_name).to(self.device)
+        self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device))
         self.after_epoch_callback = after_epoch_callback
-        self.loss_func = self.rmse_loss
         if encoder_name == 'current':
             self.stop_threshold = 1e-3
         elif encoder_name == 'environment':
             self.stop_threshold = 1e-4
+        self.encode_args = {'batch_size': 512, 'encoding_window': 'full_series'}
 
-    def rmse_loss(self, input, target):
-        return torch.sqrt(((input - target) ** 2).mean())
+
+    # define eval() and train() functions
+    def eval(self,):
+        self.net.eval()
+        self.loss_log_vars.requires_grad = False
+
+    def train(self,):
+        self.net.train()
+        self.loss_log_vars.requires_grad = True
+
+
+    def loss_func(self, input, target):
+        loss_ae = torch.sqrt(((input - target) ** 2).mean())
+        loss = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
+        loss_topo = topo_loss(self, input)
+        loss += 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_topo*(1-torch.exp(-loss_topo)) + 0.5 * self.loss_log_vars[1]
+        return loss
+        
 
     def fit(self, train_data, n_epochs=100, scheduler='constant', verbose=0):
-        self.net.train()
+        self.train()
         # define a progress bar
         if verbose:
             progress_bar = tqdm(range(n_epochs), desc=f'Epoch', ascii=True, dynamic_ncols=False)
         else:
             progress_bar = range(n_epochs)
         
-        # define optimizer
+        # define optimizer for the net and log_vars
         self.optimizer = torch.optim.AdamW(self.net.parameters(), lr=self.lr)
+        self.optimizer.add_param_group({'params': self.loss_log_vars, 'lr': self.lr})
 
         # define training and validation data
         if scheduler == 'reduced':
@@ -93,8 +112,6 @@ class autoencoder():
 
             val_loss_log = np.zeros((n_epochs+4, len(val_loader))) * np.nan
             val_loss_log[:4,:] = np.array([[init_loss]*len(val_loader) for init_loss in range(100, 96, -1)])
-        else:
-            ValueError("Undefined scheduler: should be either 'constant' or 'reduced'.")
 
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
@@ -121,14 +138,14 @@ class autoencoder():
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
             if scheduler == 'reduced':
-                self.net.eval()
+                self.eval()
                 with torch.no_grad():
                     for val_batch_iter, (x, idx) in enumerate(val_loader):
                         x = x.to(self.device)
                         val_loss = self.loss_func(x, self.net(x))
                         val_loss_log[self.epoch_n+4, val_batch_iter] = val_loss.item()
                 self.scheduler.step(val_loss_log[self.epoch_n+4].mean())
-                self.net.train()
+                self.train()
 
                 stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5,:].mean(axis=1))
                 stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold)
@@ -169,14 +186,18 @@ class autoencoder():
                 continue_training = False
                 break
         
-        progress_bar.close()
+        if verbose:
+            progress_bar.close()
         if self.after_epoch_callback is not None:
             self.after_epoch_callback(self, finish=True)
 
         return loss_log[~np.all(np.isnan(loss_log), axis=1)]
 
+
     def compute_loss(self, val_data):
-        self.net.eval()
+        org_training = self.net.training
+        self.eval()
+
         val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False)
         loss_log = np.zeros(len(val_loader)) * np.nan
@@ -184,24 +205,38 @@ class autoencoder():
             for val_batch_iter, (x, idx) in enumerate(val_loader):
                 x = x.to(self.device)
                 loss_log[val_batch_iter] = self.loss_func(x, self.net(x)).item()
+
+        if org_training:
+            self.train()
         return loss_log.mean()
     
     def encode(self, val_data, batch_size=512, encoding_window='full_series'):
-        self.net.eval()
+        org_training = self.net.training
+        self.eval()
+
         if isinstance(val_data, torch.Tensor):
             dataset = datautils.custom_dataset(val_data)
         else:
             dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
-
-        with torch.no_grad():
-            encoded_data = []
-            for x, _ in dataloader:
-                x = x.to(self.device)
-                out = self.net.encoder(x)
-                encoded_data.append(out)
-            encoded_data = torch.cat(encoded_data, dim=0)
+        
+        if val_data.size[0] < batch_size:
+            with torch.no_grad():
+                dataset = dataset.to(self.device)
+                encoded_data = self.net.encoder(dataset)
+        else:
+            dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
+            with torch.no_grad():
+                encoded_data = []
+                for x, _ in dataloader:
+                    x = x.to(self.device)
+                    out = self.net.encoder(x)
+                    encoded_data.append(out)
+                encoded_data = torch.cat(encoded_data, dim=0)
+        
+        if org_training:
+            self.train()
         return encoded_data
+
 
     def save(self, fn):
         """
