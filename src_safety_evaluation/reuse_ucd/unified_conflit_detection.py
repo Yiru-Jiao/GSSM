@@ -63,8 +63,8 @@ class SVGP(gpytorch.models.ApproximateGP):
         self.mean_module = gpytorch.means.ConstantMean()
 
         # Kernel module
-        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=10, ard_num_dims=9)
-        rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=9))
+        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=10, ard_num_dims=11)
+        rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=11))
         self.covar_module = mixture_kernel + rbf_kernel
 
         # To make mean positive
@@ -112,14 +112,16 @@ class train_val_test():
 
     def create_inducing_points(self, num_inducing_points):
         # Create representative points for the input space
-        inducing_points = pd.DataFrame({'length_i': np.random.uniform(4.,12.,num_inducing_points),
-                                        'length_j': np.random.uniform(4.,12.,num_inducing_points),
-                                        'delta_v': np.random.uniform(-20.,20.,num_inducing_points),
-                                        'psi_j': np.random.uniform(-np.pi,np.pi,num_inducing_points),
-                                        'acc_i': np.random.uniform(-5.5,5.5,num_inducing_points),
-                                        'speed_i2': np.random.uniform(0.,3000.,num_inducing_points),
-                                        'speed_j2': np.random.uniform(0.,3000.,num_inducing_points),
+        inducing_points = pd.DataFrame({'l_ego': np.random.uniform(0.5, 16.2,num_inducing_points),
+                                        'w_ego': np.random.uniform(0.5, 2.6,num_inducing_points),
+                                        'l_sur': np.random.uniform(0.5, 16.2,num_inducing_points),
+                                        'w_sur': np.random.uniform(0.5, 2.6,num_inducing_points),
                                         'delta_v2': np.random.uniform(0.,400.,num_inducing_points),
+                                        'delta_v': np.random.uniform(-20.,20.,num_inducing_points),
+                                        'psi_sur': np.random.uniform(-np.pi,np.pi,num_inducing_points),
+                                        'acc_ego': np.random.uniform(-5.5,5.5,num_inducing_points),
+                                        'v_ego2': np.random.uniform(0.,2000.,num_inducing_points),
+                                        'v_sur2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
         return inducing_points.values
 
@@ -203,14 +205,16 @@ class train_val_test():
 def define_model(num_inducing_points, device):
     # Create representative points for the input space
     # This is defined when training. Don't change it when applying the model.
-    inducing_points = np.concatenate([np.random.uniform(4.,12.,(num_inducing_points,1)), # length_ego
-                                      np.random.uniform(4.,12.,(num_inducing_points,1)), # length_sur
+    inducing_points = np.concatenate([np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_ego
+                                      np.random.uniform(0.5, 2.6,(num_inducing_points,1)), # width_ego
+                                      np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_sur
+                                      np.random.uniform(0.5, 2.6,(num_inducing_points,1)), # width_sur
+                                      np.random.uniform(0.,400.,(num_inducing_points,1)), # delta_v2
                                       np.random.uniform(-20.,20.,(num_inducing_points,1)), # delta_v
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1)), # psi_sur
                                       np.random.uniform(-5.5,5.5,(num_inducing_points,1)), # acc_ego
-                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # v_ego2
-                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # v_sur2
-                                      np.random.uniform(0.,400.,(num_inducing_points,1)), # delta_v2
+                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_ego2
+                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_sur2
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1))], # rho
                                       axis=1)
     inducing_points = torch.from_numpy(inducing_points).float()
@@ -263,7 +267,8 @@ def UCD(data, device):
     rho = coortrans.angle(1, 0, data_relative['x_sur'], data_relative['y_sur']).reset_index().rename(columns={0:'rho'})
     rho[['target_id','time']] = data_relative[['target_id','time']]
     interaction_context = data.drop(columns=['hx_sur','hy_sur']).merge(heading_sur, on=['target_id','time']).merge(rho, on=['target_id','time'])
-    features = ['length_ego','length_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+    features = ['length_ego','width_ego','length_sur','width_sur',
+                'delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
     interaction_context = interaction_context[features+['event_id','target_id','time']].sort_values(['target_id','time'])
     data_relative = data_relative.merge(interaction_context[['target_id','time']], on=['target_id','time']).sort_values(['target_id','time'])
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
@@ -284,10 +289,6 @@ def UCD(data, device):
             sigma_list.append(sigma)
     mu_list = np.concatenate(mu_list)
     sigma_list = np.concatenate(sigma_list)
-
-    # Modify mu when ego and sur are leaving each other
-    # leaving = (interaction_context['rho'].values<0)
-    # mu_list[leaving] = np.log(proximity[leaving])
 
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu_list, sigma_list)+1e-6)
     max_intensity = np.maximum(1., max_intensity)

@@ -22,7 +22,7 @@ def get_scaler(datasets, dataset_dir, feature):
         scaler_data = scaler_data[['v_ego','v_sur','angle']].values
         scaler = StandardScaler().fit(scaler_data)
     elif feature == 'current':
-        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
         scaler_data = []
         for dataset in datasets:
             for split in ['train', 'val']:
@@ -82,7 +82,7 @@ class DataOrganiser(Dataset):
         X_current = pd.concat(X_current, ignore_index=True)
         X_current = X_current.sort_values('scene_id').reset_index(drop=True)
         self.scene_ids = X_current['scene_id'].values
-        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
         self.data.append(torch.from_numpy(self.current_scaler.transform(X_current[variables].values)).float())
 
         if 'environment' in self.encoder_selection:

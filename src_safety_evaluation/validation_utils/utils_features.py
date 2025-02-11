@@ -49,7 +49,7 @@ def get_scaler(datasets, path_prepared, feature='profiles'):
         scaler_data = scaler_data[['v_ego','v_sur','angle']].values
         scaler = StandardScaler().fit(scaler_data)
     elif feature == 'current':
-        variables = ['l_ego','l_sur','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','delta_v2','rho']
+        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
         scaler_data = []
         for dataset in datasets:
             for split in ['train', 'val']:
@@ -62,7 +62,7 @@ def get_scaler(datasets, path_prepared, feature='profiles'):
     return scaler
 
 
-def segment_data(df, ego_length, target_length):
+def segment_data(df, veh_dimensions):
     df_view_ego = coortrans.transform_coor(df, 'ego')
     df_view_relative = coortrans.transform_coor(df, 'relative')
     indices_end = np.arange(len(df)-1, 20, -1) # use 2-second history for every 0.1 second
@@ -70,23 +70,28 @@ def segment_data(df, ego_length, target_length):
     current_features_set = []
     spacing_set = []
     for idx_end in indices_end:
-        profiles = df.iloc[idx_end-20:idx_end][['v_ego','omega_ego','v_sur']] # speed and yaw rate of ego, speed of surrounding
+        profiles = df.iloc[idx_end-20:idx_end][['v_ego','v_sur']] # speed of ego and surrounding
+        profiles['angle'] = coortrans.angle(0, 1, # heading of the surrounding in the ego's view
+                                            df_view_ego.iloc[idx_end-20:idx_end]['hx_sur'].values,
+                                            df_view_ego.iloc[idx_end-20:idx_end]['hy_sur'].values)
         assert profiles.isna().sum().sum()==0 # no missing values
 
-        current_features = np.zeros(9)
-        current_features[0] = ego_length
-        current_features[1] = target_length
+        current_features = np.zeros(11)
+        current_features[0] = veh_dimensions['ego_length']
+        current_features[1] = veh_dimensions['ego_width']
+        current_features[2] = veh_dimensions['target_length']
+        current_features[3] = veh_dimensions['target_width']
         vx_ego = df.iloc[idx_end]['v_ego']*df.iloc[idx_end]['hx_ego']
         vy_ego = df.iloc[idx_end]['v_ego']*df.iloc[idx_end]['hy_ego']
         vx_sur = df.iloc[idx_end]['v_sur']*df.iloc[idx_end]['hx_sur']
         vy_sur = df.iloc[idx_end]['v_sur']*df.iloc[idx_end]['hy_sur']
-        current_features[2] = np.sqrt((vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2) * np.sign(df.iloc[idx_end]['v_ego']-df.iloc[idx_end]['v_sur'])
-        current_features[3] = coortrans.angle(1, 0, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
-        current_features[4] = df.iloc[idx_end]['acc_ego']
-        current_features[5] = df.iloc[idx_end]['v_ego']**2
-        current_features[6] = df.iloc[idx_end]['v_sur']**2
-        current_features[7] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2
-        current_features[8] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
+        current_features[4] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2
+        current_features[5] = np.sqrt(current_features[4]) * np.sign(df.iloc[idx_end]['v_ego']-df.iloc[idx_end]['v_sur'])
+        current_features[6] = coortrans.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
+        current_features[7] = df.iloc[idx_end]['acc_ego']
+        current_features[8] = df.iloc[idx_end]['v_ego']**2
+        current_features[9] = df.iloc[idx_end]['v_sur']**2
+        current_features[10] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
         spacing = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2)
 
         profiles_set.append(profiles.values)
@@ -96,8 +101,8 @@ def segment_data(df, ego_length, target_length):
     return np.array(profiles_set), np.array(current_features_set), np.array(spacing_set), index_set
 
 
-def get_context_representations(df, ego_length, target_length):
-    profiles_set, current_features_set, spacing_set, index_set = segment_data(df, ego_length, target_length)
+def get_context_representations(df, veh_dimensions):
+    profiles_set, current_features_set, spacing_set, index_set = segment_data(df, veh_dimensions)
     assert np.isnan(profiles_set).sum()==0
     return profiles_set, current_features_set, spacing_set, index_set
 
