@@ -42,10 +42,10 @@ class spclt():
                                       output_dims=output_dims,
                                       hidden_dims=hidden_dims,
                                       depth=depth,
-                                      mask_mode=mask_mode).to(self.device).half()
+                                      mask_mode=mask_mode).to(self.device)
 
         # self._net.apply(self.initialize_weights) # random initialization
-        self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device).half()
+        self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device)
         self.net.update_parameters(self._net)
 
         # define learner of log variances used for weighing losses
