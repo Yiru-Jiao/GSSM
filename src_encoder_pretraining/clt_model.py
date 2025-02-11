@@ -42,17 +42,17 @@ class spclt():
                                       output_dims=output_dims,
                                       hidden_dims=hidden_dims,
                                       depth=depth,
-                                      mask_mode=mask_mode).to(self.device)
+                                      mask_mode=mask_mode).to(self.device).half()
 
         # self._net.apply(self.initialize_weights) # random initialization
-        self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device)
+        self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device).half()
         self.net.update_parameters(self._net)
 
         # define learner of log variances used for weighing losses
         if self.regularizer_config['reserve'] == 'both':
-            self.loss_log_vars = torch.nn.Parameter(torch.zeros(3, device=self.device))
+            self.loss_log_vars = torch.nn.Parameter(torch.zeros(3, device=self.device, dtype=torch.float16))
         elif self.regularizer_config['reserve'] in ['topology', 'geometry']:
-            self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device))
+            self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device, dtype=torch.float16))
         
         # define callback functions
         self.after_iter_callback = after_iter_callback
@@ -133,14 +133,14 @@ class spclt():
             def optimizer_zero_grad():
                 self.optimizer.zero_grad()
                 self.optimizer_weight.zero_grad()
-            def optimizer_step():
-                self.optimizer.step()
-                self.optimizer_weight.step()
+            def optimizer_step(scaler):
+                scaler.step(self.optimizer)
+                scaler.step(self.optimizer_weight)
         else:
             def optimizer_zero_grad():
                 self.optimizer.zero_grad()
-            def optimizer_step():
-                self.optimizer.step()
+            def optimizer_step(scaler):
+                scaler.step(self.optimizer)
 
         # exclude instances with all missing values
         isnanmat = np.isnan(train_data)
@@ -174,7 +174,7 @@ class spclt():
                 val_soft_assignments = train_val_soft_assignments[val_indices][:,val_indices].copy()
                 del train_val_soft_assignments
             del soft_assignments, reserved_idx, train_val_data, train_indices, val_indices
-            val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
+            val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float().half())
             val_loader = DataLoader(val_dataset, batch_size=min(self.batch_size, len(val_dataset)), shuffle=False, drop_last=True)
             
             # define scheduler
@@ -212,7 +212,7 @@ class spclt():
             ValueError("Undefined scheduler: should be either 'constant' or 'reduced'.")
 
         # create training dataset, dataloader, and loss log
-        train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
+        train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float().half())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
         train_iters = int(len(train_loader)*0.25) # use 25% of the total iterations per epoch
         if n_iters is None:
@@ -238,6 +238,7 @@ class spclt():
             self.loss_config['temporal_unit'] = 0  ## The minimum unit to perform temporal contrast. 
                                                    ## When training on a very long sequence, increasing this helps to reduce the cost of time and memory.
         continue_training = True
+        scaler = torch.amp.GradScaler()  # Initialize gradient scaler
         while continue_training:
             for train_batch_iter, (x, idx) in enumerate(train_loader):
                 if n_epochs is not None and train_batch_iter >= train_iters:
@@ -256,12 +257,14 @@ class spclt():
                 train_loss_config['soft_labels'] = soft_labels
 
                 optimizer_zero_grad()
-                loss, loss_comp = self.loss_func(self, x.to(self.device),
-                                                 train_loss_config, 
-                                                 self.regularizer_config)
+                with torch.amp.autocast():  # Enables Mixed Precision
+                    loss, loss_comp = self.loss_func(self, x.to(self.device),
+                                                     train_loss_config, 
+                                                     self.regularizer_config)
 
-                loss.backward()
-                optimizer_step()
+                scaler.scale(loss).backward()
+                optimizer_step(scaler)
+                scaler.update()
                 self.net.update_parameters(self._net)
 
                 # save model if callback every several iterations
