@@ -130,7 +130,7 @@ def main(args):
 
         ## loss results
         loss_results = model.compute_loss(test_data)
-        loss_results = {'rmse_loss': loss_results}
+        loss_results = {'loss': loss_results}
 
         # Save evaluation results
         key_values = {**loss_results, **global_dist_dens_results}
