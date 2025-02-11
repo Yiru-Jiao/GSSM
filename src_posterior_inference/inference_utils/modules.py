@@ -185,7 +185,7 @@ class attention_decoder(nn.Module):
     
     def state_self_attention(self, state, attention_matrices, return_q=False):
         q_state, k_state, v_state = self.get_qkv(state, self.Q_state, self.K_state, self.V_state)
-        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 11/12, hidden_dims=32)
+        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 11 or 12, hidden_dims=32)
         attention_matrices['state'] = state_attention
         if return_q:
             return attended_state, attention_matrices, q_state
@@ -204,7 +204,7 @@ class attention_decoder(nn.Module):
             q_seg, k_seg, v_seg = self.get_qkv(ts[:, :seg_length], self.Q_first, self.K_first, self.V_first)
         elif segment=='last':
             q_seg, k_seg, v_seg = self.get_qkv(ts[:, -seg_length:], self.Q_last, self.K_last, self.V_last)
-        attended_seg, seg_attention = self.head_forward(qstate, k_seg, v_seg) # (batch_size, 11/12, hidden_dims=32)
+        attended_seg, seg_attention = self.head_forward(qstate, k_seg, v_seg) # (batch_size, 11 or 12, hidden_dims=32)
         attention_matrices[segment] = seg_attention
         return attended_seg, attention_matrices
     
