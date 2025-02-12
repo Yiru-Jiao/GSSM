@@ -56,26 +56,23 @@ def main(meta_both, events):
             Not applicable: 0
             The target is not considered if it is a following vehicle, as the data does not provide rear radar information
             '''
-            if event_cat=='Crash':
-                event_meta.loc[event_id, 'severity_first'] = 3
-                event_meta.loc[event_id, 'severity_second'] = 0
-            elif event_cat=='NearCrash':
-                event_meta.loc[event_id, 'severity_first'] = 2
-                event_meta.loc[event_id, 'severity_second'] = 0
-            elif 'Secondary' in event_cat:
-                event_meta.loc[event_id, 'severity_first'] = 0
-                if event_cat=='SecondaryCrash':
-                    event_meta.loc[event_id, 'severity_second'] = 3
-                elif event_cat=='SecondaryNearCrash':
-                    event_meta.loc[event_id, 'severity_second'] = 2
-            elif '-' in event_cat:
+            if '-' not in event_cat:
+                if event_cat=='Crash':
+                    event_meta.loc[event_id, 'severity_first'] = 3
+                    event_meta.loc[event_id, 'severity_second'] = 0
+                elif event_cat=='NearCrash':
+                    event_meta.loc[event_id, 'severity_first'] = 2
+                    event_meta.loc[event_id, 'severity_second'] = 0
+                elif 'Secondary' in event_cat:
+                    event_meta.loc[event_id, 'severity_first'] = 0
+                    if event_cat=='SecondaryCrash':
+                        event_meta.loc[event_id, 'severity_second'] = 3
+                    elif event_cat=='SecondaryNearCrash':
+                        event_meta.loc[event_id, 'severity_second'] = 2
+            else:
                 first, second = event_cat.split('-')
                 event_meta.loc[event_id, 'severity_first'] = 3 if first=='Crash' else 2 if first=='NearCrash' else 1
                 event_meta.loc[event_id, 'severity_second'] = 3 if second=='Crash' else 2 if second=='NearCrash' else 1
-            if event_meta.loc[event_id, 'first'] in ['animal', 'following', 'obstacle', 'single']:
-                event_meta.loc[event_id, 'severity_first'] = 0
-            if event_meta.loc[event_id, 'second'] in ['animal', 'following', 'obstacle', 'single']:
-                event_meta.loc[event_id, 'severity_second'] = 0
 
             # Retrieve event narrative
             event_meta.loc[event_id, 'narrative'] = events.loc[event_id, 'finalNarrative']
