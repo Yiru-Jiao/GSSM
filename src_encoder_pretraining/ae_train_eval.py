@@ -60,9 +60,9 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     if args.encoder_name == 'current':
-        bslr_list = ['bs64_lr0.0001', 'bs128_lr0.0001', 'bs256_lr0.0001', 'bs512_lr0.0001']
+        bslr_list = ['bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001']
     else:
-        bslr_list = ['bs64_lr0.001', 'bs128_lr0.001', 'bs256_lr0.001', 'bs512_lr0.001']
+        bslr_list = ['bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001', 'bs128_lr0.001']
     
     if os.path.exists(results_dir):
         eval_results = pd.read_csv(results_dir)
