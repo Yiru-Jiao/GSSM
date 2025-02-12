@@ -92,8 +92,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
                 df = data.loc(axis=0)[target_id, :]
                 if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                     continue
-                ego_length, target_length = veh_dimensions.loc[df['event_id'].values[0], ['ego_length','target_length']].values
-                segmented_features = get_context_representations(df, ego_length, target_length)
+                segmented_features = get_context_representations(df, veh_dimensions.loc[df['event_id'].values[0]])
                 profiles_features.append(segmented_features[0]) # will need normalisation when being used
                 current_features.append(segmented_features[1]) # will need normalisation when being used
                 spacing_list.append(segmented_features[2])
