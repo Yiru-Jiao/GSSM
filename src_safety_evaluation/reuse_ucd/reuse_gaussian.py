@@ -85,7 +85,7 @@ def main(args, manual_seed, path_result):
     avg_length = np.nanmean(veh_dimensions['ego_length'].values)
     for var in ['ego_width','ego_length','target_width','target_length']:
         veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
-    event_data[['length_ego','length_sur']] = veh_dimensions.loc[event_data['event_id'].values, ['ego_length','target_length']].values
+    event_data[['length_ego','width_ego','length_sur','width_sur']] = veh_dimensions.loc[event_data['event_id'].values, ['ego_length','ego_width','target_length','target_width']].values
 
     if os.path.exists(path_save + 'highD_ucd.h5'):
         safety_evaluation = pd.read_hdf(path_save + 'highD_ucd.h5', key='data')
