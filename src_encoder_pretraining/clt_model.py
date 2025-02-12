@@ -50,9 +50,9 @@ class spclt():
 
         # define learner of log variances used for weighing losses
         if self.regularizer_config['reserve'] == 'both':
-            self.loss_log_vars = torch.nn.Parameter(torch.zeros(3, device=self.device, dtype=torch.float16))
+            self.loss_log_vars = torch.nn.Parameter(torch.zeros(3, device=self.device))
         elif self.regularizer_config['reserve'] in ['topology', 'geometry']:
-            self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device, dtype=torch.float16))
+            self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device))
         
         # define callback functions
         self.after_iter_callback = after_iter_callback
