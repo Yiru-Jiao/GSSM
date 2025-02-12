@@ -230,31 +230,52 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
     return records
 
 
-def optimize_threshold(warning, conflict_indicator, return_stats=False):
-    danger = warning[warning['danger_recorded']].copy()
-    tpr = danger.groupby('threshold')['true warning'].sum()/danger.groupby('threshold')['true warning'].size()
-    tpr = tpr.reset_index().rename(columns={'true warning':'true positive rate'})
-    safety = warning[warning['safety_recorded']].copy()
-    fpr = safety.groupby('threshold')['false warning'].sum()/safety.groupby('threshold')['false warning'].size()
-    fpr = fpr.reset_index().rename(columns={'false warning':'false positive rate'})
-    statistics = tpr.reset_index().merge(fpr.reset_index(), on='threshold', how='outer')[['threshold','true positive rate','false positive rate']]
+def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=False):
     if conflict_indicator=='TTC' or conflict_indicator=='MTTC':
-        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'])
+        warning.loc[warning['median_before_danger']<warning['median_danger'], 'danger_recorded'] = False
     else:
-        statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, False])
+        warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
 
-    statistics['combined rate'] = (1-statistics['true positive rate'])**2+(statistics['false positive rate'])**2
+    true_positives = warning[warning['danger_recorded']&(warning['true warning'].astype(bool))].groupby('threshold').size()
+    false_positives = warning[warning['safety_recorded']&(warning['false warning'].astype(bool))].groupby('threshold').size()
+    true_negatives = warning[warning['safety_recorded']&(~warning['false warning'].astype(bool))].groupby('threshold').size()
+    false_negatives = warning[warning['danger_recorded']&(~warning['true warning'].astype(bool))].groupby('threshold').size()
+    statistics = pd.concat([true_positives, false_positives, true_negatives, false_negatives], axis=1, keys=['TP', 'FP', 'TN', 'FN'])
+    statistics = statistics.reset_index()
+
+    if curve_type=='ROC':
+        statistics['true positive rate'] = statistics['TP']/(statistics['TP']+statistics['FN'])
+        statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
+        if conflict_indicator=='TTC' or conflict_indicator=='MTTC':
+            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, True])
+        else:
+            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, False])
+        statistics['combined rate'] = (1-statistics['true positive rate'])**2+(statistics['false positive rate'])**2
+    elif curve_type=='PRC':
+        statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
+        statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
+        if conflict_indicator=='TTC' or conflict_indicator=='MTTC':
+            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, True, True])
+        else:
+            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, True, False])
+        statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
     optimal_rate = statistics['combined rate'].min()
-    optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate, ['threshold','true positive rate','false positive rate']]
+    optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate]
     optimal_threshold = optimal_warning.iloc[0]
-    print(conflict_indicator, 
-            ' optimal threshold: ', optimal_threshold['threshold'], 
-            ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
-            ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
     if return_stats:
         optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
         return statistics, optimal_warning, optimal_threshold
     else:
+        if curve_type=='ROC':
+            print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
+                ' optimal threshold: ', optimal_threshold['threshold'], 
+                ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
+                ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
+        elif curve_type=='PRC':
+            print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
+                ' optimal threshold: ', optimal_threshold['threshold'], 
+                ' precision: ', round(optimal_threshold['precision']*100, 2),
+                ' recall: ', round(optimal_threshold['recall']*100, 2))
         return optimal_threshold['threshold']
 
 
