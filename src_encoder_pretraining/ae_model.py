@@ -102,7 +102,7 @@ class autoencoder():
             train_data, val_data = train_val_data[train_indices].copy(), train_val_data[val_indices].copy()
             del train_val_data
             val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
-            val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False)
+            val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=True)
             
             # define scheduler
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -115,7 +115,7 @@ class autoencoder():
 
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=False)
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True)
         loss_log = np.zeros((n_epochs, len(train_loader))) * np.nan
 
         # training loop
@@ -200,7 +200,7 @@ class autoencoder():
         self.eval()
 
         val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
-        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False)
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=True)
         loss_log = np.zeros(len(val_loader)) * np.nan
         with torch.no_grad():
             for val_batch_iter, (x, idx) in enumerate(val_loader):
@@ -211,6 +211,7 @@ class autoencoder():
             self.train()
         return loss_log.mean()
     
+
     def encode(self, val_data, batch_size=512, encoding_window='full_series'):
         org_training = self.net.training
         self.eval()
@@ -234,7 +235,7 @@ class autoencoder():
         
         if org_training:
             self.train()
-        return encoded_data
+        return encoded_data # (n_samples, 11, 64) for current, (n_samples, 1, 64) for environment
 
 
     def save(self, fn):
