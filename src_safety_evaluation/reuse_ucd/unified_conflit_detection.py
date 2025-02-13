@@ -170,6 +170,7 @@ class train_val_test():
         )
 
         progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False)
+        break_flag = False
         scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         for count_epoch in progress_bar:
             for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader):
