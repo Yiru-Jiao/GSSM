@@ -134,9 +134,8 @@ class train_val_test():
         val_loss = 0
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             for count_batch, (interaction_context, current_spacing) in enumerate(self.val_dataloader):
-                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                    output = self.model(interaction_context.to(self.device))
-                    loss = -self.loss_func(output, current_spacing.squeeze().to(self.device)).item()
+                output = self.model(interaction_context.to(self.device))
+                loss = -self.loss_func(output, current_spacing.squeeze().to(self.device)).item()
                 val_loss += loss
 
         self.model.train()
@@ -171,18 +170,15 @@ class train_val_test():
 
         progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False)
         break_flag = False
-        scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         for count_epoch in progress_bar:
             for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader):
                 self.optimizer.zero_grad()
-                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                    output = self.model(interaction_context.to(self.device))
-                    loss = -self.loss_func(output, current_spacing.squeeze().to(self.device))
+                output = self.model(interaction_context.to(self.device))
+                loss = -self.loss_func(output, current_spacing.squeeze().to(self.device))
                 loss_records[count_epoch, batch] = loss.item()
 
-                scaler.scale(loss).backward()
-                scaler.step(self.optimizer)
-                scaler.update()
+                loss.backward()
+                self.optimizer.step()
 
             val_loss = self.val_loop()
             self.scheduler.step(val_loss)
