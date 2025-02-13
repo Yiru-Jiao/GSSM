@@ -127,7 +127,8 @@ class autoencoder():
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
                 with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                    loss = self.loss_func(x.to(self.device), self.net(x))
+                    x = x.to(self.device)
+                    loss = self.loss_func(x, self.net(x))
                 loss_log[self.epoch_n, train_batch_iter-1] = loss.item()
 
                 scaler.scale(loss).backward()
@@ -141,7 +142,8 @@ class autoencoder():
                 with torch.no_grad():
                     for val_batch_iter, (x, idx) in enumerate(val_loader):
                         with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                            val_loss = self.loss_func(x.to(self.device), self.net(x))
+                            x = x.to(self.device)
+                            val_loss = self.loss_func(x, self.net(x))
                         val_loss_log[self.epoch_n+4, val_batch_iter] = val_loss.item()
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
