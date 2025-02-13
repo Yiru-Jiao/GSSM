@@ -85,7 +85,7 @@ class DilatedConvEncoder(nn.Module):
 
 
 class TSEncoder(nn.Module):
-    def __init__(self, input_dims, output_dims, hidden_dims=128, depth=6, mask_mode=None):
+    def __init__(self, input_dims, output_dims, hidden_dims=128, depth=4, mask_mode=None):
         super().__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
