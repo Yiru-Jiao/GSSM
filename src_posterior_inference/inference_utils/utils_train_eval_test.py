@@ -15,7 +15,7 @@ from model import UnifiedProximity, LogNormalNLL
 from torch.utils.data import DataLoader
 
 
-def set_experiments(stage=[1,2,3,4,5,6]):
+def set_experiments(stage=[1,2,3,4,5]):
     exp_config = []
     if 1 in stage:
         exp_config.extend([
@@ -27,33 +27,29 @@ def set_experiments(stage=[1,2,3,4,5,6]):
         ])
     if 2 in stage:
         exp_config.extend([
-            [['highD'], ['current'], [], True],
-            [['SafeBaseline'], ['current'], [], True],
-            [['INTERACTION'], ['current'], [], True],
-            [['Argoverse'], ['current'], [], True],
+            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline', 'highD'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION', 'highD'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION'], ['current'], [], False],
         ])
     if 3 in stage:
         exp_config.extend([
-            [['Argoverse', 'SafeBaseline'], ['current'], [], False],
-            [['Argoverse', 'SafeBaseline', 'INTERACTION'], ['current'], [], False],
-            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], False],
-            [['SafeBaseline', 'Argoverse', 'highD'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], True],
+            [['SafeBaseline'], ['current'], [], True],
+            [['SafeBaseline'], ['current', 'environment'], [], True],
+            # [['highD'], ['current'], [], True],
+            # [['INTERACTION'], ['current'], [], True],
+            # [['Argoverse'], ['current'], [], True],
         ])
     if 4 in stage:
-        exp_config.extend([
-            [['Argoverse', 'SafeBaseline'], ['current'], [], True],
-            [['Argoverse', 'SafeBaseline', 'INTERACTION'], ['current'], [], True],
-            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], True],
-            [['SafeBaseline', 'Argoverse', 'highD'], ['current'], [], True],
-        ])
-    if 5 in stage:
         exp_config.extend([
             [['highD'], ['current','profiles'], [], False],
             [['SafeBaseline'], ['current','environment','profiles'], [], False],
             # [['SafeBaseline'], ['current','environment','profiles'], [], True],
             # [['Argoverse', 'SafeBaseline'], ['current','profiles'], [], True],
         ])
-    # if 6 in stage:
+    # if 5 in stage:
     #     exp_config.extend([
             # [[], ['current','profiles'], ['first'], False],
             # [[], ['current','profiles'], ['first'], True],
