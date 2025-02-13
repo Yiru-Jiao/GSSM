@@ -122,18 +122,17 @@ class autoencoder():
         self.epoch_n = 0
         self.iter_n = 0
         continue_training = True
+        scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         while continue_training:
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
-                x = x.to(self.device)
-                loss = self.loss_func(x, self.net(x))
-
-                # backpropagation
-                loss.backward()
-                self.optimizer.step()
-
-                # save iteration loss
+                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                    loss = self.loss_func(x.to(self.device), self.net(x))
                 loss_log[self.epoch_n, train_batch_iter-1] = loss.item()
+
+                scaler.scale(loss).backward()
+                scaler.step(self.optimizer)
+                scaler.update()
                 self.iter_n += 1
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
@@ -141,8 +140,8 @@ class autoencoder():
                 self.eval()
                 with torch.no_grad():
                     for val_batch_iter, (x, idx) in enumerate(val_loader):
-                        x = x.to(self.device)
-                        val_loss = self.loss_func(x, self.net(x))
+                        with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                            val_loss = self.loss_func(x.to(self.device), self.net(x))
                         val_loss_log[self.epoch_n+4, val_batch_iter] = val_loss.item()
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs

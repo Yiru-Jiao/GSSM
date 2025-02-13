@@ -174,7 +174,7 @@ class spclt():
                 val_soft_assignments = train_val_soft_assignments[val_indices][:,val_indices].copy()
                 del train_val_soft_assignments
             del soft_assignments, reserved_idx, train_val_data, train_indices, val_indices
-            val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float().half())
+            val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
             val_loader = DataLoader(val_dataset, batch_size=min(self.batch_size, len(val_dataset)), shuffle=False, drop_last=True)
             
             # define scheduler
@@ -212,7 +212,7 @@ class spclt():
             ValueError("Undefined scheduler: should be either 'constant' or 'reduced'.")
 
         # create training dataset, dataloader, and loss log
-        train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float().half())
+        train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
         train_iters = int(len(train_loader)*0.25) # use 25% of the total iterations per epoch
         if n_iters is None:
