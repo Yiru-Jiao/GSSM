@@ -142,15 +142,17 @@ class train_val_test():
             progress_bar = range(num_epochs)
 
         break_flag = False
+        scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         for epoch_n in progress_bar:
             for train_batch_iter, (x, y) in enumerate(self.train_dataloader):
-                out = self.model(self.send_x_to_device(x))
-                loss = self.loss_func(out, y.to(self.device))
-                loss_log[epoch_n, train_batch_iter] = loss.item()
-
-                loss.backward()
-                self.optimizer.step()
                 self.optimizer.zero_grad()
+                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                    out = self.model(self.send_x_to_device(x))
+                    loss = self.loss_func(out, y.to(self.device))
+                    scaler.scale(loss).backward()
+                    scaler.step(self.optimizer)
+                    scaler.update()
+                loss_log[epoch_n, train_batch_iter] = loss.item()
 
             val_loss = self.val_loop()
             if lr_schedule:
@@ -190,8 +192,9 @@ class train_val_test():
         val_loss = np.zeros(len(self.val_dataloader))
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader):
-                out = self.model(self.send_x_to_device(x))
-                loss = self.loss_func(out, y.to(self.device)).item()
+                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                    out = self.model(self.send_x_to_device(x))
+                    loss = self.loss_func(out, y.to(self.device)).item()
                 val_loss[val_batch_iter] = loss
         self.model.train()
         return val_loss.mean()
@@ -211,18 +214,3 @@ class train_val_test():
         self.model = self.model.to(self.device)
         self.loss_func = self.loss_func.to(self.device)
         self.model.eval()
-
-    # def test_model(self, batch_size=None, initial_lr=None):
-    #     # Load trained model
-    #     self.load_model(batch_size, initial_lr)
-
-    #     # Evaluate the model
-    #     self.model.eval()
-    #     test_loss = np.zeros(len(self.test_dataloader))
-    #     with torch.no_grad():
-    #         for test_batch_iter, (x, y) in enumerate(self.test_dataloader):
-    #             out = self.model(self.send_x_to_device(x))
-    #             loss = self.loss_func(out, y.to(self.device)).item()
-    #             test_loss[test_batch_iter] = loss
-    #     self.model.train()
-    #     return test_loss.mean()
