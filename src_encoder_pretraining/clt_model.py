@@ -307,10 +307,12 @@ class spclt():
                         val_loss_config = self.loss_config.copy()
                         val_loss_config['soft_labels'] = soft_labels
 
-                        val_loss, _ = self.loss_func(self, x.to(self.device), 
-                                                     val_loss_config, 
-                                                     self.regularizer_config)
+                        with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                            val_loss, _ = self.loss_func(self, x.to(self.device),
+                                                        val_loss_config,
+                                                        self.regularizer_config)
                         val_loss_log = scheduler_update(val_loss_log, val_batch_iter, val_loss)
+
                 # update learning rate after cold start of 10 epochs
                 if self.epoch_n >= 10:
                     scheduler_step(val_loss_log[self.epoch_n+4, :, 0].mean(),
