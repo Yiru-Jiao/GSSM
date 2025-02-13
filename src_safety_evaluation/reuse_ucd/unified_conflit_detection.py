@@ -171,13 +171,13 @@ class train_val_test():
         progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False)
         for count_epoch in progress_bar:
             for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader):
+                self.optimizer.zero_grad()
                 output = self.model(interaction_context.to(self.device))
                 loss = -self.loss_func(output, current_spacing.squeeze().to(self.device))
                 loss_records[count_epoch, batch] = loss.item()
 
                 loss.backward()
                 self.optimizer.step()
-                self.optimizer.zero_grad()
 
             val_loss = self.val_loop()
             self.scheduler.step(val_loss)
