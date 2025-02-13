@@ -142,16 +142,23 @@ class train_val_test():
             progress_bar = range(num_epochs)
 
         break_flag = False
-        scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
+        if 'profiles' in self.encoder_selection:
+            scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         for epoch_n in progress_bar:
             for train_batch_iter, (x, y) in enumerate(self.train_dataloader):
                 self.optimizer.zero_grad()
-                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                if 'profiles' in self.encoder_selection:
+                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                        out = self.model(self.send_x_to_device(x))
+                        loss = self.loss_func(out, y.to(self.device))
+                        scaler.scale(loss).backward()
+                        scaler.step(self.optimizer)
+                        scaler.update()
+                else:
                     out = self.model(self.send_x_to_device(x))
                     loss = self.loss_func(out, y.to(self.device))
-                    scaler.scale(loss).backward()
-                    scaler.step(self.optimizer)
-                    scaler.update()
+                    loss.backward()
+                    self.optimizer.step()
                 loss_log[epoch_n, train_batch_iter] = loss.item()
 
             val_loss = self.val_loop()
@@ -192,7 +199,11 @@ class train_val_test():
         val_loss = np.zeros(len(self.val_dataloader))
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader):
-                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                if 'profiles' in self.encoder_selection:
+                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                        out = self.model(self.send_x_to_device(x))
+                        loss = self.loss_func(out, y.to(self.device)).item()
+                else:
                     out = self.model(self.send_x_to_device(x))
                     loss = self.loss_func(out, y.to(self.device)).item()
                 val_loss[val_batch_iter] = loss

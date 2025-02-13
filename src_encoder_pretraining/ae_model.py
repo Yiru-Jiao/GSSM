@@ -60,6 +60,7 @@ class autoencoder():
             self.stop_threshold = 1e-3
         elif encoder_name == 'environment':
             self.stop_threshold = 1e-4
+        self.encoder_name = encoder_name
         self.encode_args = {'batch_size': 512, 'encoding_window': 'full_series'}
 
 
@@ -122,18 +123,25 @@ class autoencoder():
         self.epoch_n = 0
         self.iter_n = 0
         continue_training = True
-        scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
+        if self.encoder_name == 'current':
+            scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         while continue_training:
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
-                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                if self.encoder_name == 'current':
+                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                        x = x.to(self.device)
+                        loss = self.loss_func(x, self.net(x))
+                    scaler.scale(loss).backward()
+                    scaler.step(self.optimizer)
+                    scaler.update()
+                elif self.encoder_name == 'environment':
                     x = x.to(self.device)
                     loss = self.loss_func(x, self.net(x))
-                loss_log[self.epoch_n, train_batch_iter-1] = loss.item()
+                    loss.backward()
+                    self.optimizer.step()
 
-                scaler.scale(loss).backward()
-                scaler.step(self.optimizer)
-                scaler.update()
+                loss_log[self.epoch_n, train_batch_iter-1] = loss.item()
                 self.iter_n += 1
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
@@ -141,7 +149,11 @@ class autoencoder():
                 self.eval()
                 with torch.no_grad():
                     for val_batch_iter, (x, idx) in enumerate(val_loader):
-                        with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                        if self.encoder_name == 'current':
+                            with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                                x = x.to(self.device)
+                                val_loss = self.loss_func(x, self.net(x))
+                        elif self.encoder_name == 'environment':
                             x = x.to(self.device)
                             val_loss = self.loss_func(x, self.net(x))
                         val_loss_log[self.epoch_n+4, val_batch_iter] = val_loss.item()
