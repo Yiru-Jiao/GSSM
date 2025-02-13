@@ -25,10 +25,10 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
     data_sur['hx'] = np.cos(data_sur['psi_ekf'])
     data_sur['hy'] = np.sin(data_sur['psi_ekf'])
 
-    data_ego = data_ego[['time','event_id','x_ekf','y_ekf','v_ekf','omega_ekf','acc_ekf','hx','hy']]
-    data_ego = data_ego.rename(columns={'x_ekf':'x','y_ekf':'y','v_ekf':'v','omega_ekf':'omega_ego','acc_ekf':'acc_ego'})
-    data_sur = data_sur[['time','event_id','target_id','x_ekf','y_ekf','v_ekf','hx','hy']]
-    data_sur = data_sur.rename(columns={'x_ekf':'x','y_ekf':'y','v_ekf':'v'})
+    data_ego = data_ego[['time','event_id','x_ekf','y_ekf','v_ekf','psi_ekf','acc_ekf','hx','hy']]
+    data_ego = data_ego.rename(columns={'x_ekf':'x','y_ekf':'y','v_ekf':'v','psi_ekf':'psi','acc_ekf':'acc_ego'})
+    data_sur = data_sur[['time','event_id','target_id','x_ekf','y_ekf','v_ekf','psi_ekf','hx','hy']]
+    data_sur = data_sur.rename(columns={'x_ekf':'x','y_ekf':'y','v_ekf':'v','psi_ekf':'psi'})
 
     if single_file:
         data_both = data_ego.merge(data_sur, on=['event_id','time'], how='inner', suffixes=('_ego', '_sur'))
