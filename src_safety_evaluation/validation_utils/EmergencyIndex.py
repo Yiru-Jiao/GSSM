@@ -137,12 +137,10 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
     D_safe: the default value is set to 0, which means considering the bounding boxes of vehicles with no buffer
             the original authors implicitly set D_safe to 5 by "InDepth > -5" in the original script
     '''
-    target_ids = samples['target_id'].unique()
-    assert len(target_ids)==len(samples), 'Each row should correspond to a unique target_id'
-    samples = samples.set_index('target_id')
+    samples = samples.reset_index(drop=True)
 
     # Iterate over each row (moment in a case) for calculation
-    for target_id in target_ids:
+    for index in samples.index.values:
 #    # Iterate over each row for calculation
 #     for i, row in df.iterrows():
 #         x_A, y_A, v_A, h_A, l_A, w_A = row.iloc[1:7]
@@ -158,8 +156,8 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
 
 #         for j, same_time_row in same_time_rows.iterrows():
 #             x_B, y_B, v_B, h_B, l_B, w_B = same_time_row.iloc[1:7]
-        x_A, y_A, v_A, h_A, l_A, w_A = samples.loc[target_id, ['x_i', 'y_i', 'v_i', 'psi_i', 'length_i', 'width_i']].values
-        x_B, y_B, v_B, h_B, l_B, w_B = samples.loc[target_id, ['x_j', 'y_j', 'v_j', 'psi_j', 'length_j', 'width_j']].values
+        x_A, y_A, v_A, h_A, l_A, w_A = samples.loc[index, ['x_i', 'y_i', 'v_i', 'psi_i', 'length_i', 'width_i']].values
+        x_B, y_B, v_B, h_B, l_B, w_B = samples.loc[index, ['x_j', 'y_j', 'v_j', 'psi_j', 'length_j', 'width_j']].values
 
         delta_x = x_B - x_A
         delta_y = y_B - y_A
@@ -265,15 +263,15 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
 #                 InDepth_values.append(round(InDepth, 2))
 #                 EI_values.append(round(EI, 2))
             if InDepth >= 0: # i.e., MFD <= D_safe
-                samples.loc[target_id, 'TDM'] = TDM
+                samples.loc[index, 'TDM'] = TDM
             else:
-                samples.loc[target_id, 'TDM'] = np.nan
+                samples.loc[index, 'TDM'] = np.nan
 
 #         df.at[i, 'TDM (s)'] = ','.join(map(str, TDM_values))
 #         df.at[i, 'InDepth (m)'] = ','.join(map(str, InDepth_values))
 #         df.at[i, 'EI (m/s)'] = ','.join(map(str, EI_values))
         else:
-            samples.loc[target_id, 'TDM'] = np.nan
+            samples.loc[index, 'TDM'] = np.nan
 
 #     df.to_csv(output_file, index=False)
 #     print(f"finish: {output_file}")
