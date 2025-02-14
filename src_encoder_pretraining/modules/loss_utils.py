@@ -80,7 +80,7 @@ def topo_euclidean_distance_matrix(x, p=2):
     Computes the pairwise Euclidean distance matrix between the rows of a 2D tensor.
     """
     x_flat = x.view(x.size(0), -1)
-    x_flat = torch.where(torch.isnan(x_flat), torch.tensor(0.0, device=x.device), x_flat)  # No in-place modification!
+    # x_flat = torch.where(torch.isnan(x_flat), torch.tensor(0.0, device=x.device), x_flat)  # No in-place modification!
     distances = torch.norm(x_flat[:, None] - x_flat, dim=2, p=p)
     return distances
 
