@@ -111,13 +111,13 @@ class autoencoder():
                 threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
                 )
 
-            val_loss_log = np.zeros((n_epochs+4, len(val_loader))) * np.nan
-            val_loss_log[:4,:] = np.array([[init_loss]*len(val_loader) for init_loss in range(100, 96, -1)])
+            val_loss_log = np.zeros((n_epochs+4, 1)) * np.nan
+            val_loss_log[:4,:] = np.array([[init_loss] for init_loss in range(100, 96, -1)])
 
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True)
-        loss_log = np.zeros((n_epochs, len(train_loader))) * np.nan
+        loss_log = np.zeros((n_epochs, 1)) * np.nan
 
         # training loop
         self.epoch_n = 0
@@ -126,6 +126,7 @@ class autoencoder():
         if self.encoder_name == 'current':
             scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         while continue_training:
+            train_loss = torch.tensor(0.0, device=self.device)
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
                 if self.encoder_name == 'current':
@@ -140,28 +141,30 @@ class autoencoder():
                     loss = self.loss_func(x, self.net(x))
                     loss.backward()
                     self.optimizer.step()
-
-                loss_log[self.epoch_n, train_batch_iter-1] = loss.item()
+                train_loss += loss
                 self.iter_n += 1
+
+            loss_log[self.epoch_n, 0] = train_loss.item() / train_batch_iter
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
             if scheduler == 'reduced':
                 self.eval()
                 with torch.no_grad():
-                    for val_batch_iter, (x, idx) in enumerate(val_loader):
+                    val_loss = torch.tensor(0.0, device=self.device)
+                    for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
                         if self.encoder_name == 'current':
                             with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
                                 x = x.to(self.device)
-                                val_loss = self.loss_func(x, self.net(x))
+                                val_loss += self.loss_func(x, self.net(x))
                         elif self.encoder_name == 'environment':
                             x = x.to(self.device)
-                            val_loss = self.loss_func(x, self.net(x))
-                        val_loss_log[self.epoch_n+4, val_batch_iter] = val_loss.item()
+                            val_loss += self.loss_func(x, self.net(x))
+                    val_loss_log[self.epoch_n+4, 0] = val_loss.item() / val_batch_iter
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
-                    self.scheduler.step(val_loss_log[self.epoch_n+4].mean())
+                    self.scheduler.step(val_loss_log[self.epoch_n+4, 0])
 
-                stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5,:].mean(axis=1))
+                stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5,:].mean(axis=0))
                 stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold)
                 stop_condition2 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+4,:].mean(axis=1))
                 stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold/10)
@@ -175,25 +178,24 @@ class autoencoder():
                 self.after_epoch_callback(self)
 
             # update progress bar if verbose
-            if verbose:
-                avg_batch_loss = loss_log[self.epoch_n, :].mean()
+            if verbose > 6:
                 if scheduler == 'reduced':
-                    avg_val_loss = val_loss_log[self.epoch_n+4, :].mean()
-                    current_lr = self.optimizer.param_groups[0]['lr']
-                if verbose > 6:
+                    progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], 
+                                                val_loss=val_loss_log[self.epoch_n+4, 0], 
+                                                lr=self.optimizer.param_groups[0]['lr'], refresh=False)
+                else:
+                    progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], refresh=False)
+                progress_bar.update(1)
+            else: # update every 20% of the total epochs
+                step = n_epochs // (1+verbose*4)
+                if (self.epoch_n+1) % step == 0:
                     if scheduler == 'reduced':
-                        progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr, refresh=False)
+                        progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], 
+                                                 val_loss=val_loss_log[self.epoch_n+4, 0],
+                                                 lr=self.optimizer.param_groups[0]['lr'], refresh=False)
                     else:
-                        progress_bar.set_postfix(loss=avg_batch_loss, refresh=False)
-                    progress_bar.update(1)
-                else: # update every 20% of the total epochs
-                    step = n_epochs // (1+verbose*4)
-                    if (self.epoch_n+1) % step == 0:
-                        if scheduler == 'reduced':
-                            progress_bar.set_postfix(loss=avg_batch_loss, val_loss=avg_val_loss, lr=current_lr, refresh=False)
-                        else:
-                            progress_bar.set_postfix(loss=avg_batch_loss, refresh=False)
-                        progress_bar.update(step)
+                        progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], refresh=False)
+                    progress_bar.update(step)
 
             self.epoch_n += 1
             if self.epoch_n >= n_epochs:
@@ -205,7 +207,7 @@ class autoencoder():
         if self.after_epoch_callback is not None:
             self.after_epoch_callback(self, finish=True)
 
-        return loss_log[~np.all(np.isnan(loss_log), axis=1)]
+        return loss_log[:self.epoch_n,:], val_loss_log[4:self.epoch_n+4,:]
 
 
     def compute_loss(self, val_data):
@@ -214,15 +216,15 @@ class autoencoder():
 
         val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=True)
-        loss_log = np.zeros(len(val_loader)) * np.nan
+        loss = torch.tensor(0.0, device=self.device)
         with torch.no_grad():
-            for val_batch_iter, (x, idx) in enumerate(val_loader):
+            for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
                 x = x.to(self.device)
-                loss_log[val_batch_iter] = self.loss_func(x, self.net(x)).item()
+                loss += self.loss_func(x, self.net(x))
 
         if org_training:
             self.train()
-        return loss_log.mean()
+        return loss.item() / val_batch_iter
     
 
     def encode(self, val_data, batch_size=512, encoding_window='full_series'):
