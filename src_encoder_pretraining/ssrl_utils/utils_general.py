@@ -210,14 +210,14 @@ def configure_model(args, input_dims, device):
 
 
 def save_loss_log(loss_log, save_dir, regularizer=None):
-    loss_log = loss_log.reshape(-1, loss_log.shape[-1])
-    if loss_log.shape[-1] == 2:
-        loss_log = pd.DataFrame(loss_log, columns=['loss', 'loss_scl'])
-    elif loss_log.shape[-1] == 5:
-        if regularizer == 'topology':
-            loss_log = pd.DataFrame(loss_log, columns=['loss', 'loss_scl', 'log_var_scl', 'loss_topo', 'log_var_topo'])
-        elif regularizer == 'geometry':
-            loss_log = pd.DataFrame(loss_log, columns=['loss', 'loss_scl', 'log_var_scl', 'loss_ggeo', 'log_var_ggeo'])
+    if loss_log.shape[-1] == 3:
+        loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)], 
+                                columns=['train_loss', 'val_loss', 'regularizer'])
     elif loss_log.shape[-1] == 7:
-        loss_log = pd.DataFrame(loss_log, columns=['loss', 'loss_scl', 'log_var_scl', 'loss_topo', 'log_var_topo', 'loss_ggeo', 'log_var_ggeo'])
-    loss_log.to_csv(f'{save_dir}/loss_log.csv', index=False)
+        if regularizer == 'topology':
+            loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
+                                    columns=['train_loss', 'loss_scl', 'log_var_scl', 'loss_topo', 'val_loss', 'regularizer'])
+        elif regularizer == 'geometry':
+            loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
+                                    columns=['train_loss', 'loss_scl', 'log_var_scl', 'loss_ggeo', 'log_var_ggeo', 'val_loss', 'regularizer'])
+    loss_log.to_csv(f'{save_dir}/loss_log.csv')

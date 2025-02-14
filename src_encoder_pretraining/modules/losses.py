@@ -16,37 +16,28 @@ def combined_loss(model, x, loss_config, regularizer_config):
     temporal_unit = loss_config['temporal_unit']
     out1, out2 = mask_and_crop(model._net, x, temporal_unit)
     loss_scl = hierarchical_contrastive_loss(out1, out2, **loss_config)
-    loss_components = {}
+    loss_components = []
 
     if regularizer_config['reserve'] is None:
         loss = loss_scl
-        loss_components['loss_scl'] = loss_scl.item()
+        loss_components.append(loss_scl)
     else:
         loss = 0.5 * torch.exp(-model.loss_log_vars[0]) * loss_scl*(1-torch.exp(-loss_scl)) + 0.5 * model.loss_log_vars[0]
-        loss_components['loss_scl'] = loss_scl.item()
-        loss_components['log_var_scl'] = model.loss_log_vars[0].item()
+        loss_components.append(loss_scl)
+        loss_components.append(model.loss_log_vars[0])
         
         if regularizer_config['reserve'] == 'topology':
             loss_topo_regularizer = topo_loss(model, x)
             loss += 0.5 * torch.exp(-model.loss_log_vars[1]) * loss_topo_regularizer*(1-torch.exp(-loss_topo_regularizer)) + 0.5 * model.loss_log_vars[1]
-            loss_components['loss_topo_regularizer'] = loss_topo_regularizer.item()
-            loss_components['log_var_topo'] = model.loss_log_vars[1].item()
+            loss_components.append(loss_topo_regularizer)
+            loss_components.append(model.loss_log_vars[1])
         elif regularizer_config['reserve'] == 'geometry':
             loss_geo_regularizer = geo_loss(model, x, regularizer_config['bandwidth'])
             loss += 0.5 * torch.exp(-model.loss_log_vars[1]) * loss_geo_regularizer*(1-torch.exp(-loss_geo_regularizer)) + 0.5 * model.loss_log_vars[1]
-            loss_components['loss_geo_regularizer'] = loss_geo_regularizer.item()
-            loss_components['log_var_geo'] = model.loss_log_vars[1].item()
-        elif regularizer_config['reserve'] == 'both':
-            loss_topo_regularizer = topo_loss(model, x)
-            loss_geo_regularizer = geo_loss(model, x, regularizer_config['bandwidth'])
-            loss += 0.5 * torch.exp(-model.loss_log_vars[1]) * loss_topo_regularizer*(1-torch.exp(-loss_topo_regularizer)) + 0.5 * model.loss_log_vars[1]
-            loss += 0.5 * torch.exp(-model.loss_log_vars[2]) * loss_geo_regularizer*(1-torch.exp(-loss_geo_regularizer)) + 0.5 * model.loss_log_vars[2]
-            loss_components['loss_topo_regularizer'] = loss_topo_regularizer.item()
-            loss_components['loss_geo_regularizer'] = loss_geo_regularizer.item()
-            loss_components['log_var_topo'] = model.loss_log_vars[1].item()
-            loss_components['log_var_geo'] = model.loss_log_vars[2].item()
+            loss_components.append(loss_geo_regularizer)
+            loss_components.append(model.loss_log_vars[1])
         else:
-            raise ValueError('Undefined regularizer, should be either "topology", "geometry" or "both"')    
+            raise ValueError('Undefined regularizer, should be either "topology", or "geometry"')    
     return loss, loss_components
 
 
