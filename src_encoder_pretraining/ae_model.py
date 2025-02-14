@@ -74,13 +74,21 @@ class autoencoder():
         self.loss_log_vars.requires_grad = True
 
 
-    def loss_func(self, input, target):
+    def loss_func_topo(self, input, target):
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
         loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
         loss_topo = topo_loss(self, input)
         loss_topo = 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_topo*(1-torch.exp(-loss_topo)) + 0.5 * self.loss_log_vars[1]
         return loss_ae + loss_topo
         
+
+    def loss_func_ggeo(self, input, target):
+        loss_ae = torch.sqrt(((input - target) ** 2).mean())
+        loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
+        loss_ggeo = geo_loss(self, input, 1.)
+        loss_ggeo = 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_ggeo*(1-torch.exp(-loss_ggeo)) + 0.5 * self.loss_log_vars[1]
+        return loss_ae + loss_ggeo
+
 
     def fit(self, train_data, n_epochs=100, scheduler='constant', verbose=0):
         self.train()
@@ -123,24 +131,14 @@ class autoencoder():
         self.epoch_n = 0
         self.iter_n = 0
         continue_training = True
-        if self.encoder_name == 'current':
-            scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         while continue_training:
             train_loss = torch.tensor(0.0, device=self.device)
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
-                if self.encoder_name == 'current':
-                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        x = x.to(self.device)
-                        loss = self.loss_func(x, self.net(x))
-                    scaler.scale(loss).backward()
-                    scaler.step(self.optimizer)
-                    scaler.update()
-                elif self.encoder_name == 'environment':
-                    x = x.to(self.device)
-                    loss = self.loss_func(x, self.net(x))
-                    loss.backward()
-                    self.optimizer.step()
+                x = x.to(self.device)
+                loss = self.loss_func_topo(x, self.net(x))
+                loss.backward()
+                self.optimizer.step()
                 train_loss += loss
                 self.iter_n += 1
 
@@ -152,13 +150,8 @@ class autoencoder():
                 with torch.no_grad():
                     val_loss = torch.tensor(0.0, device=self.device)
                     for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
-                        if self.encoder_name == 'current':
-                            with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                                x = x.to(self.device)
-                                val_loss += self.loss_func(x, self.net(x))
-                        elif self.encoder_name == 'environment':
-                            x = x.to(self.device)
-                            val_loss += self.loss_func(x, self.net(x))
+                        x = x.to(self.device)
+                        val_loss += self.loss_func_topo(x, self.net(x))
                     val_loss_log[self.epoch_n+4] = val_loss.item() / val_batch_iter
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
