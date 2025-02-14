@@ -111,13 +111,13 @@ class autoencoder():
                 threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
                 )
 
-            val_loss_log = np.zeros((n_epochs+4, 1)) * np.nan
-            val_loss_log[:4,:] = np.array([[init_loss] for init_loss in range(100, 96, -1)])
+            val_loss_log = np.zeros(n_epochs+4) * np.nan
+            val_loss_log[:4] = np.array([init_loss for init_loss in range(100, 96, -1)])
 
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True)
-        loss_log = np.zeros((n_epochs, 1)) * np.nan
+        loss_log = np.zeros(n_epochs) * np.nan
 
         # training loop
         self.epoch_n = 0
@@ -144,7 +144,7 @@ class autoencoder():
                 train_loss += loss
                 self.iter_n += 1
 
-            loss_log[self.epoch_n, 0] = train_loss.item() / train_batch_iter
+            loss_log[self.epoch_n] = train_loss.item() / train_batch_iter
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
             if scheduler == 'reduced':
@@ -159,18 +159,18 @@ class autoencoder():
                         elif self.encoder_name == 'environment':
                             x = x.to(self.device)
                             val_loss += self.loss_func(x, self.net(x))
-                    val_loss_log[self.epoch_n+4, 0] = val_loss.item() / val_batch_iter
+                    val_loss_log[self.epoch_n+4] = val_loss.item() / val_batch_iter
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
-                    self.scheduler.step(val_loss_log[self.epoch_n+4, 0])
+                    self.scheduler.step(val_loss_log[self.epoch_n+4])
 
-                stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5,:].mean(axis=0))
-                stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold)
-                stop_condition2 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+4,:].mean(axis=1))
-                stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n,:].mean())<self.stop_threshold/10)
+                stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5])
+                stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n])<self.stop_threshold)
+                stop_condition2 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+4])
+                stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n])<self.stop_threshold/10)
                 if stop_condition1 or stop_condition2:
                     # early stopping if validation loss converges
-                    Warning('Early stopping due to validation loss convergence.')
+                    print('Early stopping due to validation loss convergence.')
                     break
 
             # save model if callback every several epochs
@@ -180,21 +180,21 @@ class autoencoder():
             # update progress bar if verbose
             if verbose > 6:
                 if scheduler == 'reduced':
-                    progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], 
-                                                val_loss=val_loss_log[self.epoch_n+4, 0], 
+                    progress_bar.set_postfix(loss=loss_log[self.epoch_n], 
+                                                val_loss=val_loss_log[self.epoch_n+4], 
                                                 lr=self.optimizer.param_groups[0]['lr'], refresh=False)
                 else:
-                    progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], refresh=False)
+                    progress_bar.set_postfix(loss=loss_log[self.epoch_n], refresh=False)
                 progress_bar.update(1)
             else: # update every 20% of the total epochs
                 step = n_epochs // (1+verbose*4)
                 if (self.epoch_n+1) % step == 0:
                     if scheduler == 'reduced':
-                        progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], 
-                                                 val_loss=val_loss_log[self.epoch_n+4, 0],
+                        progress_bar.set_postfix(loss=loss_log[self.epoch_n], 
+                                                 val_loss=val_loss_log[self.epoch_n+4],
                                                  lr=self.optimizer.param_groups[0]['lr'], refresh=False)
                     else:
-                        progress_bar.set_postfix(loss=loss_log[self.epoch_n, 0], refresh=False)
+                        progress_bar.set_postfix(loss=loss_log[self.epoch_n], refresh=False)
                     progress_bar.update(step)
 
             self.epoch_n += 1
@@ -207,7 +207,7 @@ class autoencoder():
         if self.after_epoch_callback is not None:
             self.after_epoch_callback(self, finish=True)
 
-        return loss_log[:self.epoch_n,:], val_loss_log[4:self.epoch_n+4,:]
+        return loss_log[:self.epoch_n+1], val_loss_log[4:self.epoch_n+5] if scheduler == 'reduced' else np.zeros_like(loss_log)*np.nan
 
 
     def compute_loss(self, val_data):

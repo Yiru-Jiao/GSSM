@@ -131,17 +131,16 @@ class train_val_test():
         self.model.eval()
         self.likelihood.eval()
 
-        val_loss = 0
+        val_loss = torch.tensor(0., device=self.device)
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            for count_batch, (interaction_context, current_spacing) in enumerate(self.val_dataloader):
+            for count_batch, (interaction_context, current_spacing) in enumerate(self.val_dataloader, start=1):
                 output = self.model(interaction_context.to(self.device))
-                loss = -self.loss_func(output, current_spacing.squeeze().to(self.device)).item()
-                val_loss += loss
+                val_loss += -self.loss_func(output, current_spacing.squeeze().to(self.device))
 
         self.model.train()
         self.likelihood.train()
 
-        return val_loss/(count_batch+1)
+        return val_loss.item()/count_batch
 
 
     def train_model(self, num_epochs=100, initial_lr=0.1):
@@ -153,8 +152,7 @@ class train_val_test():
         self.loss_func = self.loss_func.to(self.device)
 
         # Training
-        num_batches = len(self.train_dataloader)
-        loss_records = np.zeros((num_epochs, num_batches))
+        loss_records = np.zeros(num_epochs)
         val_loss_records = [100., 99., 98., 97., 96.]
 
         self.model.train()
@@ -171,21 +169,23 @@ class train_val_test():
         progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False)
         break_flag = False
         for count_epoch in progress_bar:
-            for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader):
+            train_loss = torch.tensor(0., device=self.device)
+            for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader, start=1):
                 self.optimizer.zero_grad()
                 output = self.model(interaction_context.to(self.device))
                 loss = -self.loss_func(output, current_spacing.squeeze().to(self.device))
-                loss_records[count_epoch, batch] = loss.item()
 
                 loss.backward()
                 self.optimizer.step()
+                train_loss += loss
+            loss_records[count_epoch] = train_loss.item()/batch
 
             val_loss = self.val_loop()
             self.scheduler.step(val_loss)
             val_loss_records.append(val_loss)
 
             progress_bar.set_postfix({'lr=': self.optimizer.param_groups[0]['lr'], 
-                                      'loss=': loss.item(), 
+                                      'loss=': loss_records[count_epoch], 
                                       'val_loss=': val_loss}, refresh=False)
             progress_bar.update(1)
 
@@ -199,8 +199,9 @@ class train_val_test():
                 break
 
         # Save loss records
-        loss_records = pd.DataFrame(loss_records, columns=[f'batch_{i}' for i in range(num_batches)])
-        loss_records.to_csv(self.path_output+'loss_records.csv', index=False)
+        loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records)+1)],
+                                data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[5:]})
+        loss_log.to_csv(self.path_output+'loss_log.csv')
         # Save model every epoch
         torch.save(self.model.state_dict(), self.path_output+f'model_{count_epoch+1}epoch.pth')
         torch.save(self.likelihood.state_dict(), self.path_output+f'likelihood_{count_epoch+1}epoch.pth')

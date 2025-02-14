@@ -117,8 +117,7 @@ class train_val_test():
         self.loss_func = self.loss_func.to(self.device)
 
         # Training
-        num_batches = len(self.train_dataloader)
-        loss_log = np.ones((num_epochs, num_batches))*np.inf
+        loss_log = np.ones(num_epochs)*np.inf
         val_loss_log = []
 
         self.model.train()
@@ -145,7 +144,8 @@ class train_val_test():
         if 'profiles' in self.encoder_selection:
             scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         for epoch_n in progress_bar:
-            for train_batch_iter, (x, y) in enumerate(self.train_dataloader):
+            train_loss = torch.tensor(0.0).to(self.device)
+            for train_batch_iter, (x, y) in enumerate(self.train_dataloader, start=1):
                 self.optimizer.zero_grad()
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
@@ -159,7 +159,8 @@ class train_val_test():
                     loss = self.loss_func(out, y.to(self.device))
                     loss.backward()
                     self.optimizer.step()
-                loss_log[epoch_n, train_batch_iter] = loss.item()
+                train_loss += loss
+            loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop()
             if lr_schedule:
@@ -169,7 +170,7 @@ class train_val_test():
             # Add information to progress bar with learning rate and loss values
             if self.verbose > 0:
                 progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
-                                         train_loss=loss_log[epoch_n].mean(), val_loss=val_loss, refresh=False)
+                                         train_loss=loss_log[epoch_n], val_loss=val_loss, refresh=False)
                 if epoch_n % self.verbose < 1:
                     progress_bar.update(self.verbose)
 
@@ -186,29 +187,26 @@ class train_val_test():
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
-            loss_log = loss_log[loss_log.mean(axis=1)<np.inf]
-            loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
-                                    columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
+            loss_log = loss_log[loss_log<np.inf]
+            loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
+                                    data={'train_loss': loss_log, 'val_loss': self.val_loss_log})
             loss_log.to_csv(self.path_output+'loss_log.csv')
-            val_loss_log = pd.DataFrame(val_loss_log[11:], index=[f'epoch_{i}' for i in range(1, len(val_loss_log)-10)], columns=['val_loss'])
-            val_loss_log.to_csv(self.path_output+'val_loss_log.csv')
 
     # Validation loop
     def val_loop(self,):
         self.model.eval()
-        val_loss = np.zeros(len(self.val_dataloader))
+        val_loss = torch.tensor(0.0).to(self.device)
         with torch.no_grad():
-            for val_batch_iter, (x, y) in enumerate(self.val_dataloader):
+            for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
                         out = self.model(self.send_x_to_device(x))
-                        loss = self.loss_func(out, y.to(self.device)).item()
+                        val_loss += self.loss_func(out, y.to(self.device))
                 else:
                     out = self.model(self.send_x_to_device(x))
-                    loss = self.loss_func(out, y.to(self.device)).item()
-                val_loss[val_batch_iter] = loss
+                    val_loss += self.loss_func(out, y.to(self.device))
         self.model.train()
-        return val_loss.mean()
+        return val_loss.item() / val_batch_iter
     
     def load_model(self, batch_size=None, initial_lr=None):
         if 'path_output' not in self.__dict__:

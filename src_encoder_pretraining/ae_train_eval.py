@@ -106,10 +106,10 @@ def main(args):
                                 after_epoch_callback = save_checkpoint_callback(save_dir, 0, unit='epoch'))
             scheduler = 'reduced'
             print(f'--- {bslr} training with ReduceLROnPlateau scheduler ---')
-            loss_log = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
+            train_losses, val_losses = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
             # Save loss log
-            loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
-                                    columns=[f'iter_{i}' for i in range(1, len(loss_log[0])+1)])
+            loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(train_losses)+1)],
+                                    data={'train_loss': train_losses, 'val_loss': val_losses})
             loss_log.to_csv(f'{save_dir}/loss_log.csv')
             print(f'Training time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)))
         
