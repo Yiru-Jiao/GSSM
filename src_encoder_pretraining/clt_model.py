@@ -100,16 +100,17 @@ class spclt():
 
         # Set default number for n_iters, this is intended for underfitting the model
         if n_iters is None and n_epochs is None:
-            num_samples = train_data.shape[0]
-            n_iters = num_samples * 32 / self.batch_size
-            sample_bounds = [100, 500, 1000, 10000, 100000, 1000000]
-            coefs = [2, 1, 1/2, 1/4, 1/8, 1/16]
-            for bound, coef in zip(sample_bounds, coefs):
-                if num_samples < bound:
-                    n_iters = int(n_iters * coef)
-                    break
-            if num_samples >= sample_bounds[-1]:
-                n_iters = int(n_iters / 64)
+            # num_samples = train_data.shape[0]
+            # n_iters = num_samples * 32 / self.batch_size
+            # sample_bounds = [100, 500, 1000, 10000, 100000, 1000000]
+            # coefs = [2, 1, 1/2, 1/4, 1/8, 1/16]
+            # for bound, coef in zip(sample_bounds, coefs):
+            #     if num_samples < bound:
+            #         n_iters = int(n_iters * coef)
+            #         break
+            # if num_samples >= sample_bounds[-1]:
+            #     n_iters = int(n_iters / 64)
+            n_iters = 100
             print(f'Number of iterations is set to {n_iters}.')
 
         # define a progress bar
@@ -370,7 +371,13 @@ class spclt():
         if self.after_epoch_callback is not None:
             self.after_epoch_callback(self, finish=True)
 
-        return np.concatenate((loss_log[:self.epoch_n], val_loss_log[:self.epoch_n]), axis=1)
+        if loss_log is None:
+            return None
+        else:
+            if scheduler == 'reduced':
+                return np.concatenate((loss_log[:self.epoch_n], val_loss_log[:self.epoch_n]), axis=1)
+            else:
+                return loss_log[:self.epoch_n]
     
 
     def compute_loss(self, val_data, soft_assignments, non_regularized=False, loss_config=None):
