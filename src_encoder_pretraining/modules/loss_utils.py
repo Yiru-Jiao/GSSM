@@ -19,11 +19,8 @@ def take_per_row(A, indx, num_elem):
     """
     Selects a specified number of elements per row from a 2D tensor.
     """
-#    all_indx = indx[:, None] + torch.arange(num_elem, device=A.device)
-#    return A[torch.arange(all_indx.shape[0])[:, None], all_indx]
-    # as indexing with [] is not very efficient on GPU, we use gather instead
-    col_idx = indx.unsqueeze(1) + torch.arange(num_elem, device=A.device).unsqueeze(0)
-    return torch.gather(A, 1, col_idx)
+    all_indx = indx[:, None] + torch.arange(num_elem, device=A.device)
+    return A[torch.arange(all_indx.shape[0])[:, None], all_indx]
 
 
 def dup_matrix(mat):
