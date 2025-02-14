@@ -1,6 +1,7 @@
 '''
 This script defines the encoders for models.
 TSEncoder is adapted from TS2Vec https://github.com/zhihanyue/ts2vec
+All adaptations are marked with comments.
 '''
 
 import torch
@@ -19,15 +20,24 @@ def generate_continuous_mask(B, T, n=5, l=0.1):
         l = int(l * T)
     l = max(l, 1)
     
-    for i in range(B):
-        for _ in range(n):
-            t = np.random.randint(T-l+1)
-            res[i, t:t+l] = False
+#     for i in range(B):
+#         for _ in range(n):
+#             t = np.random.randint(T-l+1)
+#             res[i, t:t+l] = False
+    # in a more efficient way:
+    starts = torch.randint(0, T - l + 1, (B, n))
+    offsets = torch.arange(l).view(1, 1, l)
+    row_idx = torch.arange(B).view(-1, 1, 1).expand(-1, n, l)
+    col_idx = starts.unsqueeze(-1) + offsets
+    res[row_idx.flatten(), col_idx.flatten()] = False
+
     return res
 
 
 def generate_binomial_mask(B, T, p=0.5):
-    return torch.from_numpy(np.random.binomial(1, p, size=(B, T))).to(torch.bool)
+#    return torch.from_numpy(np.random.binomial(1, p, size=(B, T))).to(torch.bool)
+    # in a more efficient way:
+    return torch.rand(B, T) < p
 
 
 class SamePadConv(nn.Module):
@@ -118,13 +128,23 @@ class TSEncoder(nn.Module):
             mask = generate_binomial_mask(x.size(0), x.size(1)).to(x.device)
         elif mask == 'continuous':
             mask = generate_continuous_mask(x.size(0), x.size(1)).to(x.device)
-        elif mask == 'all_true':
-            mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
-        elif mask == 'all_false':
-            mask = x.new_full((x.size(0), x.size(1)), False, dtype=torch.bool)
-        elif mask == 'mask_last':
-            mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
-            mask[:, -1] = False
+#         elif mask == 'all_true':
+#             mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
+#         elif mask == 'all_false':
+#             mask = x.new_full((x.size(0), x.size(1)), False, dtype=torch.bool)
+#         elif mask == 'mask_last':
+#             mask = x.new_full((x.size(0), x.size(1)), True, dtype=torch.bool)
+#             mask[:, -1] = False
+        # in a more efficient way:
+        else:
+            B, T = x.shape[:2]
+            if mask == 'all_true':
+                mask = torch.ones(B, T, dtype=torch.bool, device=x.device)
+            elif mask == 'all_false':
+                mask = torch.zeros(B, T, dtype=torch.bool, device=x.device)
+            elif mask == 'mask_last':
+                mask = torch.ones(B, T, dtype=torch.bool, device=x.device)
+                mask[:, -1] = False
         
         mask &= nan_mask
         x[~mask] = 0

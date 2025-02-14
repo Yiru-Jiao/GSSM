@@ -33,6 +33,8 @@ def geo_loss(model, x, bandwidth):
     # encode using model
     latent = model.encode(x)
 
+    if len(x.size()) == 2: # (B, N) -> (B, N, 1) for encoding current features
+        x = x.unsqueeze(-1)
     L = get_laplacian(x, bandwidth=bandwidth)
     H_tilde = get_JGinvJT(L, latent)
     iso_loss = relaxed_distortion_measure_JGinvJT(H_tilde)

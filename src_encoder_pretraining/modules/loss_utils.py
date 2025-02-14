@@ -4,6 +4,7 @@ Functions and classes are adjusted from the original implementation in the SoftC
 SoftCLT https://github.com/seunghan96/softclt
 TopoAE https://github.com/BorgwardtLab/topological-autoencoders
 GGAE https://github.com/JungbinLim/GGAE-public
+All adaptations are marked with comments.
 '''
 
 import torch
@@ -18,8 +19,11 @@ def take_per_row(A, indx, num_elem):
     """
     Selects a specified number of elements per row from a 2D tensor.
     """
-    all_indx = indx[:, None] + torch.arange(num_elem, device=A.device)
-    return A[torch.arange(all_indx.shape[0])[:, None], all_indx]
+#    all_indx = indx[:, None] + torch.arange(num_elem, device=A.device)
+#    return A[torch.arange(all_indx.shape[0])[:, None], all_indx]
+    # as indexing with [] is not very efficient on GPU, we use gather instead
+    col_idx = indx.unsqueeze(1) + torch.arange(num_elem, device=A.device).unsqueeze(0)
+    return torch.gather(A, 1, col_idx)
 
 
 def dup_matrix(mat):
@@ -67,7 +71,7 @@ def timelag_sigmoid(z1, sigma=1):
     dist = torch.arange(T, device=z1.device).float()
     dist = torch.abs(dist[:, None] - dist[None, :])
     matrix = 2 / (1 + torch.exp(dist*sigma))
-    # matrix = torch.where(matrix < 1e-6, torch.zeros_like(matrix), matrix)  # set very small values to 0
+#    matrix = torch.where(matrix < 1e-6, torch.zeros_like(matrix), matrix)  # set very small values to 0
     # in a more efficient way:
     matrix = matrix * (matrix > 1e-6).float()
     return matrix
@@ -82,7 +86,7 @@ def topo_euclidean_distance_matrix(x, p=2):
     Computes the pairwise Euclidean distance matrix between the rows of a 2D tensor.
     """
     x_flat = x.view(x.size(0), -1)
-    # x_flat = torch.where(torch.isnan(x_flat), torch.tensor(0.0, device=x.device), x_flat)  # No in-place modification!
+#    x_flat = torch.where(torch.isnan(x_flat), torch.tensor(0.0, device=x.device), x_flat)  # No in-place modification!
     # in a more efficient way:
     x_flat = x_flat * (~torch.isnan(x_flat)).float()
     distances = torch.norm(x_flat[:, None] - x_flat, dim=2, p=p)
@@ -232,7 +236,7 @@ class TopologicalSignatureDistance(torch.nn.Module):
 
 
 ###############################################################
-## functions and classes for geometry preserving regularizer ##
+## functions and classes for graph geometry preserving regularizer ##
 ###############################################################
 
 def get_laplacian(X, bandwidth=50): # bandwidth tuning should increase exponentially like bw**2
@@ -242,7 +246,9 @@ def get_laplacian(X, bandwidth=50): # bandwidth tuning should increase exponenti
     B, N, _ = X.shape
     c = 1/4
 
-    X[torch.isnan(X)] = 0
+#    X[torch.isnan(X)] = 0
+    # in a more efficient way:
+    X = X * (~torch.isnan(X)).float()
     dist_XX = torch.cdist(X, X, p=2)
     K = torch.exp(-dist_XX**2 / bandwidth)
     d_i = K.sum(dim=1)
