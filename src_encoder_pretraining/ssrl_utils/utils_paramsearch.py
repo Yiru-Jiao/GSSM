@@ -62,7 +62,7 @@ class trainer():
         encoder_config['input_dims'] = train_data.shape[-1]
         self = self.define_encoder(sim_mat, **encoder_config)
         self.loss_log = self.encoder.fit(dataset, train_data, self.soft_assignments, 
-                                         scheduler='constant', verbose=6)
+                                         scheduler='constant', verbose=2)
         return self
     
     def get_params(self, deep=False):
