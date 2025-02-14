@@ -135,8 +135,12 @@ class autoencoder():
             train_loss = torch.tensor(0.0, device=self.device)
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
-                x = x.to(self.device)
-                loss = self.loss_func_topo(x, self.net(x))
+                if self.encoder_name == 'current':
+                    x = x.to(self.device)
+                    loss = self.loss_func_ggeo(x, self.net(x))
+                elif self.encoder_name == 'environment':
+                    x = x.to(self.device)
+                    loss = self.loss_func_topo(x, self.net(x))
                 loss.backward()
                 self.optimizer.step()
                 train_loss += loss
@@ -150,8 +154,12 @@ class autoencoder():
                 with torch.no_grad():
                     val_loss = torch.tensor(0.0, device=self.device)
                     for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
-                        x = x.to(self.device)
-                        val_loss += self.loss_func_topo(x, self.net(x))
+                        if self.encoder_name == 'current':
+                            x = x.to(self.device)
+                            val_loss += self.loss_func_ggeo(x, self.net(x))
+                        elif self.encoder_name == 'environment':
+                            x = x.to(self.device)
+                            val_loss += self.loss_func_topo(x, self.net(x))
                     val_loss_log[self.epoch_n+4] = val_loss.item() / val_batch_iter
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
@@ -212,8 +220,12 @@ class autoencoder():
         loss = torch.tensor(0.0, device=self.device)
         with torch.no_grad():
             for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
-                x = x.to(self.device)
-                loss += self.loss_func(x, self.net(x))
+                if self.encoder_name == 'current':
+                    x = x.to(self.device)
+                    loss += self.loss_func_ggeo(x, self.net(x))
+                elif self.encoder_name == 'environment':
+                    x = x.to(self.device)
+                    loss += self.loss_func_topo(x, self.net(x))
 
         if org_training:
             self.train()
