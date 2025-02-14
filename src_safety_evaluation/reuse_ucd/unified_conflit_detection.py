@@ -200,7 +200,7 @@ class train_val_test():
 
         # Save loss records
         loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records)+1)],
-                                data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[5:]})
+                                data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[5:count_epoch+6]})
         loss_log.to_csv(self.path_output+'loss_log.csv')
         # Save model every epoch
         torch.save(self.model.state_dict(), self.path_output+f'model_{count_epoch+1}epoch.pth')
