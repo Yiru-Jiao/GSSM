@@ -67,7 +67,9 @@ def timelag_sigmoid(z1, sigma=1):
     dist = torch.arange(T, device=z1.device).float()
     dist = torch.abs(dist[:, None] - dist[None, :])
     matrix = 2 / (1 + torch.exp(dist*sigma))
-    matrix = torch.where(matrix < 1e-6, torch.zeros_like(matrix), matrix)  # set very small values to 0
+    # matrix = torch.where(matrix < 1e-6, torch.zeros_like(matrix), matrix)  # set very small values to 0
+    # in a more efficient way:
+    matrix = matrix * (matrix > 1e-6).float()
     return matrix
 
 
@@ -81,6 +83,8 @@ def topo_euclidean_distance_matrix(x, p=2):
     """
     x_flat = x.view(x.size(0), -1)
     # x_flat = torch.where(torch.isnan(x_flat), torch.tensor(0.0, device=x.device), x_flat)  # No in-place modification!
+    # in a more efficient way:
+    x_flat = x_flat * (~torch.isnan(x_flat)).float()
     distances = torch.norm(x_flat[:, None] - x_flat, dim=2, p=p)
     return distances
 
