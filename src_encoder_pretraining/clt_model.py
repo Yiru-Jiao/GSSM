@@ -255,6 +255,7 @@ class spclt():
                 scaler.scale(loss).backward()
                 optimizer_step(scaler)
                 scaler.update()
+                del train_loss_config # clear memory
 
                 train_loss += loss
                 if loss_log is not None and self.regularizer_config['reserve'] is not None:
@@ -315,6 +316,7 @@ class spclt():
                                                      val_loss_config,
                                                      self.regularizer_config)
                         val_loss += loss
+                        del val_loss_config
                     val_loss = val_loss.item() / (val_batch_iter+1)
                 if self.regularizer_config['reserve'] is None:
                     val_loss_log[self.epoch_n, 0] = val_loss.item()
@@ -426,6 +428,7 @@ class spclt():
                                                          val_loss_config, 
                                                          self.regularizer_config)
                 val_loss += val_loss_comp[0]
+                del val_loss_config
             val_loss = val_loss.item() / (val_batch_iter+1)
         if org_training:
             self.train()
