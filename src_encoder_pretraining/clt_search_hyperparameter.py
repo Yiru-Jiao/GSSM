@@ -137,7 +137,6 @@ def main(args):
     params = default_params.copy()
 
     # SoftCLT (use soft labels, no regularizer)
-    params = default_params.copy()
     grid_search_args['fit_config'] = {'device': device, 'regularizer': None}
     
     if 'SoftCLT_Phase1' in best_param_log:
