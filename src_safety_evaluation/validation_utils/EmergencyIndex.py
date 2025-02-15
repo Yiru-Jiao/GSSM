@@ -262,16 +262,13 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
 #                 TDM_values.append(round(TDM, 2))
 #                 InDepth_values.append(round(InDepth, 2))
 #                 EI_values.append(round(EI, 2))
-            if InDepth >= 0: # i.e., MFD <= D_safe
-                samples.loc[index, 'TDM'] = TDM
-            else:
-                samples.loc[index, 'TDM'] = np.nan
+            samples.loc[index, 'EI'] = EI
 
 #         df.at[i, 'TDM (s)'] = ','.join(map(str, TDM_values))
 #         df.at[i, 'InDepth (m)'] = ','.join(map(str, InDepth_values))
 #         df.at[i, 'EI (m/s)'] = ','.join(map(str, EI_values))
         else:
-            samples.loc[index, 'TDM'] = np.nan
+            samples.loc[index, 'EI'] = np.nan
 
 #     df.to_csv(output_file, index=False)
 #     print(f"finish: {output_file}")
@@ -279,7 +276,7 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
     if toreturn=='dataframe':
         return samples
     elif toreturn=='values':
-        return samples['TDM'].values
+        return samples['EI'].values
 
 
 # if __name__ == "__main__":
