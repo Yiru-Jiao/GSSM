@@ -1,42 +1,57 @@
-########################################################################################################
-#
-# Use function TTC(samples, 'dataframe') or TTC(samples, 'values') to compute two-dimensional Time-To-Collision;
-# Use function DRAC(samples, 'dataframe') or DRAC(samples, 'values') to compute two-dimensional Deceleration Rate to Avoid Collision;
-# Use function MTTC(samples, 'dataframe') or MTTC(samples, 'values') to compute two-dimensional Modified Time-To-Collision;
-# Use function TTC_DRAC_MTTC(samples, 'dataframe') or TTC_DRAC_MTTC(samples, 'values') to compute all the above three indicators.
-#
-# The first input is a pandas dataframe of vehicle pair samples, which should include the following columns.
-# ------------------------------------------------------------------------------------------------------------
-# x_i      :  x coordinate of the ego vehicle (usually assumed to be centroid)                               |
-# y_i      :  y coordinate of the ego vehicle (usually assumed to be centroid)                               |
-# vx_i     :  x coordinate of the velocity of the ego vehicle                                                |
-# vy_i     :  y coordinate of the velocity of the ego vehicle                                                |
-# hx_i     :  x coordinate of the heading direction of the ego vehicle                                       |
-# hy_i     :  y coordinate of the heading direction of the ego vehicle                                       |
-# acc_i    :  acceleration along the heading direction of the ego vehicle (only required if computing MTTC)  |
-# length_i :  length of the ego vehicle                                                                      |
-# width_i  :  width of the ego vehicle                                                                       |
-# x_j      :  x coordinate of another vehicle (usually assumed to be centroid)                               |
-# y_j      :  y coordinate of another vehicle (usually assumed to be centroid)                               |
-# vx_j     :  x coordinate of the velocity of another vehicle                                                |
-# vy_j     :  y coordinate of the velocity of another vehicle                                                |
-# hx_j     :  x coordinate of the heading direction of another vehicle                                       |
-# hy_j     :  y coordinate of the heading direction of another vehicle                                       |
-# length_j :  length of another vehicle                                                                      |
-# width_j  :  width of another vehicle                                                                       |
-#-------------------------------------------------------------------------------------------------------------
-# The second input allows outputing a dataframe with inputed samples plus a new column named 'TTC', or mere TTC values.
-#
-# If indicator==np.inf, the ego vehicle and another vehicle will never collide if they keep current speed.
-# If indicator==-1, the bounding boxes of the ego vehicle and another vehicle are overlapping.
-# This is due to approximating the space occupied by a vehicle with a rectangular.
-# In other words, negative indicator in this computation means the collision between the two vehicles almost (or although seldom, already) occurred.
-#
-# *** Note that mere TTC computation can give an extreme small positive value even when the vehivles are overlapping a bit.
-#     In order to improve the accuracy, please use function CurrentD(samples, 'dataframe') or CurrentD(samples, 'values') to further
-#     exclude overlapping vehicles.
-#
-########################## Copyright (c) 2024 Yiru Jiao <y.jiao-1@tudelft.nl> ###########################
+'''
+To compute two-dimensional Time-To-Collision,
+use function TTC(samples, 'dataframe') or TTC(samples, 'values');
+
+To compute two-dimensional Deceleration Rate to Avoid Collision,
+use function DRAC(samples, 'dataframe') or DRAC(samples, 'values');
+
+To compute two-dimensional Modified Time-To-Collision,
+use function MTTC(samples, 'dataframe') or MTTC(samples, 'values');
+
+To compute all the above three indicators at once,
+use function TTC_DRAC_MTTC(samples, 'dataframe') or TTC_DRAC_MTTC(samples, 'values').
+
+The first input `samples` is a pandas dataframe of vehicle pair samples, 
+which should include the following columns:
+------------------------------------------------------------------------------------------------------------
+x_i      :  x coordinate of the ego vehicle (usually assumed to be centroid)                               |
+y_i      :  y coordinate of the ego vehicle (usually assumed to be centroid)                               |
+vx_i     :  x coordinate of the velocity of the ego vehicle                                                |
+vy_i     :  y coordinate of the velocity of the ego vehicle                                                |
+hx_i     :  x coordinate of the heading direction of the ego vehicle                                       |
+hy_i     :  y coordinate of the heading direction of the ego vehicle                                       |
+acc_i    :  acceleration along the heading direction of the ego vehicle (only required if computing MTTC)  |
+length_i :  length of the ego vehicle                                                                      |
+width_i  :  width of the ego vehicle                                                                       |
+x_j      :  x coordinate of another vehicle (usually assumed to be centroid)                               |
+y_j      :  y coordinate of another vehicle (usually assumed to be centroid)                               |
+vx_j     :  x coordinate of the velocity of another vehicle                                                |
+vy_j     :  y coordinate of the velocity of another vehicle                                                |
+hx_j     :  x coordinate of the heading direction of another vehicle                                       |
+hy_j     :  y coordinate of the heading direction of another vehicle                                       |
+length_j :  length of another vehicle                                                                      |
+width_j  :  width of another vehicle                                                                       |
+------------------------------------------------------------------------------------------------------------
+The second input allows outputing 
+    1) a dataframe with inputed samples plus new column(s) of the requested indicator, or
+    2) a numpy array of the requested indicator values.
+
+The ego vehicle and another vehicle will never collide if they keep current speed when 
+    1) indicator==np.inf when indicator==TTC or indicator==MTTC, or
+    2) indicator==0 when indicator==DRAC.
+
+When indicator<0, the bounding boxes of the ego vehicle and another vehicle are overlapping.
+This is due to approximating the space occupied by a vehicle with a rectangular.
+In other words, negative indicator in this computation means the collision between the two 
+vehicles almost (or although seldom, already) occurred.
+
+*** Note that the computation can return extreme small positive values (for TTC/MTTC) or 
+    extreme large values (for DRAC) even when the vehivles overlap a bit (so should be negative values). 
+    In order to improve the accuracy, please use function CurrentD(samples, 'dataframe') or 
+    CurrentD(samples, 'values') to further exclude overlapping vehicles.
+
+######################### Copyright (c) 2025 Yiru Jiao <y.jiao-1@tudelft.nl> ###########################
+'''
 
 # Import
 import numpy as np
@@ -69,14 +84,15 @@ def intersect(line0, line1):
     return np.array([x, y])
 
 
-def ison(line_start, line_end, point):
+def ison(line_start, line_end, point, tol=1e-5):
     '''
     Check if a point is on a line segment.
+    tol is the tolerance for considering the point is on the line segment.
     '''
     crossproduct = (point[1]-line_start[1])*(line_end[0]-line_start[0]) - (point[0]-line_start[0])*(line_end[1]-line_start[1])
     dotproduct = (point[0]-line_start[0])*(line_end[0]-line_start[0]) + (point[1]-line_start[1])*(line_end[1]-line_start[1])
     squaredlength = (line_end[0]-line_start[0])**2 + (line_end[1]-line_start[1])**2
-    return (np.absolute(crossproduct)<=1e-5)&(dotproduct>=0)&(dotproduct<=squaredlength)
+    return (np.absolute(crossproduct)<=tol)&(dotproduct>=0)&(dotproduct<=squaredlength)
 
 
 def dist_p2l(point, line_start, line_end):
@@ -144,7 +160,7 @@ def CurrentD(samples, toreturn='dataframe'):
                     
                 # Distance from point to edge
                 ist = intersect(line(point_i_start, point_i_start+np.array([-(point_j_start-point_j_end)[1],(point_j_start-point_j_end)[0]])), line(point_j_start, point_j_end))
-                ist[:,~ison(point_j_start, point_j_end, ist)] = np.nan
+                ist[:,~ison(point_j_start, point_j_end, ist, tol=1e-2)] = np.nan
                 dist_mat.append(np.sqrt((ist[0]-point_i_start[0])**2+(ist[1]-point_i_start[1])**2))
 
                 # Overlapped bounding boxes
@@ -181,7 +197,7 @@ def DTC_ij(samples):
             # 1) the edge of vehicle j and 
             # 2) the line extended from the point of vehicle i along the direction of the relative velocity of vehicle i and j
             ist = intersect(line(point_line_start, point_line_end), line(edge_start, edge_end))
-            ist[:,~ison(edge_start, edge_end, ist)] = np.nan
+            ist[:,~ison(edge_start, edge_end, ist, tol=1e-2)] = np.nan
             # distance from the point of vehicle i to the intersection point
             dist_ist = np.sqrt((ist[0]-point_line_start[0])**2+(ist[1]-point_line_start[1])**2)
             dist_ist[np.isnan(dist_ist)] = np.inf
@@ -357,10 +373,20 @@ def TTC_DRAC_MTTC(samples, toreturn='dataframe'):
 # Efficiency evaluation
 def efficiency(samples, indicator, iterations):
     if indicator=='TTC':
-        import time
-        ts = []
-        for _ in range(iterations):
-            t = time.time()
-            _ = TTC(samples, 'values')
-            ts.append(time.time()-t)
+        compute_func = TTC
+    elif indicator=='DRAC':
+        compute_func = DRAC
+    elif indicator=='MTTC':
+        compute_func = MTTC
+    elif indicator=='TTC_DRAC_MTTC':
+        compute_func = TTC_DRAC_MTTC
+    else:
+        print('Incorrect indicator. Please specify \'TTC\', \'DRAC\', \'MTTC\', or \'TTC_DRAC_MTTC\'.')
+        return None
+    import time as systime
+    ts = []
+    for _ in range(iterations):
+        t = systime.time()
+        _ = compute_func(samples, 'values')
+        ts.append(systime.time()-t)
     return sum(ts)/iterations
