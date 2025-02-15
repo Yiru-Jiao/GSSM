@@ -175,7 +175,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         else:
             states = [tuple(states), spacing_list]
 
-        mu, sigma, max_intensity = SSSE(states, model, device, current_features[:,-1])
+        mu, sigma, max_intensity = SSSE(states, model, device)
         results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
         results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
         results['proximity'] = spacing_list
