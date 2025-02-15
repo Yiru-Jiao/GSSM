@@ -95,6 +95,7 @@ def MTTC(samples, toreturn='dataframe'):
             acc_i = samples['acc_i'].values
             delta_a = acc_i
         delta_v = delta_v*np.sign(((leaving_ij>=20)|(leaving_ji>=20)).astype(int)-0.5) # if the two vehicles are leaving each other, the relative velocity is set negative
+        delta_a[(delta_a==0)&np.isinf(dtc)] = 1e-6 # avoid zero times inf
         squared_term = delta_v**2 + 2*delta_a*dtc
         squared_term[squared_term>=0] = np.sqrt(squared_term[squared_term>=0])
         squared_term[squared_term<0] = np.nan
