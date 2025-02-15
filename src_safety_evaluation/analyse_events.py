@@ -102,51 +102,7 @@ def main(path_result):
     event_meta['danger_end'] = danger_end
     event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
     
-    if os.path.exists(path_result + 'Analyses/Warning_ttc.h5'):
-        print('--- Analysis 2 with TTC already completed ---')
-    else:
-        print('--- Analyzing with TTC ---')
-        sub_initial_time = systime.time()
-        ttc_thresholds = np.unique(np.round(10**np.arange(0,1.68,0.015),1))-1
-        safety_evaluation = read_evaluation('TTC', path_results)
-        ttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'TTC') for threshold in ttc_thresholds)
-        ttc_records = pd.concat(ttc_records).reset_index()
-        ttc_records['indicator'] = 'TTC'
-        ttc_records['model'] = 'ttc'
-        ttc_records = fill_na_warning(ttc_records)
-        ttc_records.to_hdf(path_result + 'Analyses/Warning_ttc.h5', key='results', mode='w')
-        print('TTC time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
-
-    if os.path.exists(path_result + 'Analyses/Warning_drac.h5'):
-        print('--- Analysis 2 with DRAC already completed ---')
-    else:
-        print('--- Analyzing with DRAC ---')
-        sub_initial_time = systime.time()
-        drac_thresholds = np.unique(np.round(10**np.arange(0,1.,0.01),2))-1
-        safety_evaluation = read_evaluation('DRAC', path_results)
-        drac_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'DRAC') for threshold in drac_thresholds)
-        drac_records = pd.concat(drac_records).reset_index()
-        drac_records['indicator'] = 'DRAC'
-        drac_records['model'] = 'drac'
-        drac_records = fill_na_warning(drac_records)
-        drac_records.to_hdf(path_result + 'Analyses/Warning_drac.h5', key='results', mode='w')
-        print('DRAC time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
-
-    if os.path.exists(path_result + 'Analyses/Warning_mttc.h5'):
-        print('--- Analysis 2 with MTTC already completed ---')
-    else:
-        print('--- Analyzing with MTTC ---')
-        sub_initial_time = systime.time()
-        mttc_thresholds = np.unique(np.round(10**np.arange(0,1.52,0.013),1))-1
-        safety_evaluation = read_evaluation('MTTC', path_results)
-        mttc_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'MTTC') for threshold in mttc_thresholds)
-        mttc_records = pd.concat(mttc_records).reset_index()
-        mttc_records['indicator'] = 'MTTC'
-        mttc_records['model'] = 'mttc'
-        mttc_records = fill_na_warning(mttc_records)
-        mttc_records.to_hdf(path_result + 'Analyses/Warning_mttc.h5', key='results', mode='w')
-        print('MTTC time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
-
+    # SSSE
     ssse_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
     for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
@@ -163,6 +119,31 @@ def main(path_result):
             ssse_records = fill_na_warning(ssse_records)
             ssse_records.to_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results', mode='w')
             print(model_name, 'time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
+
+    # Other indicators
+    for indicator in ['TTC', 'DRAC', 'MTTC', 'TAdv', 'TTC2D', 'ACT', 'EI']:
+        if indicator in ['TTC', 'MTTC', 'TTC2D', 'TAdv']:
+            thresholds = np.unique(np.round(10**np.arange(0,1.68,0.015),1))-1
+        elif indicator == 'DRAC':
+            thresholds = np.unique(np.round(10**np.arange(0,1.,0.01),2))-1
+        elif indicator == 'ACT':
+            thresholds = np.unique(np.round(10**np.arange(0,1.91,0.018),1))-1
+        elif indicator == 'EI':
+            thresholds = np.unique(np.round(10**np.arange(0,1.3,0.01),1))-2
+        
+        if os.path.exists(path_result + f'Analyses/Warning_{indicator}.h5'):
+            print(f'--- Analysis 2 with {indicator} already completed ---')
+        else:
+            print(f'--- Analyzing with {indicator} ---')
+            sub_initial_time = systime.time()
+            safety_evaluation = read_evaluation(indicator, path_results)
+            records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], indicator) for threshold in thresholds)
+            records = pd.concat(records).reset_index()
+            records['indicator'] = indicator
+            records['model'] = indicator
+            records = fill_na_warning(records)
+            records.to_hdf(path_result + f'Analyses/Warning_{indicator}.h5', key='results', mode='w')
+            print(f'{indicator} time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
     print('--- Analysis 2: Conflict detection comparison completed ---')
 
