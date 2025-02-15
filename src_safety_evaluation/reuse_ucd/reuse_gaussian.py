@@ -99,7 +99,7 @@ def main(args, manual_seed, path_result):
     ucd_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)
     ucd_records = pd.concat(ucd_records).reset_index()
     ucd_records['indicator'] = 'UCD'
-    ucd_records['model'] = 'ucd'
+    ucd_records['model'] = 'UCD'
 
     ucd_records.loc[ucd_records['danger_recorded'].isna(), 'danger_recorded'] = False
     ucd_records.loc[ucd_records['safety_recorded'].isna(), 'safety_recorded'] = False
