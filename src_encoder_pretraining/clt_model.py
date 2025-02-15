@@ -109,7 +109,7 @@ class spclt():
                     n_iters = int(n_iters * coef)
                     break
             if num_samples >= sample_bounds[-1]:
-                n_iters = int(n_iters / 64)
+                n_iters = int(n_iters / 100)
             print(f'Number of iterations is set to {n_iters}.')
 
         # define a progress bar
