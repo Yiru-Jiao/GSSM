@@ -24,10 +24,11 @@ def TTC(samples, toreturn='dataframe'):
         ttc_ji[(leaving_ji>20)&(leaving_ji%20!=0)] = -1
 
         if toreturn=='dataframe':
+            samples = samples.copy()
             samples['TTC'] = np.minimum(ttc_ij, ttc_ji)
             return samples
         elif toreturn=='values':
-            return np.minimum(ttc_ij, ttc_ji)
+            return np.minimum(ttc_ij, ttc_ji).values
 
 
 def DRAC(samples, toreturn='dataframe'):
@@ -51,10 +52,11 @@ def DRAC(samples, toreturn='dataframe'):
         drac_ji[(leaving_ji>20)&(leaving_ji%20!=0)] = -1
 
         if toreturn=='dataframe':
+            samples = samples.copy()
             samples['TTC'] = np.maximum(drac_ij, drac_ji)
             return samples
         elif toreturn=='values':
-            return np.maximum(drac_ij, drac_ji)
+            return np.maximum(drac_ij, drac_ji).values
 
 
 def MTTC(samples, toreturn='dataframe'):
@@ -106,10 +108,11 @@ def MTTC(samples, toreturn='dataframe'):
         mttc[((leaving_ij>20)&(leaving_ij%20!=0))|((leaving_ji>20)&(leaving_ji%20!=0))] = -1
 
         if toreturn=='dataframe':
+            samples = samples.copy()
             samples['TTC'] = mttc
             return samples
         elif toreturn=='values':
-            return mttc
+            return mttc.values
 
 
 def TTC_DRAC_MTTC(samples, toreturn='dataframe'):
@@ -165,10 +168,11 @@ def TTC_DRAC_MTTC(samples, toreturn='dataframe'):
         mttc[((leaving_ij>20)&(leaving_ij%20!=0))|((leaving_ji>20)&(leaving_ji%20!=0))] = -1
 
         if toreturn=='dataframe':
+            samples = samples.copy()
             samples['TTC'] = ttc
             samples['DRAC'] = drac
             samples['MTTC'] = mttc
             return samples
         elif toreturn=='values':
-            return ttc, drac, mttc
+            return ttc.values, drac.values, mttc.values
 
