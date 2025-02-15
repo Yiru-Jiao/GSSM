@@ -14,7 +14,6 @@ import argparse
 from sklearn.preprocessing import OneHotEncoder
 from validation_utils.utils_features import *
 from src_safety_evaluation.validation_utils.utils_evaluation import *
-import src_safety_evaluation.validation_utils.TwoDimSSM as TwoDimSSM
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_encoder_pretraining.ssrl_utils.utils_eval import *
@@ -114,7 +113,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
             environment_features = one_hot_encoder.transform(environment_features.values)
-            states.append(environment_features.copy())
+            states.append(environment_features)
         if 'profiles' in encoder_selection:
             states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
         if len(states) == 1: # only current features
@@ -170,7 +169,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
             environment_features = one_hot_encoder.transform(environment_features.values)
-            states.append(environment_features.copy())
+            states.append(environment_features)
         if 'profiles' in encoder_selection:
             states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
         if len(states) == 1: # only current features
