@@ -47,7 +47,7 @@ def dist_p2l(point, line_start, line_end):
     return np.absolute((line_end[0]-line_start[0])*(line_start[1]-point[1])-(line_start[0]-point[0])*(line_end[1]-line_start[1]))/np.sqrt((line_end[0]-line_start[0])**2+(line_end[1]-line_start[1])**2)
 
 
-def getpoints(samples):
+def getpoints(samples, front_rear_only=False):
     '''
     Get the four points of the bounding box of vehicles i and j.
     '''
@@ -58,12 +58,13 @@ def getpoints(samples):
     length_i = np.tile(samples.length_i.values, (2,1)).T
     width_i = np.tile(samples.width_i.values, (2,1)).T
 
-    point_up = samples[['x_i','y_i']].values + heading_i/heading_scale_i*length_i/2
-    point_down = samples[['x_i','y_i']].values - heading_i/heading_scale_i*length_i/2
-    point_i1 = (point_up + perp_heading_i/heading_scale_i*width_i/2).T
-    point_i2 = (point_up - perp_heading_i/heading_scale_i*width_i/2).T
-    point_i3 = (point_down + perp_heading_i/heading_scale_i*width_i/2).T
-    point_i4 = (point_down - perp_heading_i/heading_scale_i*width_i/2).T
+    point_up_i = samples[['x_i','y_i']].values + heading_i/heading_scale_i*length_i/2
+    point_down_i = samples[['x_i','y_i']].values - heading_i/heading_scale_i*length_i/2
+    if not front_rear_only:
+        point_i1 = (point_up_i + perp_heading_i/heading_scale_i*width_i/2).T
+        point_i2 = (point_up_i - perp_heading_i/heading_scale_i*width_i/2).T
+        point_i3 = (point_down_i + perp_heading_i/heading_scale_i*width_i/2).T
+        point_i4 = (point_down_i - perp_heading_i/heading_scale_i*width_i/2).T
 
     # vehicle j
     heading_j = samples[['hx_j','hy_j']].values
@@ -72,14 +73,18 @@ def getpoints(samples):
     length_j = np.tile(samples.length_j.values, (2,1)).T
     width_j = np.tile(samples.width_j.values, (2,1)).T
 
-    point_up = samples[['x_j','y_j']].values + heading_j/heading_scale_j*length_j/2
-    point_down = samples[['x_j','y_j']].values - heading_j/heading_scale_j*length_j/2
-    point_j1 = (point_up + perp_heading_j/heading_scale_j*width_j/2).T
-    point_j2 = (point_up - perp_heading_j/heading_scale_j*width_j/2).T
-    point_j3 = (point_down + perp_heading_j/heading_scale_j*width_j/2).T
-    point_j4 = (point_down - perp_heading_j/heading_scale_j*width_j/2).T
+    point_up_j = samples[['x_j','y_j']].values + heading_j/heading_scale_j*length_j/2
+    point_down_j = samples[['x_j','y_j']].values - heading_j/heading_scale_j*length_j/2
+    if not front_rear_only:
+        point_j1 = (point_up_j + perp_heading_j/heading_scale_j*width_j/2).T
+        point_j2 = (point_up_j - perp_heading_j/heading_scale_j*width_j/2).T
+        point_j3 = (point_down_j + perp_heading_j/heading_scale_j*width_j/2).T
+        point_j4 = (point_down_j - perp_heading_j/heading_scale_j*width_j/2).T
 
-    return (point_i1, point_i2, point_i3, point_i4, point_j1, point_j2, point_j3, point_j4)
+    if front_rear_only:
+        return (point_up_i, point_down_i, point_up_j, point_down_j)
+    else:
+        return (point_i1, point_i2, point_i3, point_i4, point_j1, point_j2, point_j3, point_j4)
 
 
 def rotate_coor(xyaxis, yyaxis, x2t, y2t):
