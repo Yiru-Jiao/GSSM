@@ -139,6 +139,7 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
     D_safe: the default value is set to 0, which means considering the bounding boxes of vehicles with no buffer
             the original authors implicitly set D_safe to 5 by "InDepth > -5" in the original script
     '''
+    original_indices = samples.index.values
     samples = samples.reset_index(drop=True)
 
     # Iterate over each row (moment in a case) for calculation
@@ -279,6 +280,10 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
 #     df.to_csv(output_file, index=False)
 #     print(f"finish: {output_file}")
 
+    progress_bar.update(len(samples) % 10000)
+    progress_bar.close()
+
+    samples = samples.set_index(original_indices)
     if toreturn=='dataframe':
         return samples
     elif toreturn=='values':
