@@ -31,7 +31,7 @@ def TAdv(samples, toreturn='dataframe'):
             samples['TAdv'] = time_advantage
             return samples
         elif toreturn=='values':
-            return time_advantage
+            return time_advantage.values
 
 
 def get_ttc_components(samples, following='i'):
@@ -89,11 +89,12 @@ def TTC2D(samples, toreturn='dataframe'):
     if toreturn!='dataframe' and toreturn!='values':
         warnings.warn('Incorrect target to return. Please specify \'dataframe\' or \'values\'.')
     else:
+        original_indices = samples.index.values
         samples = samples.reset_index(drop=True)
         # get front center points of vehicles i and j
         front_i, _, front_j, _ = getpoints(samples, front_rear_only=True)
-        samples['frontx_i'], samples['fronty_i'] = front_i[0], front_i[1]
-        samples['frontx_j'], samples['fronty_j'] = front_j[0], front_j[1]
+        samples['frontx_i'], samples['fronty_i'] = front_i[:,0], front_i[:,1]
+        samples['frontx_j'], samples['fronty_j'] = front_j[:,0], front_j[:,1]
 
         # determine leading/following vehicles
         ## consider i as the following vehicle
@@ -114,6 +115,7 @@ def TTC2D(samples, toreturn='dataframe'):
 
         # merge the two groups
         samples = pd.concat([samples_i_following, samples_j_following], axis=0).sort_index()
+        samples = samples.set_index(original_indices)
 
         if toreturn=='dataframe':
             return samples
@@ -131,19 +133,21 @@ def ACT(samples, toreturn='dataframe'):
         warnings.warn('Time reference not found but required for ACT calculation.')
     else:
         target_ids = samples['target_id'].unique()
+        original_indices = samples.index.values
         samples = samples.reset_index(drop=True)
         samples['original_index'] = samples.index.values
         samples = samples.sort_values(by=['target_id','time']).set_index('target_id')
         # for each event
         for target_id in target_ids:
             event = samples.loc[target_id]
-            delta = DTC_ij(event, 'values')
+            delta = CurrentD(event, toreturn='values')
             pdelta_pt = np.gradient(delta, event['time'].values)
             pdelta_pt[(pdelta_pt>=0)&(pdelta_pt<1e-6)] = 1e-6
             pdelta_pt[(pdelta_pt<0)&(pdelta_pt>-1e-6)] = -1e-6
             samples.loc[target_id, 'ACT'] = delta / pdelta_pt
         samples.loc[samples['ACT']<=0, 'ACT'] = np.inf
-        samples = samples.sort_values(by='original_index').reset_index().drop(columns=['original_index'])
+        samples = samples.reset_index().sort_values(by='original_index').drop(columns=['original_index'])
+        samples = samples.set_index(original_indices)
 
         if toreturn=='dataframe':
             return samples
