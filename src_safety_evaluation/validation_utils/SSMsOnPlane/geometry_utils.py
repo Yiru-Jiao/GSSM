@@ -82,6 +82,25 @@ def getpoints(samples):
     return (point_i1, point_i2, point_i3, point_i4, point_j1, point_j2, point_j3, point_j4)
 
 
+def rotate_coor(xyaxis, yyaxis, x2t, y2t):
+    '''
+    Rotate the coordinates (x2t, y2t) to the coordinate system with the y-axis along (xyaxis, yyaxis).
+
+    Parameters:
+    - xyaxis: x-coordinate of the y-axis in the new coordinate system
+    - yyaxis: y-coordinate of the y-axis in the new coordinate system
+    - x2t: x-coordinate to be rotated
+    - y2t: y-coordinate to be rotated
+
+    Returns:
+    - x: rotated x-coordinate
+    - y: rotated y-coordinate
+    '''
+    x = yyaxis/np.sqrt(xyaxis**2+yyaxis**2)*x2t-xyaxis/np.sqrt(xyaxis**2+yyaxis**2)*y2t
+    y = xyaxis/np.sqrt(xyaxis**2+yyaxis**2)*x2t+yyaxis/np.sqrt(xyaxis**2+yyaxis**2)*y2t
+    return x, y
+
+
 def CurrentD(samples, toreturn='dataframe'):
     '''
     Compute the distance between the bounding boxes of vehicles i and j (0 if overlapping).
