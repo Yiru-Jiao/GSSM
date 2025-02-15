@@ -104,8 +104,8 @@ def TTC2D(samples, toreturn='dataframe'):
         ## if yi_j<0, j is the following vehicle
         j_following = yi_j<0
         ## divide samples into two groups
-        samples_i_following = samples[~j_following]
-        samples_j_following = samples[j_following]
+        samples_i_following = samples[~j_following].copy()
+        samples_j_following = samples[j_following].copy()
 
         # calculate 2D-TTC for each group
         ttc_lon_i_following, ttc_lat_i_following = get_ttc_components(samples_i_following, following='i')
