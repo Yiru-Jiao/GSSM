@@ -7,6 +7,8 @@ Adaption is right before or after the commented code.
 import pandas as pd
 import numpy as np
 # import argparse
+from tqdm import tqdm # for progress bar
+
 
 def compute_Pc(x_A, y_A, x_B, y_B, h_A, h_B):
     delta_x = x_B - x_A
@@ -140,6 +142,7 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
     samples = samples.reset_index(drop=True)
 
     # Iterate over each row (moment in a case) for calculation
+    progress_bar = tqdm(total=len(samples), desc='Calculating EI', ascii=True)
     for index in samples.index.values:
 #    # Iterate over each row for calculation
 #     for i, row in df.iterrows():
@@ -269,6 +272,9 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
 #         df.at[i, 'EI (m/s)'] = ','.join(map(str, EI_values))
         else:
             samples.loc[index, 'EI'] = np.nan
+
+        if index%10000 == 9999:
+            progress_bar.update(10000)
 
 #     df.to_csv(output_file, index=False)
 #     print(f"finish: {output_file}")
