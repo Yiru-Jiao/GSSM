@@ -13,12 +13,13 @@ import torch
 import argparse
 from sklearn.preprocessing import OneHotEncoder
 from validation_utils.utils_features import *
-from src_safety_evaluation.validation_utils.utils_evaluation import *
-import src_safety_evaluation.validation_utils.TwoDimSSM as TwoDimSSM
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
+from src_safety_evaluation.validation_utils.utils_evaluation import *
+from src_safety_evaluation.validation_utils.EmergencyIndex import get_EI
+from src_safety_evaluation.validation_utils.SSMsOnPlane import longitudinal_ssms, two_dimensional_ssms
 
 
 def parse_args():
@@ -166,7 +167,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
             environment_features = one_hot_encoder.transform(environment_features.values)
-            states.append(environment_features.copy())
+            states.append(environment_features)
         if 'profiles' in encoder_selection:
             states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
         if len(states) == 1: # only current features
@@ -183,7 +184,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['intensity'] = max_intensity
         results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
 
-    # Other safety evaluation metrics
+    # 1D SSMs adapted to 2D
     if os.path.exists(path_save + f'TTC_DRAC_MTTC.h5'):
         print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
     else:
@@ -203,15 +204,41 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['vy_j'] = results['v_j']*results['hy_j']
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
         
-        ttc, drac, mttc = TwoDimSSM.TTC_DRAC_MTTC(results, 'values')
-        results['TTC'] = ttc
-        results['DRAC'] = drac
-        results['MTTC'] = mttc
-        s_box = TwoDimSSM.CurrentD(results, 'values')
-        results['s_box'] = s_box
+        results = longitudinal_ssms.TTC_DRAC_MTTC(results, 'dataframe')
+        results['s_box'] = longitudinal_ssms.CurrentD(results, 'values')
+        results.loc[results['s_box']<0, ['TTC','DRAC','MTTC']] = -1.
 
         results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','acc_i','s_box', 'TTC', 'DRAC', 'MTTC']]
         results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
+
+    # 2D SSMs
+    if os.path.exists(path_save + f'TAdv_TTC2D_ACT_EI.h5'):
+        print(f'The events has been evaluated by TAdv, TTC2D, ACT, and EI.')
+    else:
+        print('--- Evaluating with TAdv, TTC2D, ACT, and EI ---')
+        if isinstance(event_id_list, np.ndarray):
+            event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+        results = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
+        rename_columns = dict()
+        for column in results.columns:
+            if '_ego' in column:
+                rename_columns[column] = column.replace('_ego','_i')
+            elif '_sur' in column:
+                rename_columns[column] = column.replace('_sur','_j')
+        results = results.rename(columns=rename_columns)
+        results['vx_i'] = results['v_i']*results['hx_i']
+        results['vy_i'] = results['v_i']*results['hy_i']
+        results['vx_j'] = results['v_j']*results['hx_j']
+        results['vy_j'] = results['v_j']*results['hy_j']
+        results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
+        
+        results = two_dimensional_ssms.TAdv(results, 'dataframe')
+        results = two_dimensional_ssms.TTC2D(results, 'dataframe')
+        results = two_dimensional_ssms.ACT(results, 'dataframe')
+        results = get_EI(results, toreturn='dataframe', D_safe=0.) # D_safe is the buffer and can be adjusted
+
+        results = results[['event_id','target_id','time','TAdv','TTC2D','ACT','EI']]
+        results.to_hdf(path_save + f'TAdv_TTC2D_ACT_EI.h5', key='data', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
