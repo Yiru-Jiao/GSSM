@@ -58,6 +58,9 @@ def DRAC(samples, toreturn='dataframe'):
 
 
 def MTTC(samples, toreturn='dataframe'):
+    '''
+    https://doi.org/10.3141/2083-12
+    '''
     if toreturn!='dataframe' and toreturn!='values':
         warnings.warn('Incorrect target to return. Please specify \'dataframe\' or \'values\'.')
     elif 'acc_i' not in samples.columns:
