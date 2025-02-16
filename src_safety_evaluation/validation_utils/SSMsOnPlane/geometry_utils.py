@@ -4,6 +4,7 @@ import warnings
 
 
 # Useful functions
+
 def line(point0, point1):
     '''
     Get the line equation from two points.
@@ -14,6 +15,24 @@ def line(point0, point1):
     b = x1 - x0
     c = x0*y1 - x1*y0
     return a, b, c
+
+
+def angle(vec1x, vec1y, vec2x, vec2y):
+    '''
+    Calculate the angle between two vectors.
+
+    Parameters:
+    - vec1x: x-component of the first vector
+    - vec1y: y-component of the first vector
+    - vec2x: x-component of the second vector
+    - vec2y: y-component of the second vector
+
+    Returns:
+    - angle: angle between the two vectors in [-pi, pi]
+    '''
+    sin = vec1x * vec2y - vec2x * vec1y
+    cos = vec1x * vec2x + vec1y * vec2y
+    return np.arctan2(sin, cos)
 
 
 def intersect(line0, line1):
