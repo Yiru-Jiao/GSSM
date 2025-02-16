@@ -11,6 +11,7 @@ def TAdv(samples, toreturn='dataframe'):
     if toreturn!='dataframe' and toreturn!='values':
         warnings.warn('Incorrect target to return. Please specify \'dataframe\' or \'values\'.')
     else:
+        current_distance = CurrentD(samples, toreturn='values')
         point_i1, point_i2, point_i3, point_i4, point_j1, point_j2, point_j3, point_j4 = getpoints(samples)
         v_i = samples[['vx_i','vy_i']].values.T
         v_j = samples[['vx_j','vy_j']].values.T
@@ -29,23 +30,20 @@ def TAdv(samples, toreturn='dataframe'):
                 dist_ist_i = np.sqrt((ist[0]-point_i[0])**2+(ist[1]-point_i[1])**2)
                 dist_ist_j = np.sqrt((ist[0]-point_j[0])**2+(ist[1]-point_j[1])**2)
                 # time advantage is the time difference between the two vehicles reaching the intersection point
-                predicted_time_i = dist_ist_i / np.minimum(np.sqrt(v_i[0]**2+v_i[1]**2), 1e-6)
-                predicted_time_j = dist_ist_j / np.minimum(np.sqrt(v_j[0]**2+v_j[1]**2), 1e-6)
+                predicted_time_i = dist_ist_i / np.maximum(np.sqrt(v_i[0]**2+v_i[1]**2), 1e-6)
+                predicted_time_j = dist_ist_j / np.maximum(np.sqrt(v_j[0]**2+v_j[1]**2), 1e-6)
                 time_advantage = np.absolute(predicted_time_i - predicted_time_j)
-                # if the two lines are parallel, time advantage equals to TTC
-                parallel_lines = np.isnan(ist[0])
-                dist_ist_i[parallel_lines] = dist_p2l(point_i, point_j, point_other_j)[parallel_lines]
-                dist_ist_j[parallel_lines] = dist_p2l(point_j, point_i, point_other_i)[parallel_lines]
-                ttc_i = dist_ist_i / np.minimum(np.sqrt(relative_v[0]**2+relative_v[1]**2), 1e-6)
-                ttc_j = dist_ist_j / np.minimum(np.sqrt(relative_v[0]**2+relative_v[1]**2), 1e-6)
-                time_advantage[parallel_lines] = np.minimum(ttc_i, ttc_j)[parallel_lines]
-                # if the intersection point is not ahead of both vehicles, set time advantage to infinity
-                ist_ahead_i = np.dot(ist-point_i, v_i)>0
-                ist_ahead_j = np.dot(ist-point_j, v_j)>0
+                # if the two lines are parallel (threshold: 5 degrees), time advantage equals to TTC
+                angle_ij = angle(v_i[0], v_i[1], v_j[0], v_j[1]) # [-pi, pi]
+                parallel_lines = np.isnan(ist[0])|(abs(angle_ij)<(np.pi/36))|(abs(angle_ij)>(np.pi*35/36))
+                ttc = current_distance / np.maximum(np.sqrt(relative_v[0]**2+relative_v[1]**2), 1e-6)
+                time_advantage[parallel_lines] = ttc[parallel_lines]
+                # for unparallel cases, if the intersection point is not ahead of both vehicles, set time advantage to infinity
+                ist_ahead_i = ((ist[0]-point_i[0])*v_i[0]+(ist[1]-point_i[1])*v_i[1]) >= 0
+                ist_ahead_j = ((ist[0]-point_j[0])*v_j[0]+(ist[1]-point_j[1])*v_j[1]) >= 0
                 time_advantage[(~parallel_lines)&(~(ist_ahead_i&ist_ahead_j))] = np.inf
-                ist_ahead_i[parallel_lines] = (np.dot(point_j-point_i, v_i)>0)[parallel_lines]
-                ist_ahead_j[parallel_lines] = (np.dot(point_i-point_j, v_j)>0)[parallel_lines]
-                time_advantage[parallel_lines&(~(ist_ahead_i|ist_ahead_j))] = np.inf
+                # for parallel cases, if the velocities are opposite, set time advantage to infinity
+                time_advantage[parallel_lines&(abs(angle_ij)>np.pi*35/36)] = np.inf
                 # append the time advantage
                 tadv_mat.append(time_advantage)
 
@@ -165,7 +163,7 @@ def ACT(samples, toreturn='dataframe'):
         for target_id in target_ids:
             event = samples.loc[target_id]
             delta = CurrentD(event, toreturn='values')
-            pdelta_pt = np.gradient(delta, -event['time'].values)
+            pdelta_pt = np.diff(delta, prepend=np.nan) / np.diff(event['time'].values, prepend=event['time'].values[0]-0.1)
             pdelta_pt[(pdelta_pt>=0)&(pdelta_pt<1e-6)] = 1e-6
             pdelta_pt[(pdelta_pt<0)&(pdelta_pt>-1e-6)] = -1e-6
             samples.loc[target_id, 'ACT'] = delta / pdelta_pt
