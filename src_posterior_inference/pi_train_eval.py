@@ -69,7 +69,7 @@ def main(args, manual_seed, path_prepared):
 
         initial_lr = 0.0001
         batch_size = 32
-        epochs = 500
+        epochs = 100 if 'profiles' in encoder_selection else 500
         
         condition = (evaluation['dataset']==dataset_name)&\
                     (evaluation['encoder_selection']==encoder_name)&\
