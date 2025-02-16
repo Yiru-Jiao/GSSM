@@ -227,9 +227,9 @@ class spclt():
         continue_training = True
         scaler = torch.amp.GradScaler()  # Initialize gradient scaler
         while continue_training:
-            train_loss = torch.tensor(0., device=self.device)
+            train_loss = torch.tensor(0., device=self.device, requires_grad=False)
             if loss_log is not None and self.regularizer_config['reserve'] is not None:
-                train_loss_comp = torch.zeros(4, device=self.device)
+                train_loss_comp = torch.zeros(4, device=self.device, requires_grad=False)
             for train_batch_iter, (x, idx) in enumerate(train_loader):
                 if n_epochs is not None and train_batch_iter >= train_iters:
                     break # use 25% of the total iterations per epoch, after 20 epochs 99.68% of the data is used
@@ -297,7 +297,7 @@ class spclt():
             if scheduler == 'reduced':
                 self.eval()
                 with torch.no_grad():
-                    val_loss = torch.tensor(0., device=self.device)
+                    val_loss = torch.tensor(0., device=self.device, requires_grad=False)
                     for val_batch_iter, (x, idx) in enumerate(val_loader):
                         if val_soft_assignments is None:
                             soft_labels = None
@@ -403,7 +403,7 @@ class spclt():
         org_training = self._net.training
         self.eval()
         with torch.no_grad():
-            val_loss = torch.tensor(0., device=self.device)
+            val_loss = torch.tensor(0., device=self.device, requires_grad=False)
             for val_batch_iter, (x, idx) in enumerate(val_loader):
                 if soft_assignments is None:
                     soft_labels = None

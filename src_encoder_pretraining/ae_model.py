@@ -132,7 +132,7 @@ class autoencoder():
         self.iter_n = 0
         continue_training = True
         while continue_training:
-            train_loss = torch.tensor(0.0, device=self.device)
+            train_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
                 if self.encoder_name == 'current':
@@ -152,7 +152,7 @@ class autoencoder():
             if scheduler == 'reduced':
                 self.eval()
                 with torch.no_grad():
-                    val_loss = torch.tensor(0.0, device=self.device)
+                    val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
                     for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
                         if self.encoder_name == 'current':
                             x = x.to(self.device)
@@ -217,7 +217,7 @@ class autoencoder():
 
         val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=True)
-        loss = torch.tensor(0.0, device=self.device)
+        loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
                 if self.encoder_name == 'current':

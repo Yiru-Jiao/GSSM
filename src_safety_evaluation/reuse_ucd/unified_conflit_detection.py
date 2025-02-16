@@ -131,7 +131,7 @@ class train_val_test():
         self.model.eval()
         self.likelihood.eval()
 
-        val_loss = torch.tensor(0., device=self.device)
+        val_loss = torch.tensor(0., device=self.device, requires_grad=False)
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             for count_batch, (interaction_context, current_spacing) in enumerate(self.val_dataloader, start=1):
                 output = self.model(interaction_context.to(self.device))
@@ -169,7 +169,7 @@ class train_val_test():
         progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False)
         break_flag = False
         for count_epoch in progress_bar:
-            train_loss = torch.tensor(0., device=self.device)
+            train_loss = torch.tensor(0., device=self.device, requires_grad=False)
             for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader, start=1):
                 self.optimizer.zero_grad()
                 output = self.model(interaction_context.to(self.device))
