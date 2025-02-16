@@ -163,7 +163,7 @@ def ACT(samples, toreturn='dataframe'):
         for target_id in target_ids:
             event = samples.loc[target_id]
             delta = CurrentD(event, toreturn='values')
-            pdelta_pt = np.diff(delta, prepend=np.nan) / np.diff(event['time'].values, prepend=event['time'].values[0]-0.1)
+            pdelta_pt = np.diff(delta, prepend=np.inf) / -np.diff(event['time'].values, prepend=event['time'].values[0]-0.1)
             pdelta_pt[(pdelta_pt>=0)&(pdelta_pt<1e-6)] = 1e-6
             pdelta_pt[(pdelta_pt<0)&(pdelta_pt>-1e-6)] = -1e-6
             samples.loc[target_id, 'ACT'] = delta / pdelta_pt
