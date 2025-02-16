@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import warnings
-from .geometry_utils import DTC_ij, CurrentD, rotate_coor, getpoints
-
+from .geometry_utils import *
 
 
 def TAdv(samples, toreturn='dataframe'):
@@ -12,20 +11,45 @@ def TAdv(samples, toreturn='dataframe'):
     if toreturn!='dataframe' and toreturn!='values':
         warnings.warn('Incorrect target to return. Please specify \'dataframe\' or \'values\'.')
     else:
-        dtc_ij, leaving_ij = DTC_ij(samples)
-        t_ij = dtc_ij/np.sqrt(samples['vx_i']**2+samples['vy_i']**2)
+        point_i1, point_i2, point_i3, point_i4, point_j1, point_j2, point_j3, point_j4 = getpoints(samples)
+        v_i = samples[['vx_i','vy_i']].values.T
+        v_j = samples[['vx_j','vy_j']].values.T
+        relative_v = v_i - v_j
 
-        keys = [var+'_i' for var in ['x','y','vx','vy','hx','hy','length','width']]
-        values = [var+'_j' for var in ['x','y','vx','vy','hx','hy','length','width']]
-        keys.extend(values)
-        values.extend(keys)
-        rename_dict = {keys[i]: values[i] for i in range(len(keys))}
-        dtc_ji, leaving_ji = DTC_ij(samples.rename(columns=rename_dict))
-        t_ji = dtc_ji/np.sqrt(samples['vx_j']**2+samples['vy_j']**2)
+        tadv_mat = []
+        # For each point of vehicle i
+        for point_i, point_other_i in zip([point_i1, point_i2, point_i3, point_i4], [point_i2, point_i1, point_i4, point_i3]):
+            # For each point of vehicle j
+            for point_j, point_other_j in zip([point_j1, point_j2, point_j3, point_j4], [point_j2, point_j1, point_j4, point_j3]):
+                # intersection point between 
+                # 1) the line extended from the point of vehicle i along the direction of its velocity and
+                # 2) the line extended from the point of vehicle j along the direction of its velocity
+                ist = intersect(line(point_i, point_i+v_i), line(point_j, point_j+v_j))
+                # distance from the intersection point to both points of vehicle i and j
+                dist_ist_i = np.sqrt((ist[0]-point_i[0])**2+(ist[1]-point_i[1])**2)
+                dist_ist_j = np.sqrt((ist[0]-point_j[0])**2+(ist[1]-point_j[1])**2)
+                # time advantage is the time difference between the two vehicles reaching the intersection point
+                predicted_time_i = dist_ist_i / np.minimum(np.sqrt(v_i[0]**2+v_i[1]**2), 1e-6)
+                predicted_time_j = dist_ist_j / np.minimum(np.sqrt(v_j[0]**2+v_j[1]**2), 1e-6)
+                time_advantage = np.absolute(predicted_time_i - predicted_time_j)
+                # if the two lines are parallel, time advantage equals to TTC
+                parallel_lines = np.isnan(ist[0])
+                dist_ist_i[parallel_lines] = dist_p2l(point_i, point_j, point_other_j)[parallel_lines]
+                dist_ist_j[parallel_lines] = dist_p2l(point_j, point_i, point_other_i)[parallel_lines]
+                ttc_i = dist_ist_i / np.minimum(np.sqrt(relative_v[0]**2+relative_v[1]**2), 1e-6)
+                ttc_j = dist_ist_j / np.minimum(np.sqrt(relative_v[0]**2+relative_v[1]**2), 1e-6)
+                time_advantage[parallel_lines] = np.minimum(ttc_i, ttc_j)[parallel_lines]
+                # if the intersection point is not ahead of both vehicles, set time advantage to infinity
+                ist_ahead_i = np.dot(ist-point_i, v_i)>0
+                ist_ahead_j = np.dot(ist-point_j, v_j)>0
+                time_advantage[(~parallel_lines)&(~(ist_ahead_i&ist_ahead_j))] = np.inf
+                ist_ahead_i[parallel_lines] = (np.dot(point_j-point_i, v_i)>0)[parallel_lines]
+                ist_ahead_j[parallel_lines] = (np.dot(point_i-point_j, v_j)>0)[parallel_lines]
+                time_advantage[parallel_lines&(~(ist_ahead_i|ist_ahead_j))] = np.inf
+                # append the time advantage
+                tadv_mat.append(time_advantage)
 
-        time_advantage = abs(t_ij - t_ji)
-        time_advantage[(leaving_ij<20)&(leaving_ji<20)] = np.inf # the two vehicles will not collide if they keep current velocity
-        time_advantage[((leaving_ij>20)&(leaving_ij%20!=0))|((leaving_ji>20)&(leaving_ji%20!=0))] = -1 # the bounding boxes of the two vehicles are overlapping
+        time_advantage = np.array(tadv_mat).min(axis=0)
 
         if toreturn=='dataframe':
             samples['TAdv'] = time_advantage
@@ -141,7 +165,7 @@ def ACT(samples, toreturn='dataframe'):
         for target_id in target_ids:
             event = samples.loc[target_id]
             delta = CurrentD(event, toreturn='values')
-            pdelta_pt = np.gradient(delta, event['time'].values)
+            pdelta_pt = np.gradient(delta, -event['time'].values)
             pdelta_pt[(pdelta_pt>=0)&(pdelta_pt<1e-6)] = 1e-6
             pdelta_pt[(pdelta_pt<0)&(pdelta_pt>-1e-6)] = -1e-6
             samples.loc[target_id, 'ACT'] = delta / pdelta_pt
