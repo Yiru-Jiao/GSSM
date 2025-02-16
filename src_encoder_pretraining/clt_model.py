@@ -290,7 +290,7 @@ class spclt():
                     if self.regularizer_config['reserve'] is None:
                         loss_log[self.epoch_n] = [train_loss]
                     elif self.regularizer_config['reserve'] in ['topology', 'geometry']:
-                        train_loss_comp = train_loss_comp.cpu().numpy() / (train_batch_iter+1)
+                        train_loss_comp = train_loss_comp.detach().numpy() / (train_batch_iter+1)
                         loss_log[self.epoch_n] = np.concatenate(([train_loss], train_loss_comp))
 
             # if the scheduler is set to 'reduced', evaluate validation loss and update learning rate
