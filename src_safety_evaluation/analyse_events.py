@@ -122,14 +122,16 @@ def main(path_result):
 
     # Other indicators
     for indicator in ['TTC', 'DRAC', 'MTTC', 'TAdv', 'TTC2D', 'ACT', 'EI']:
-        if indicator in ['TTC', 'MTTC', 'TTC2D', 'TAdv']:
+        if indicator in ['TTC', 'MTTC', 'TTC2D']:
             thresholds = np.unique(np.round(10**np.arange(0,1.68,0.015),1))-1
+        elif indicator == 'TAdv':
+            thresholds = np.unique(np.round((10**np.arange(0,2.1,0.02)-1)/10,2))
         elif indicator == 'DRAC':
             thresholds = np.unique(np.round(10**np.arange(0,1.,0.01),2))-1
         elif indicator == 'ACT':
             thresholds = np.unique(np.round(10**np.arange(0,1.91,0.018),1))-1
         elif indicator == 'EI':
-            thresholds = np.unique(np.round(10**np.arange(0,1.3,0.01),1))-2
+            thresholds = np.unique(np.round((10**np.arange(0,1.86,0.009)-1)/50,2))
         
         if os.path.exists(path_result + f'Analyses/Warning_{indicator}.h5'):
             print(f'--- Analysis 2 with {indicator} already completed ---')
