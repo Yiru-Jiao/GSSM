@@ -146,4 +146,4 @@ class LogNormalNLL(nn.Module):
         mu, sigma = out
         clipped_y = torch.clamp(y, min=1e-6, max=None) # avoid log(0)
         loss = 0.5*((torch.log(clipped_y)-mu)/sigma)**2 + torch.log(sigma) # log(y) follows a normal distribution
-        return loss.mean() # mean over batch
+        return (loss * 100).mean() # scale and mean over batch
