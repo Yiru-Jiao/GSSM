@@ -272,7 +272,7 @@ def get_EI(samples, toreturn='dataframe', D_safe=0.):
 #         df.at[i, 'InDepth (m)'] = ','.join(map(str, InDepth_values))
 #         df.at[i, 'EI (m/s)'] = ','.join(map(str, EI_values))
         else:
-            samples.loc[index, 'EI'] = np.nan
+            samples.loc[index, 'EI'] = -np.inf
 
         if index%10000 == 9999:
             progress_bar.update(10000)
