@@ -141,60 +141,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
         eval_efficiency = pd.DataFrame(columns=['model_name','time','num_events'])
         eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
 
-    # SSSE models in this study
-    for model_id in range(len(model_evaluation)):
-        dataset_name = model_evaluation.iloc[model_id]['dataset']
-        dataset = dataset_name.split('_')
-        encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
-        encoder_selection = encoder_name.split('_')
-        cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
-        cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
-        pretraining = model_evaluation.iloc[model_id]['pretraining']
-        pretrained_encoder = True if pretraining=='pretrained' else False
-        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
-        print(f'--- Evaluating {model_name} ---')
-
-        if os.path.exists(path_save + f'{model_name}.h5'):
-            print(f'The events has been evaluated by {model_name}.')
-            continue
-
-        # Define scaler and one-hot encoder for normalisation
-        current_scaler = get_scaler(dataset, path_prepared, feature='current')
-        profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
-        if 'environment' in encoder_selection:
-            environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
-            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
-
-        # Define and load trained model
-        model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
-
-        states = []
-        if 'current' in encoder_selection:
-            states.append(current_scaler.transform(current_features))
-        if 'environment' in encoder_selection:
-            environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
-            environment_features = one_hot_encoder.transform(environment_features.values)
-            states.append(environment_features)
-        if 'profiles' in encoder_selection:
-            states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
-        if len(states) == 1: # only current features
-            states = [states[0], spacing_list]
-        else:
-            states = [tuple(states), spacing_list]
-
-        time_start = systime.time()
-        mu, sigma, max_intensity = SSSE(states, model, device)
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, len(event_id_list)]
-
-        results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-        results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
-        results['proximity'] = spacing_list
-        results['mu'] = mu
-        results['sigma'] = sigma
-        results['intensity'] = max_intensity
-        results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
-
     # 1D SSMs adapted to 2D
     if os.path.exists(path_save + f'TTC_DRAC_MTTC.h5'):
         print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
@@ -277,6 +223,60 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         results = results[['event_id','target_id','time','TAdv','TTC2D','ACT','EI']]
         results.to_hdf(path_save + f'TAdv_TTC2D_ACT_EI.h5', key='data', mode='w')
+
+    # SSSE models in this study
+    for model_id in range(len(model_evaluation)):
+        dataset_name = model_evaluation.iloc[model_id]['dataset']
+        dataset = dataset_name.split('_')
+        encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
+        encoder_selection = encoder_name.split('_')
+        cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
+        cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
+        pretraining = model_evaluation.iloc[model_id]['pretraining']
+        pretrained_encoder = True if pretraining=='pretrained' else False
+        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+        print(f'--- Evaluating {model_name} ---')
+
+        if os.path.exists(path_save + f'{model_name}.h5'):
+            print(f'The events has been evaluated by {model_name}.')
+            continue
+
+        # Define scaler and one-hot encoder for normalisation
+        current_scaler = get_scaler(dataset, path_prepared, feature='current')
+        profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
+        if 'environment' in encoder_selection:
+            environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
+            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
+
+        # Define and load trained model
+        model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
+
+        states = []
+        if 'current' in encoder_selection:
+            states.append(current_scaler.transform(current_features))
+        if 'environment' in encoder_selection:
+            environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
+            environment_features = one_hot_encoder.transform(environment_features.values)
+            states.append(environment_features)
+        if 'profiles' in encoder_selection:
+            states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
+        if len(states) == 1: # only current features
+            states = [states[0], spacing_list]
+        else:
+            states = [tuple(states), spacing_list]
+
+        time_start = systime.time()
+        mu, sigma, max_intensity = SSSE(states, model, device)
+        time_end = systime.time()
+        eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, len(event_id_list)]
+
+        results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+        results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
+        results['proximity'] = spacing_list
+        results['mu'] = mu
+        results['sigma'] = sigma
+        results['intensity'] = max_intensity
+        results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
 
     eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')

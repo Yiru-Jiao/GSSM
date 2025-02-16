@@ -102,25 +102,7 @@ def main(path_result):
     event_meta['danger_end'] = danger_end
     event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
     
-    # SSSE
-    ssse_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
-    for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
-        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
-        if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
-            print('--- Analysis 2 with', model_name, 'already completed ---')
-        else:
-            print('--- Analyzing with', model_name, '---')
-            sub_initial_time = systime.time()
-            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
-            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in ssse_thresholds)
-            ssse_records = pd.concat(ssse_records).reset_index()
-            ssse_records['indicator'] = 'SSSE'
-            ssse_records['model'] = model_name
-            ssse_records = fill_na_warning(ssse_records)
-            ssse_records.to_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results', mode='w')
-            print(model_name, 'time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
-
-    # Other indicators
+    # 1D and 2D SSMs
     for indicator in ['TTC', 'DRAC', 'MTTC', 'TAdv', 'TTC2D', 'ACT', 'EI']:
         if indicator in ['TTC', 'MTTC', 'TTC2D']:
             thresholds = np.unique(np.round(10**np.arange(0,1.68,0.015),1))-1
@@ -146,6 +128,24 @@ def main(path_result):
             records = fill_na_warning(records)
             records.to_hdf(path_result + f'Analyses/Warning_{indicator}.h5', key='results', mode='w')
             print(f'{indicator} time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
+
+    # SSSE
+    ssse_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
+    for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
+        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+        if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
+            print('--- Analysis 2 with', model_name, 'already completed ---')
+        else:
+            print('--- Analyzing with', model_name, '---')
+            sub_initial_time = systime.time()
+            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
+            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in ssse_thresholds)
+            ssse_records = pd.concat(ssse_records).reset_index()
+            ssse_records['indicator'] = 'SSSE'
+            ssse_records['model'] = model_name
+            ssse_records = fill_na_warning(ssse_records)
+            ssse_records.to_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results', mode='w')
+            print(model_name, 'time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
     print('--- Analysis 2: Conflict detection comparison completed ---')
 
