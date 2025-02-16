@@ -329,13 +329,6 @@ class spclt():
                     scheduler_step(val_loss_log[self.epoch_n, 0], val_loss_log[self.epoch_n, 1])
                 self.train()
 
-                stop_condition = np.diff(val_loss_log[self.epoch_n-4:, 0])
-                stop_condition = np.all(abs(stop_condition/val_loss_log[self.epoch_n-5:self.epoch_n, 0])<1e-3)
-                if stop_condition:
-                    # early stopping if validation loss converges
-                    Warning('Early stopping due to validation loss convergence.')
-                    break
-
             # save model if callback every several epochs
             if self.after_epoch_callback is not None:
                 self.after_epoch_callback(self)
