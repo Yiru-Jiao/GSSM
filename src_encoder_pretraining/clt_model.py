@@ -319,10 +319,10 @@ class spclt():
                         del val_loss_config
                     val_loss = val_loss.item() / (val_batch_iter+1)
                 if self.regularizer_config['reserve'] is None:
-                    val_loss_log[self.epoch_n, 0] = val_loss.item()
+                    val_loss_log[self.epoch_n, 0] = val_loss
                 elif self.regularizer_config['reserve'] in ['topology', 'geometry']:
                     val_loss_log[self.epoch_n, 1] = 0.5*self.loss_log_vars.sum().item()
-                    val_loss_log[self.epoch_n, 0] = val_loss.item() - val_loss_log[self.epoch_n, 1]
+                    val_loss_log[self.epoch_n, 0] = val_loss - val_loss_log[self.epoch_n, 1]
 
                 # update learning rate after cold start of 10 epochs
                 if self.epoch_n >= 10:
