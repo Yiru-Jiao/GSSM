@@ -87,11 +87,11 @@ def main(args, manual_seed, path_result):
         veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
     event_data[['length_ego','width_ego','length_sur','width_sur']] = veh_dimensions.loc[event_data['event_id'].values, ['ego_length','ego_width','target_length','target_width']].values
 
-    if os.path.exists(path_save + 'highD_ucd.h5'):
-        safety_evaluation = pd.read_hdf(path_save + 'highD_ucd.h5', key='data')
+    if os.path.exists(path_save + 'highD_UCD.h5'):
+        safety_evaluation = pd.read_hdf(path_save + 'highD_UCD.h5', key='data')
     else:
         safety_evaluation = UCD(event_data, device)
-        safety_evaluation.to_hdf(path_save + f'highD_ucd.h5', key='data', mode='w')
+        safety_evaluation.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
 
     ucd_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
     print('--- Analyzing ---')
@@ -105,7 +105,7 @@ def main(args, manual_seed, path_result):
     ucd_records.loc[ucd_records['safety_recorded'].isna(), 'safety_recorded'] = False
     ucd_records[['danger_recorded', 'safety_recorded']] = ucd_records[['danger_recorded', 'safety_recorded']].astype(bool)
     ucd_records[['indicator', 'model']] = ucd_records[['indicator', 'model']].astype(str)
-    ucd_records.to_hdf(path_result + 'Analyses/Warning_ucd.h5', key='results', mode='w')
+    ucd_records.to_hdf(path_result + 'Analyses/Warning_UCD.h5', key='results', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
