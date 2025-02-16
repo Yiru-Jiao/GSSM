@@ -278,6 +278,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results = results[['event_id','target_id','time','TAdv','TTC2D','ACT','EI']]
         results.to_hdf(path_save + f'TAdv_TTC2D_ACT_EI.h5', key='data', mode='w')
 
+    eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
