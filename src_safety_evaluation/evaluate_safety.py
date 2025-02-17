@@ -55,7 +55,7 @@ def evaluate(eval_func, model, eval_config, eval_efficiency, results, path_save)
     results = eval_func(results, **eval_config)
     time_end = systime.time()
     eval_efficiency.loc[len(eval_efficiency)] = [model, time_end-time_start, results['target_id'].nunique(), len(results)]
-    eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
+    eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
     return results, eval_efficiency
 
 
@@ -144,11 +144,11 @@ def main(args, events, manual_seed, path_prepared, path_result):
     event_id_list = np.concatenate(event_id_list, axis=0)
 
     # Safety evaluation
-    if os.path.exists(path_save + 'evaluation_efficiency.csv'):
-        eval_efficiency = pd.read_csv(path_save + 'evaluation_efficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
+    if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
+        eval_efficiency = pd.read_csv(path_save + 'EvaluationEfficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
     else:
         eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
-        eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
+        eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
 
     # 1D SSMs adapted to 2D
     if os.path.exists(path_save + f'TTC_DRAC_MTTC.h5'):
@@ -278,7 +278,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['intensity'] = max_intensity
         results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
         eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, results['target_id'].nunique(), len(results)]
-        eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
+        eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
