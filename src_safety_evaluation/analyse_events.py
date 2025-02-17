@@ -175,7 +175,7 @@ def main(path_result):
             safety_evaluation = read_evaluation(conflict_indicator, path_results)
             optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
             records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
-            records['model'] = model
+            records['model'] = conflict_indicator
             results.append(records.copy())
 
         for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
