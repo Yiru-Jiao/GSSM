@@ -26,11 +26,14 @@ def read_events(path_events, meta_only=False):
 
 
 def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, cross_attention_name=None, pretraining=None):
-    if indicator=='TTC' or indicator=='DRAC' or indicator=='MTTC':
+    if indicator in ['TTC', 'DRAC', 'MTTC']:
         safety_evaluation = pd.read_hdf(path_results + f'TTC_DRAC_MTTC.h5', key='data')
         return safety_evaluation
-    elif indicator=='TAdv' or indicator=='TTC2D' or indicator=='ACT' or indicator=='EI':
+    elif indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
         safety_evaluation = pd.read_hdf(path_results + f'TAdv_TTC2D_ACT_EI.h5', key='data')
+        return safety_evaluation
+    elif indicator=='UCD':
+        safety_evaluation = pd.read_hdf(path_results + f'highD_UCD.h5', key='data')
         return safety_evaluation
     elif indicator=='SSSE':
         if np.any([config is None for config in [dataset_name, encoder_name, cross_attention_name, pretraining]]):
