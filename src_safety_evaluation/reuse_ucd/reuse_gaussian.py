@@ -65,7 +65,7 @@ def main(args, manual_seed, path_result):
     event_meta['danger_end'] = danger_end
     assert np.all(np.isin(event_data['event_id'].unique(), event_meta.index.values))
 
-    # Make sure use the same events as other methods
+    # Safety evaluation, make sure use the same events as other methods
     event_id_list = []
     for event_cat in event_categories:
         event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
@@ -90,8 +90,17 @@ def main(args, manual_seed, path_result):
     if os.path.exists(path_save + 'highD_UCD.h5'):
         safety_evaluation = pd.read_hdf(path_save + 'highD_UCD.h5', key='data')
     else:
+        if os.path.exists(path_save + 'evaluation_efficiency.csv'):
+            eval_efficiency = pd.read_csv(path_save + 'evaluation_efficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
+        else:
+            eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
+            eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
+        time_start = systime.time()
         safety_evaluation = UCD(event_data, device)
+        time_end = systime.time()
         safety_evaluation.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
+        eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, event_data['target_id'].nunique(), len(event_data)]
+        eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
 
     ucd_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
     print('--- Analyzing ---')
