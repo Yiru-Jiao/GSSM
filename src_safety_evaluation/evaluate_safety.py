@@ -52,7 +52,7 @@ def set_veh_dimensions(event_meta, avg_width, avg_length):
 
 def evaluate(eval_func, model, eval_config, eval_efficiency, results, path_save):
     time_start = systime.time()
-    results = eval_func(results, *eval_config)
+    results = eval_func(results, **eval_config)
     time_end = systime.time()
     eval_efficiency.loc[len(eval_efficiency)] = [model, time_end-time_start, results['target_id'].nunique(), len(results)]
     eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
@@ -171,15 +171,15 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
 
         results, eval_efficiency = evaluate(longitudinal_ssms.TTC, 'TTC',
-                                            {'samples':results, 'toreturn':'dataframe'},
+                                            {'toreturn':'dataframe'},
                                             eval_efficiency, results, path_save)
         
         results, eval_efficiency = evaluate(longitudinal_ssms.DRAC, 'DRAC',
-                                            {'samples':results, 'toreturn':'dataframe'},
+                                            {'toreturn':'dataframe'},
                                             eval_efficiency, results, path_save)
         
         results, eval_efficiency = evaluate(longitudinal_ssms.MTTC, 'MTTC',
-                                            {'samples':results, 'toreturn':'dataframe'},
+                                            {'toreturn':'dataframe'},
                                             eval_efficiency, results, path_save)
 
         results['s_box'] = longitudinal_ssms.CurrentD(results, 'values')
@@ -208,19 +208,19 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
         
         results, eval_efficiency = evaluate(two_dimensional_ssms.TAdv, 'TAdv',
-                                            {'samples':results, 'toreturn':'dataframe'},
+                                            {'toreturn':'dataframe'},
                                             eval_efficiency, results, path_save)
         
         results, eval_efficiency = evaluate(two_dimensional_ssms.TTC2D, 'TTC2D',
-                                            {'samples':results, 'toreturn':'dataframe'},
+                                            {'toreturn':'dataframe'},
                                             eval_efficiency, results, path_save)
         
         results, eval_efficiency = evaluate(two_dimensional_ssms.ACT, 'ACT',
-                                            {'samples':results, 'toreturn':'dataframe'},
+                                            {'toreturn':'dataframe'},
                                             eval_efficiency, results, path_save)
         
         results, eval_efficiency = evaluate(get_EI, 'EI', # D_safe is the buffer and can be adjusted
-                                            {'samples':results, 'toreturn':'dataframe', 'D_safe':0.},
+                                            {'toreturn':'dataframe', 'D_safe':0.},
                                             eval_efficiency, results, path_save)
 
         results = results[['event_id','target_id','time','TAdv','TTC2D','ACT','EI']]
