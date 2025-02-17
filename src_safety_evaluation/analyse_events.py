@@ -169,12 +169,15 @@ def main(path_result):
             event_meta['danger_end'] = danger_end
         
         results = []
-        for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'TAdv', 'TTC2D', 'ACT', 'EI']:
+        for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
             print('--- Issuing warning', conflict_indicator, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
             safety_evaluation = read_evaluation(conflict_indicator, path_results)
             optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
-            records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
+            if conflict_indicator == 'UCD':
+                records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
+            else:
+                records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
             records['model'] = conflict_indicator
             results.append(records.copy())
 
