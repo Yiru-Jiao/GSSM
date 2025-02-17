@@ -53,7 +53,7 @@ def DRAC(samples, toreturn='dataframe'):
 
         if toreturn=='dataframe':
             samples = samples.copy()
-            samples['TTC'] = np.maximum(drac_ij, drac_ji)
+            samples['DRAC'] = np.maximum(drac_ij, drac_ji)
             return samples
         elif toreturn=='values':
             return np.maximum(drac_ij, drac_ji).values
@@ -112,7 +112,7 @@ def MTTC(samples, toreturn='dataframe'):
 
         if toreturn=='dataframe':
             samples = samples.copy()
-            samples['TTC'] = mttc
+            samples['MTTC'] = mttc
             return samples
         elif toreturn=='values':
             return mttc.values
