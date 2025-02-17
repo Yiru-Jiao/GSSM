@@ -155,8 +155,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
         print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
     else:
         print('--- Evaluating with TTC, DRAC, and MTTC ---')
-        event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-        results = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
+        results = data.merge(pd.DataFrame(event_id_list, columns=['event_id','target_id','time']),
+                             on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
         for column in results.columns:
             if '_ego' in column:
@@ -191,9 +191,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
         print(f'The events has been evaluated by TAdv, TTC2D, ACT, and EI.')
     else:
         print('--- Evaluating with TAdv, TTC2D, ACT, and EI ---')
-        if isinstance(event_id_list, np.ndarray):
-            event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-        results = data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
+        results = data.merge(pd.DataFrame(event_id_list, columns=['event_id','target_id','time']),
+                             on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
         for column in results.columns:
             if '_ego' in column:
