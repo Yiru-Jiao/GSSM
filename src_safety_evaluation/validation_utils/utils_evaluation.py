@@ -291,7 +291,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
     events = safety_evaluation.set_index('event_id')
     event_ids = np.intersect1d(event_meta.index.values, events.index.unique())
 
-    records = event_meta[['danger_start', 'danger_end', 'reaction_timestamp']].copy()
+    records = event_meta[['danger_start', 'danger_end', 'reaction_timestamp', 'impact_timestamp']].copy()
     records['indicator'] = indicator
     records['optimal_threshold'] = optimal_threshold
     for event_id in event_ids:
