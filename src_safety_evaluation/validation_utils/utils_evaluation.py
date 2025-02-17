@@ -309,13 +309,12 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         records.loc[event_id, 'target_id'] = target_id
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
-        if indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
-            if median_before_danger < median_danger:
-                records.loc[event_id, 'danger_recorded'] = False
-        elif indicator in ['DRAC', 'EI', 'SSSE']:
-            if median_before_danger > median_danger:
-                records.loc[event_id, 'danger_recorded'] = False
-        if not records.loc[event_id, 'danger_recorded']:
+            continue
+        if (indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']) and (median_before_danger < median_danger):
+            records.loc[event_id, 'danger_recorded'] = False
+            continue
+        if (indicator in ['DRAC', 'EI', 'SSSE']) and (median_before_danger > median_danger):
+            records.loc[event_id, 'danger_recorded'] = False
             continue
         target = event[event['target_id']==target_id]
 
