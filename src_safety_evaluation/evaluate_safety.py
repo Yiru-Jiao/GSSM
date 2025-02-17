@@ -50,6 +50,15 @@ def set_veh_dimensions(event_meta, avg_width, avg_length):
     return veh_dimensions
 
 
+def evaluate(eval_func, model, eval_config, eval_efficiency, results, path_save):
+    time_start = systime.time()
+    results = eval_func(results, *eval_config)
+    time_end = systime.time()
+    eval_efficiency.loc[len(eval_efficiency)] = [model, time_end-time_start, results['target_id'].nunique(), len(results)]
+    eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
+    return results, eval_efficiency
+
+
 def main(args, events, manual_seed, path_prepared, path_result):
     initial_time = systime.time()
     print('Available cpus:', torch.get_num_threads(), 'available gpus:', torch.cuda.device_count())
@@ -136,9 +145,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
     # Safety evaluation
     if os.path.exists(path_save + 'evaluation_efficiency.csv'):
-        eval_efficiency = pd.read_csv(path_save + 'evaluation_efficiency.csv', dtype={'model_name':str,'time':float,'num_events':int})
+        eval_efficiency = pd.read_csv(path_save + 'evaluation_efficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
     else:
-        eval_efficiency = pd.DataFrame(columns=['model_name','time','num_events'])
+        eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
         eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
 
     # 1D SSMs adapted to 2D
@@ -160,21 +169,18 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['vx_j'] = results['v_j']*results['hx_j']
         results['vy_j'] = results['v_j']*results['hy_j']
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
+
+        results, eval_efficiency = evaluate(longitudinal_ssms.TTC, 'TTC',
+                                            {'samples':results, 'toreturn':'dataframe'},
+                                            eval_efficiency, results, path_save)
         
-        time_start = systime.time()
-        results = longitudinal_ssms.TTC(results, 'dataframe')
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = ['TTC', time_end-time_start, len(event_id_list)]
-
-        time_start = systime.time()
-        results = longitudinal_ssms.DRAC(results, 'dataframe')
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = ['DRAC', time_end-time_start, len(event_id_list)]
-
-        time_start = systime.time()
-        results = longitudinal_ssms.MTTC(results, 'dataframe')
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = ['MTTC', time_end-time_start, len(event_id_list)]
+        results, eval_efficiency = evaluate(longitudinal_ssms.DRAC, 'DRAC',
+                                            {'samples':results, 'toreturn':'dataframe'},
+                                            eval_efficiency, results, path_save)
+        
+        results, eval_efficiency = evaluate(longitudinal_ssms.MTTC, 'MTTC',
+                                            {'samples':results, 'toreturn':'dataframe'},
+                                            eval_efficiency, results, path_save)
 
         results['s_box'] = longitudinal_ssms.CurrentD(results, 'values')
         results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','acc_i','s_box', 'TTC', 'DRAC', 'MTTC']]
@@ -201,25 +207,21 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['vy_j'] = results['v_j']*results['hy_j']
         results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
         
-        time_start = systime.time()
-        results = two_dimensional_ssms.TAdv(results, 'dataframe')
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = ['TAdv', time_end-time_start, len(event_id_list)]
-
-        time_start = systime.time()
-        results = two_dimensional_ssms.TTC2D(results, 'dataframe')
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = ['TTC2D', time_end-time_start, len(event_id_list)]
-
-        time_start = systime.time()
-        results = two_dimensional_ssms.ACT(results, 'dataframe')
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = ['ACT', time_end-time_start, len(event_id_list)]
-
-        time_start = systime.time()
-        results = get_EI(results, toreturn='dataframe', D_safe=0.) # D_safe is the buffer and can be adjusted
-        time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = ['EI', time_end-time_start, len(event_id_list)]
+        results, eval_efficiency = evaluate(two_dimensional_ssms.TAdv, 'TAdv',
+                                            {'samples':results, 'toreturn':'dataframe'},
+                                            eval_efficiency, results, path_save)
+        
+        results, eval_efficiency = evaluate(two_dimensional_ssms.TTC2D, 'TTC2D',
+                                            {'samples':results, 'toreturn':'dataframe'},
+                                            eval_efficiency, results, path_save)
+        
+        results, eval_efficiency = evaluate(two_dimensional_ssms.ACT, 'ACT',
+                                            {'samples':results, 'toreturn':'dataframe'},
+                                            eval_efficiency, results, path_save)
+        
+        results, eval_efficiency = evaluate(get_EI, 'EI', # D_safe is the buffer and can be adjusted
+                                            {'samples':results, 'toreturn':'dataframe', 'D_safe':0.},
+                                            eval_efficiency, results, path_save)
 
         results = results[['event_id','target_id','time','TAdv','TTC2D','ACT','EI']]
         results.to_hdf(path_save + f'TAdv_TTC2D_ACT_EI.h5', key='data', mode='w')
@@ -268,7 +270,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
         time_start = systime.time()
         mu, sigma, max_intensity = SSSE(states, model, device)
         time_end = systime.time()
-        eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, len(event_id_list)]
 
         results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
         results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
@@ -277,8 +278,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['sigma'] = sigma
         results['intensity'] = max_intensity
         results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
+        eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, results['target_id'].nunique(), len(results)]
+        eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
 
-    eval_efficiency.to_csv(path_save + 'evaluation_efficiency.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
