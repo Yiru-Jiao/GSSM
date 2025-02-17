@@ -253,18 +253,18 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
     if curve_type=='ROC':
         statistics['true positive rate'] = statistics['TP']/(statistics['TP']+statistics['FN'])
         statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
-        if conflict_indicator in ['TTC', 'MTTC', 'ACT', 'TAdv', 'TTC2D', 'EI']:
-            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, True])
+        if conflict_indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, False, True])
         else:
-            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, True, False])
+            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, False, False])
         statistics['combined rate'] = (1-statistics['true positive rate'])**2+(statistics['false positive rate'])**2
     elif curve_type=='PRC':
         statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
         statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
-        if conflict_indicator in ['TTC', 'MTTC', 'ACT', 'TAdv', 'TTC2D', 'EI']:
-            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, True, True])
+        if conflict_indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, True])
         else:
-            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, True, False])
+            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
         statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
     optimal_rate = statistics['combined rate'].min()
     optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate]
@@ -275,55 +275,62 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
     else:
         if curve_type=='ROC':
             print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
-                ' optimal threshold: ', optimal_threshold['threshold'], 
-                ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
-                ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
+                 ' optimal threshold: ', optimal_threshold['threshold'], 
+                 ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
+                 ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
         elif curve_type=='PRC':
             print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
-                ' optimal threshold: ', optimal_threshold['threshold'], 
-                ' precision: ', round(optimal_threshold['precision']*100, 2),
-                ' recall: ', round(optimal_threshold['recall']*100, 2))
+                 ' optimal threshold: ', optimal_threshold['threshold'], 
+                 ' precision: ', round(optimal_threshold['precision']*100, 2),
+                 ' recall: ', round(optimal_threshold['recall']*100, 2))
         return optimal_threshold['threshold']
 
 
-def issue_warning(indicator, threshold, safety_evaluation, event_data, event_meta):
-    event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
+def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
     safety_evaluation = safety_evaluation.sort_values(['target_id','time'])
     events = safety_evaluation.set_index('event_id')
     event_ids = np.intersect1d(event_meta.index.values, events.index.unique())
 
     records = event_meta[['danger_start', 'danger_end', 'reaction_timestamp']].copy()
+    records['indicator'] = indicator
+    records['optimal_threshold'] = optimal_threshold
     for event_id in event_ids:
         event = events.loc[event_id].copy()
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
-        if len(danger)<5:
+        before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
+        if danger.groupby('target_id')['time'].count().max()<5:
             records.loc[event_id, 'danger_recorded'] = False
             continue
 
         # Determine the conflicting target
-        target_id = determine_target(indicator, danger)
+        target_id, median_before_danger, median_danger = determine_target(indicator, danger, before_danger)
         records.loc[event_id, 'target_id'] = target_id
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
+        if indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+            if median_before_danger < median_danger:
+                records.loc[event_id, 'danger_recorded'] = False
+        elif indicator in ['DRAC', 'EI', 'SSSE']:
+            if median_before_danger > median_danger:
+                records.loc[event_id, 'danger_recorded'] = False
+        if not records.loc[event_id, 'danger_recorded']:
             continue
         target = event[event['target_id']==target_id]
 
-        # Determine first warning moment: the last safe->unsafe transition moment before impact_timestamp
-        target = determine_conflicts(target, indicator, threshold)
+        # Determine first warning moment: the last safe->unsafe transition moment before impact timestamp
+        target = determine_conflicts(target, indicator, optimal_threshold)
 
         warning = target[target['time']<=event_meta.loc[event_id, 'impact_timestamp']/1000]['conflict'].astype(int).values
-        warning_change = warning[1:] - warning[:-1]
-        first_warning = np.where(warning_change==1)[0]
+        warning_change = warning[1:] - warning[:-1] # 1: safe->unsafe, -1: unsafe->safe, 0: no change
+        first_warning = np.where(warning_change>0.5)[0]
         if len(first_warning)>0:
-            records.loc[event_id,'first_warning_timestamp'] = int(target.iloc[first_warning[-1]+1]['time']*1000)
-        else:
+            records.loc[event_id,'first_warning_timestamp'] = target.iloc[first_warning[-1]+1]['time']*1000
+        else: # no warning before impact
             records.loc[event_id,'first_warning_timestamp'] = np.nan
 
         del event # release memory
-    records['indicator'] = indicator
-    records['optimal_threshold'] = threshold
     return records
 
 
