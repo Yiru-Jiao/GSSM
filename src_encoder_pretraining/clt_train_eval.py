@@ -43,7 +43,7 @@ def parse_args():
     args.regularizer = None
     args.bandwidth = 1.
     args.iters = None
-    args.epochs = 30
+    args.epochs = 100
     args.batch_size = 8
     args.lr = 0.001
     args.weight_lr = 0.01
@@ -156,9 +156,9 @@ def main(args):
         model = spclt(**model_config)
         model.load(f'{save_dir}/{best_model}')
 
-        # Evaluate model for UEA datasets
+        # Evaluate model
         print(f'Evaluating with {best_model} ...')
-        
+
         ## distance and density results
         local_dist_dens_results = evaluate(test_data, model, batch_size=128, local=True)
         global_dist_dens_results = evaluate(test_data, model, batch_size=128, local=False)
@@ -166,7 +166,7 @@ def main(args):
         ## loss results
         test_sim_mat = None
         test_soft_assignments = datautils.assign_soft_labels(test_sim_mat, args.tau_inst)
-        loss_results = model.compute_loss(test_data, test_soft_assignments, non_regularized=False)
+        loss_results = model.compute_loss(test_data, test_soft_assignments)
         loss_results = {'cl_loss': loss_results[1],
                         'sp_loss': loss_results[3] if args.regularizer is not None else np.nan}
 
@@ -180,7 +180,7 @@ def main(args):
 
         # Save evaluation results per dataset and model
         eval_results.to_csv(results_dir)
-            
+
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
