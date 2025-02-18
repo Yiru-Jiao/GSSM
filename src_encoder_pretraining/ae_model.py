@@ -18,11 +18,7 @@ from src_encoder_pretraining.modules.regularizers import *
 class shared_decoder(nn.Module):
     def __init__(self, input_dims, output_dims):
         super(shared_decoder, self).__init__()
-        self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, 32),
-            nn.ReLU(),
-            nn.Linear(32, output_dims),
-        )
+        self.feature_extractor = nn.Linear(input_dims, output_dims)
 
     def forward(self, x):
         return self.feature_extractor(x)
@@ -32,13 +28,16 @@ class model(nn.Module):
     def __init__(self, encoder_name):
         super(model, self).__init__()
         if encoder_name == 'current':
+            self.encoder = current_encoder(input_dims=10, output_dims=64)
+            self.decoder = shared_decoder(input_dims=10*64, output_dims=10)
+        elif encoder_name == 'current+acc':
             self.encoder = current_encoder(input_dims=11, output_dims=64)
             self.decoder = shared_decoder(input_dims=11*64, output_dims=11)
         elif encoder_name == 'environment':
             self.encoder = environment_encoder(input_dims=27, output_dims=64)
             self.decoder = shared_decoder(input_dims=64, output_dims=27)
         else:
-            ValueError("Undefined encoder name: should be either 'current' or 'environment'.")
+            ValueError("Undefined encoder name: should be among 'current', 'current+acc', 'environment'.")
 
     def forward(self, x):
         latent = self.encoder(x)
@@ -56,12 +55,11 @@ class autoencoder():
         self.net = model(encoder_name).to(self.device)
         self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device))
         self.after_epoch_callback = after_epoch_callback
-        if encoder_name == 'current':
+        if 'current' in encoder_name:
             self.stop_threshold = 1e-3
         elif encoder_name == 'environment':
             self.stop_threshold = 1e-4
         self.encoder_name = encoder_name
-        self.encode_args = {'batch_size': 512, 'encoding_window': 'full_series'}
 
 
     # define eval() and train() functions
@@ -74,7 +72,7 @@ class autoencoder():
         self.loss_log_vars.requires_grad = True
 
 
-    def loss_func_topo(self, input, target):
+    def loss_func_topo(self, input, target): # used for environment encoder
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
         loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
         loss_topo = topo_loss(self, input)
@@ -82,7 +80,7 @@ class autoencoder():
         return loss_ae + loss_topo
         
 
-    def loss_func_ggeo(self, input, target):
+    def loss_func_ggeo(self, input, target): # used for current encoder
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
         loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
         loss_ggeo = geo_loss(self, input, 1.)
@@ -118,9 +116,7 @@ class autoencoder():
                 self.optimizer, mode='min', factor=0.6, patience=4, cooldown=6,
                 threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
                 )
-
-            val_loss_log = np.zeros(n_epochs+4) * np.nan
-            val_loss_log[:4] = np.array([init_loss for init_loss in range(100, 96, -1)])
+            val_loss_log = np.zeros(n_epochs) * np.nan
 
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
@@ -135,7 +131,7 @@ class autoencoder():
             train_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
             for train_batch_iter, (x, idx) in enumerate(train_loader, start=1):
                 self.optimizer.zero_grad()
-                if self.encoder_name == 'current':
+                if 'current' in self.encoder_name:
                     x = x.to(self.device)
                     loss = self.loss_func_ggeo(x, self.net(x))
                 elif self.encoder_name == 'environment':
@@ -154,25 +150,22 @@ class autoencoder():
                 with torch.no_grad():
                     val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
                     for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
-                        if self.encoder_name == 'current':
+                        if 'current' in self.encoder_name:
                             x = x.to(self.device)
                             val_loss += self.loss_func_ggeo(x, self.net(x))
                         elif self.encoder_name == 'environment':
                             x = x.to(self.device)
                             val_loss += self.loss_func_topo(x, self.net(x))
-                    val_loss_log[self.epoch_n+4] = val_loss.item() / val_batch_iter
+                    val_loss_log[self.epoch_n] = val_loss.item() / val_batch_iter
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
-                    self.scheduler.step(val_loss_log[self.epoch_n+4])
-
-                stop_condition1 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+5])
-                stop_condition1 = np.all(abs(stop_condition1/val_loss_log[self.epoch_n])<self.stop_threshold)
-                stop_condition2 = np.diff(val_loss_log[self.epoch_n:self.epoch_n+4])
-                stop_condition2 = np.all(abs(stop_condition2/val_loss_log[self.epoch_n])<self.stop_threshold/10)
-                if stop_condition1 or stop_condition2:
-                    # early stopping if validation loss converges
-                    print('Early stopping due to validation loss convergence.')
-                    break
+                    self.scheduler.step(val_loss_log[self.epoch_n])
+                    stop_condition = np.diff(val_loss_log[self.epoch_n-5:]) # diff in the last 5 epochs
+                    stop_condition = np.all(abs(stop_condition/val_loss_log[self.epoch_n-5:self.epoch_n-1])<self.stop_threshold)
+                    if stop_condition:
+                        # early stopping if validation loss converges
+                        print('Early stopping due to validation loss convergence.')
+                        continue_training = False
 
             # save model if callback every several epochs
             if self.after_epoch_callback is not None:
@@ -182,17 +175,17 @@ class autoencoder():
             if verbose > 6:
                 if scheduler == 'reduced':
                     progress_bar.set_postfix(loss=loss_log[self.epoch_n], 
-                                                val_loss=val_loss_log[self.epoch_n+4], 
-                                                lr=self.optimizer.param_groups[0]['lr'], refresh=False)
+                                             val_loss=val_loss_log[self.epoch_n], 
+                                             lr=self.optimizer.param_groups[0]['lr'], refresh=False)
                 else:
                     progress_bar.set_postfix(loss=loss_log[self.epoch_n], refresh=False)
                 progress_bar.update(1)
-            else: # update every 20% of the total epochs
+            else:
                 step = n_epochs // (1+verbose*4)
                 if (self.epoch_n+1) % step == 0:
                     if scheduler == 'reduced':
                         progress_bar.set_postfix(loss=loss_log[self.epoch_n], 
-                                                 val_loss=val_loss_log[self.epoch_n+4],
+                                                 val_loss=val_loss_log[self.epoch_n],
                                                  lr=self.optimizer.param_groups[0]['lr'], refresh=False)
                     else:
                         progress_bar.set_postfix(loss=loss_log[self.epoch_n], refresh=False)
@@ -208,7 +201,7 @@ class autoencoder():
         if self.after_epoch_callback is not None:
             self.after_epoch_callback(self, finish=True)
 
-        return loss_log[:self.epoch_n+1], val_loss_log[4:self.epoch_n+5] if scheduler == 'reduced' else np.zeros_like(loss_log)*np.nan
+        return loss_log[:self.epoch_n+1], val_loss_log[:self.epoch_n+1] if scheduler == 'reduced' else np.zeros_like(loss_log)*np.nan
 
 
     def compute_loss(self, val_data):
@@ -220,7 +213,7 @@ class autoencoder():
         loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, idx) in enumerate(val_loader, start=1):
-                if self.encoder_name == 'current':
+                if 'current' in self.encoder_name:
                     x = x.to(self.device)
                     loss += self.loss_func_ggeo(x, self.net(x))
                 elif self.encoder_name == 'environment':
@@ -232,7 +225,7 @@ class autoencoder():
         return loss.item() / val_batch_iter
     
 
-    def encode(self, val_data, batch_size=512, encoding_window='full_series'):
+    def encode(self, val_data, batch_size=512):
         org_training = self.net.training
         self.eval()
 
@@ -255,7 +248,7 @@ class autoencoder():
         
         if org_training:
             self.train()
-        return encoded_data # (n_samples, 11, 64) for current, (n_samples, 1, 64) for environment
+        return encoded_data # (n_samples, 10, 64) for current+acc, (n_samples, 11, 64) for current, (n_samples, 1, 64) for environment
 
 
     def save(self, fn):
