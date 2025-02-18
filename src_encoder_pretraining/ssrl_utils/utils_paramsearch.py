@@ -76,7 +76,7 @@ class trainer():
 
     def score(self, test_data):
         soft_assignments = datautils.assign_soft_labels(None, self.tau_inst)
-        return -self.encoder.compute_loss(test_data, soft_assignments, non_regularized=True)
+        return -self.encoder.compute_loss(test_data, soft_assignments)
     
 
 def grid_search(params, dataset, dist_metric, 
