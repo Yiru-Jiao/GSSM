@@ -1,7 +1,7 @@
 '''
 This script defines the encoders for models.
-TSEncoder is adapted from TS2Vec https://github.com/zhihanyue/ts2vec
-All adaptations are marked with comments.
+The TSEncoder is adapted from TS2Vec https://github.com/zhihanyue/ts2vec All adaptations are marked with comments.
+Eventually we use LSTM instead of TSEncoder because it's very slow for large-scale data.
 '''
 
 import torch
@@ -9,6 +9,37 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
+
+#####################
+##   LSTM Encoder  ##
+#####################
+
+class LSTMEncoder(nn.Module):
+    def __init__(self, input_dim=3, hidden_dim=20*64, num_layers=2, single_output=False):
+        super(LSTMEncoder, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.single_output = single_output
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+
+    def forward(self, x): # x: (batch_size, seq_length=20, feature_dim=3)
+        # Initialize hidden and cell states
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        
+        # Forward propagate through LSTM
+        output, (hidden, cell) = self.lstm(x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dim)
+        if self.single_output:
+            # Only return the hidden state of the last LSTM layer
+            return hidden[-1].view(x.size(0), x.size(1), -1) # (batch_size, seq_length, hidden_dim//seq_length)
+        else:
+            # Return all
+            return output, (hidden, cell)
+
+
+#######################
+##     TSEncoder     ##
+#######################
 
 def generate_continuous_mask(B, T, n=5, l=0.1):
     res = torch.full((B, T), True, dtype=torch.bool)
