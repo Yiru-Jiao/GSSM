@@ -17,39 +17,40 @@ from torch.utils.data import DataLoader
 
 def set_experiments(stage=[1,2,3,4,5]):
     exp_config = []
-    if 1 in stage:
+    if 1 in stage: # single dataset, current only
         exp_config.extend([
             [['highD'], ['current'], [], False],
             [['SafeBaseline'], ['current'], [], False],
-            [['SafeBaseline'], ['current', 'environment'], [], False],
             [['INTERACTION'], ['current'], [], False],
             [['Argoverse'], ['current'], [], False],
         ])
-    if 2 in stage:
+    if 2 in stage: # multiple datasets, current only
         exp_config.extend([
-            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], False],
-            [['Argoverse', 'SafeBaseline', 'highD'], ['current'], [], False],
-            [['Argoverse', 'INTERACTION', 'highD'], ['current'], [], False],
             [['Argoverse', 'SafeBaseline'], ['current'], [], False],
-            [['Argoverse', 'INTERACTION'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline', 'highD'], ['current'], [], False],
+            [['Argoverse', 'SafeBaseline', 'highD', 'INTERACTION'], ['current'], [], False],
         ])
-    if 3 in stage:
+    if 3 in stage: # single dataset, encoder pretrained with all datasets
         exp_config.extend([
-            [['Argoverse', 'SafeBaseline', 'INTERACTION', 'highD'], ['current'], [], True],
+            [['highD'], ['current'], [], True],
             [['SafeBaseline'], ['current'], [], True],
-            [['SafeBaseline'], ['current', 'environment'], [], True],
-            # [['highD'], ['current'], [], True],
-            # [['INTERACTION'], ['current'], [], True],
-            # [['Argoverse'], ['current'], [], True],
+            [['INTERACTION'], ['current'], [], True],
+            [['Argoverse'], ['current'], [], True],
         ])
-    if 4 in stage:
+    if 4 in stage: # on SafeBaseline, add environment and profiles
         exp_config.extend([
-            [['highD'], ['current','profiles'], [], False],
+            [['SafeBaseline'], ['current', 'environment'], [], False],
+            [['SafeBaseline'], ['current', 'environment'], [], True],
             [['SafeBaseline'], ['current','environment','profiles'], [], False],
+            [['SafeBaseline'], ['current','environment','profiles'], [], True],
+        ])
+    if 5 in stage: # best performing model plus profiles
+        exp_config.extend([
+            # [['highD'], ['current','profiles'], [], False],
             # [['SafeBaseline'], ['current','environment','profiles'], [], True],
             # [['Argoverse', 'SafeBaseline'], ['current','profiles'], [], True],
         ])
-    # if 5 in stage:
+    # if 6 in stage: # model variants, cross attention
     #     exp_config.extend([
             # [[], ['current','profiles'], ['first'], False],
             # [[], ['current','profiles'], ['first'], True],
@@ -74,7 +75,7 @@ class train_val_test():
         dataset_name = '_'.join(dataset)
         self.dataset_name = dataset_name
         if encoder_selection == 'all':
-            encoder_selection = ['current', 'environment', 'profiles']
+            encoder_selection = ['current+acc', 'environment', 'profiles']
         encoder_name = '_'.join(encoder_selection)
         self.encoder_name = encoder_name
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention) > 0 else 'not_crossed'
@@ -118,7 +119,7 @@ class train_val_test():
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
-        val_loss_log = []
+        val_loss_log = np.ones(num_epochs)*np.inf
 
         self.model.train()
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
@@ -140,11 +141,10 @@ class train_val_test():
         else:
             progress_bar = range(num_epochs)
 
-        break_flag = False
         if 'profiles' in self.encoder_selection:
             scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         for epoch_n in progress_bar:
-            train_loss = torch.tensor(0.0).to(self.device)
+            train_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
             for train_batch_iter, (x, y) in enumerate(self.train_dataloader, start=1):
                 self.optimizer.zero_grad()
                 if 'profiles' in self.encoder_selection:
@@ -165,7 +165,7 @@ class train_val_test():
             val_loss = self.val_loop()
             if lr_schedule:
                 self.scheduler.step(val_loss)
-            val_loss_log.append(val_loss)
+            val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
             if self.verbose > 0:
@@ -175,27 +175,23 @@ class train_val_test():
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
-            if epoch_n > 15:
-                stop_condition = np.all(abs(np.diff(val_loss_log)[-4:]/val_loss_log[-4:])<1e-3)
-                if stop_condition:
-                    break_flag = True
-            if break_flag:
+            if (epoch_n>15) and np.all(abs(np.diff(val_loss_log[-5:])/val_loss_log[-5:-1])<1e-3):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
-        self.val_loss_log = np.array(val_loss_log)
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
             loss_log = loss_log[loss_log<np.inf]
+            val_loss_log = val_loss_log[val_loss_log<np.inf]
             loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
-                                    data={'train_loss': loss_log, 'val_loss': self.val_loss_log})
+                                    data={'train_loss': loss_log, 'val_loss': val_loss_log})
             loss_log.to_csv(self.path_output+'loss_log.csv')
 
     # Validation loop
     def val_loop(self,):
         self.model.eval()
-        val_loss = torch.tensor(0.0).to(self.device)
+        val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
                 if 'profiles' in self.encoder_selection:
