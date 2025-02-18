@@ -10,7 +10,7 @@ from src_encoder_pretraining.modules.loss_utils import *
 
 def topo_loss(model, x):
     # encode using model
-    latent = model.encode(x, **model.encode_args)
+    latent = model.encode(x)
 
     # compute and normalize distances in the original sapce and latent space
     x_distances = topo_euclidean_distance_matrix(x) # (B, N, N)
