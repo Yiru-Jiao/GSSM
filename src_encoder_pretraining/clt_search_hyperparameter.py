@@ -2,11 +2,11 @@
 This script searches the hyperparameters for the contrastive learning training of the profile encoder.
 
 Search strategy:
-Fix `lr`=0.001 and `bs`=8, the training score is the contrastive learning loss (without regularization)
+Fix `lr`=0.001, the training score is the contrastive learning loss (without regularization)
 
 - SoftCLT (use soft labels, no regularizer):
   Phase 1: with other parameters default, search for best `tau_temp` and `temporal_hierarchy`
-  Phase 2: with best `tau_temp` and `temporal_hierarchy`, search for best `tau_inst`
+  Phase 2: with best `tau_temp` and `temporal_hierarchy`, search for best `tau_inst` and `batch_size`
 
 - TopoSoftCLT (use soft labels, topology regularizer):
   Phase 0: set default `tau_inst`, `tau_temp`, `temporal_hierarchy`, `batch_size` to the best tuned values from SoftCLT
@@ -17,8 +17,8 @@ Fix `lr`=0.001 and `bs`=8, the training score is the contrastive learning loss (
   Phase 1: with other parameters default, search for best `bandwidth` and `weight_lr`
 
 -------------------------------------------------------------------------------------------------------
-|            |  SoftCLT | TopoSoftCLT | GGeoSoftCLT |  in total  |
-|    runs    |  5x3+5   |      3      |     5x3     |     38     |
+|            |  SoftCLT   | TopoSoftCLT | GGeoSoftCLT |  in total  |
+|    runs    |  5x3+5x3   |      3      |     5x3     |     48     |
 -------------------------------------------------------------------------------------------------------
 '''
 
@@ -112,7 +112,7 @@ def main(args):
                     'tau_temp': [0.5, 1., 1.5, 2., 2.5], # used in softclt study
                     'temporal_hierarchy': [None, 'linear', 'exponential'],
                     'bandwidth': [0.25, 1., 9., 25., 49.], # used in geometry regularizer only
-                    'batch_size': [8], # to save time, 8 has been tuned in our previous study
+                    'batch_size': [8, 16, 32],
                     'weight_lr': [0.005, 0.01, 0.05]}
     print(f"--- batch_size search space: {search_space['batch_size']} ---")
 
