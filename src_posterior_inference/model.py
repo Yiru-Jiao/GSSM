@@ -43,21 +43,21 @@ class custom_dataset(Dataset):
     
 
 class UnifiedProximity(nn.Module):
-    def __init__(self, device, encoder_selection='all', cross_attention=[], return_attention=False, mask_mode=None):
+    def __init__(self, device, encoder_selection='all', cross_attention=[], return_attention=False):
         super(UnifiedProximity, self).__init__()
         self.device = device
         if encoder_selection=='all':
-            encoder_selection = ['current', 'environment', 'profiles']
+            encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
-        if 'current' in encoder_selection:
-            self.current_encoder = modules.current_encoder()
+        if 'current' in encoder_selection or 'current+acc' in encoder_selection:
+            self.current_encoder = modules.current_encoder(input_dims=1, output_dims=64)
         else:
             Warning('Current encoder must be selected.')
         if 'environment' in encoder_selection:
-            self.environment_encoder = modules.environment_encoder()
+            self.environment_encoder = modules.environment_encoder(input_dims=27, output_dims=64)
         if 'profiles' in encoder_selection:
-            self.ts_encoder = modules.ts_encoder(device, mask_mode=mask_mode)
+            self.ts_encoder = modules.ts_encoder(device, input_dims=3, output_dims=64)
         self.attention_decoder = modules.attention_decoder(encoder_selection=self.encoder_selection,
                                                            cross_attention=self.cross_attention,
                                                            return_attention=return_attention)
@@ -67,7 +67,7 @@ class UnifiedProximity(nn.Module):
         pretraining_evaluation = pretraining_evaluation.copy()
         order_columns = []
         for column in pretraining_evaluation.columns:
-            if 'global_' in column:
+            if 'global_' in column or 'local_' in column:
                 if 'dist' in column:
                     pretraining_evaluation[f'order_{column}'] = pretraining_evaluation[column].rank(ascending=True)
                 else:
@@ -92,23 +92,23 @@ class UnifiedProximity(nn.Module):
             self.ts_encoder.load(best_model['model'], self.device, path_prepared)
 
     def define_combi_encoder(self,):
-        if self.encoder_selection==['current']:
+        if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_encoder(x):
                 x_current = self.current_encoder(x)
                 return (x_current,)
-        elif self.encoder_selection==['current','environment']:
+        elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
                 x_current = self.current_encoder(x_current)
                 x_environment = self.environment_encoder(x_environment)
                 return (x_current, x_environment)
-        elif self.encoder_selection==['current','profiles']:
+        elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
             def combi_encoder(x):
                 x_current, x_ts = x
                 x_current = self.current_encoder(x_current)
                 x_ts = self.ts_encoder(x_ts)
                 return (x_current, x_ts)
-        elif self.encoder_selection==['current','environment','profiles']:
+        elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
                 x_current = self.current_encoder(x_current)
@@ -124,7 +124,7 @@ class UnifiedProximity(nn.Module):
         out = self.attention_decoder(latent)
         return out # (mu, sigma) if return_attention=False; (mu, sigma, hidden_states) if return_attention=True
 
-    def encode(self, states, batch_size, encoding_window=None):
+    def encode(self, states, batch_size):
         contexts, _ = states
         data_loader = DataLoader(custom_dataset(contexts), batch_size=batch_size, shuffle=False)
 
