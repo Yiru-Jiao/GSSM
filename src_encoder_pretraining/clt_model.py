@@ -1,6 +1,7 @@
 '''
 This script defines models for structure-preserving time series contrastive learning.
 The backbone is adapted from TS2Vec https://github.com/zhihanyue/ts2vec and SoftCLT https://github.com/seunghan96/softclt
+We don't use the original TSEncoder because it's very slow for large-scale data
 '''
 
 import os
@@ -17,12 +18,11 @@ import src_encoder_pretraining.ssrl_utils.utils_data as datautils
 
 class spclt():
     def __init__(self,
-        input_dims, output_dims=64, hidden_dims=128, depth=4, mask_mode=None,
+        input_dims=3, output_dims=64, hidden_dims=128, depth=4, mask_mode=None,
         dist_metric='DTW', device='cpu', lr=0.001, weight_lr=0.05, batch_size=8,
         after_iter_callback=None, after_epoch_callback=None,
         regularizer_config={'reserve': None, 'topology': 0.0, 'geometry': 0.0},
         loss_config=None,
-        encode_args=None,
         ):
         """
         Initialize the spclt model.
@@ -35,23 +35,24 @@ class spclt():
         self.batch_size = batch_size
         self.loss_config = loss_config
         self.regularizer_config = regularizer_config
-        self.encode_args = encode_args
                 
         # define encoder
-        self._net = encoder.TSEncoder(input_dims=input_dims,
-                                      output_dims=output_dims,
-                                      hidden_dims=hidden_dims,
-                                      depth=depth,
-                                      mask_mode=mask_mode).to(self.device)
+        # self._net = encoder.TSEncoder(input_dims=input_dims,
+        #                               output_dims=output_dims,
+        #                               hidden_dims=hidden_dims,
+        #                               depth=depth,
+        #                               mask_mode=mask_mode).to(self.device)
+        self._net = encoder.LSTMEncoder(input_dims=input_dims,
+                                        hidden_dim=20*output_dims,
+                                        num_layers=2,
+                                        single_output=True).to(self.device)
 
         # self._net.apply(self.initialize_weights) # random initialization
         self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device)
         self.net.update_parameters(self._net)
 
         # define learner of log variances used for weighing losses
-        if self.regularizer_config['reserve'] == 'both':
-            self.loss_log_vars = torch.nn.Parameter(torch.zeros(3, device=self.device))
-        elif self.regularizer_config['reserve'] in ['topology', 'geometry']:
+        if self.regularizer_config['reserve'] in ['topology', 'geometry']:
             self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device))
         
         # define callback functions
@@ -109,7 +110,7 @@ class spclt():
                     n_iters = int(n_iters * coef)
                     break
             if num_samples >= sample_bounds[-1]:
-                n_iters = int(n_iters / 100)
+                n_iters = int(n_iters / 64)
             print(f'Number of iterations is set to {n_iters}.')
 
         # define a progress bar
@@ -204,7 +205,7 @@ class spclt():
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
-        train_iters = int(len(train_loader)*0.25) # use 25% of the total iterations per epoch
+        train_iters = int(len(train_loader)*0.5) # use 50% of the total iterations per epoch
         if n_epochs is not None:
             if self.regularizer_config['reserve'] is None:
                 loss_log = np.zeros((n_epochs, 1)) * np.nan
@@ -232,7 +233,7 @@ class spclt():
                 train_loss_comp = torch.zeros(4, device=self.device, requires_grad=False)
             for train_batch_iter, (x, idx) in enumerate(train_loader):
                 if n_epochs is not None and train_batch_iter >= train_iters:
-                    break # use 25% of the total iterations per epoch, after 20 epochs 99.68% of the data is used
+                    break # use 50% of the total iterations per epoch, after 10 epochs 99.90% of the data is used
 
                 if train_soft_assignments is None:
                     soft_labels = None
@@ -273,7 +274,7 @@ class spclt():
                     if verbose > 6:
                         progress_bar.set_postfix(loss=loss.item(), refresh=False)
                         progress_bar.update(1)
-                    else: # update every 20% of the total iterations
+                    else:
                         step = n_iters // (1+verbose*4)
                         if (self.iter_n+1) % step == 0:
                             progress_bar.set_postfix(loss=loss.item(), refresh=False)
@@ -343,7 +344,7 @@ class spclt():
                     else:
                         progress_bar.set_postfix(loss=train_loss, refresh=False)
                     progress_bar.update(1)
-                else: # update every 20% of the total epochs
+                else:
                     step = n_epochs // (1+verbose*4)
                     if (self.epoch_n+1) % step == 0:
                         if scheduler == 'reduced':
@@ -374,7 +375,7 @@ class spclt():
                 return loss_log[:self.epoch_n]
     
 
-    def compute_loss(self, val_data, soft_assignments, non_regularized=False, loss_config=None):
+    def compute_loss(self, val_data, soft_assignments, loss_config=None):
         """
         Computes the loss for the given validation data and soft assignments.
         """
@@ -511,65 +512,66 @@ class spclt():
             output = []
             for x, _ in dataloader:
                 x = x.to(self.device)
-                if sliding_length is not None:
-                    reprs = []
-                    if n_samples < batch_size:
-                        calc_buffer = []
-                        calc_buffer_l = 0
-                    for i in range(0, ts_l, sliding_length):
-                        l = i - sliding_padding
-                        r = i + sliding_length + (sliding_padding if not causal else 0)
-                        x_sliding = self.torch_pad_nan(
-                            x[:, max(l, 0) : min(r, ts_l)],
-                            left=-l if l<0 else 0,
-                            right=r-ts_l if r>ts_l else 0,
-                            dim=1
-                        )
-                        if n_samples < batch_size:
-                            if calc_buffer_l + n_samples > batch_size:
-                                out = self._eval_with_pooling(
-                                    torch.cat(calc_buffer, dim=0),
-                                    mask,
-                                    slicing=slice(sliding_padding, sliding_padding+sliding_length),
-                                    encoding_window=encoding_window
-                                )
-                                reprs += torch.split(out, n_samples)
-                                calc_buffer = []
-                                calc_buffer_l = 0
-                            calc_buffer.append(x_sliding)
-                            calc_buffer_l += n_samples
-                        else:
-                            out = self._eval_with_pooling(
-                                x_sliding,
-                                mask,
-                                slicing=slice(sliding_padding, sliding_padding+sliding_length),
-                                encoding_window=encoding_window
-                            )
-                            reprs.append(out)
+                # if sliding_length is not None:
+                #     reprs = []
+                #     if n_samples < batch_size:
+                #         calc_buffer = []
+                #         calc_buffer_l = 0
+                #     for i in range(0, ts_l, sliding_length):
+                #         l = i - sliding_padding
+                #         r = i + sliding_length + (sliding_padding if not causal else 0)
+                #         x_sliding = self.torch_pad_nan(
+                #             x[:, max(l, 0) : min(r, ts_l)],
+                #             left=-l if l<0 else 0,
+                #             right=r-ts_l if r>ts_l else 0,
+                #             dim=1
+                #         )
+                #         if n_samples < batch_size:
+                #             if calc_buffer_l + n_samples > batch_size:
+                #                 out = self._eval_with_pooling(
+                #                     torch.cat(calc_buffer, dim=0),
+                #                     mask,
+                #                     slicing=slice(sliding_padding, sliding_padding+sliding_length),
+                #                     encoding_window=encoding_window
+                #                 )
+                #                 reprs += torch.split(out, n_samples)
+                #                 calc_buffer = []
+                #                 calc_buffer_l = 0
+                #             calc_buffer.append(x_sliding)
+                #             calc_buffer_l += n_samples
+                #         else:
+                #             out = self._eval_with_pooling(
+                #                 x_sliding,
+                #                 mask,
+                #                 slicing=slice(sliding_padding, sliding_padding+sliding_length),
+                #                 encoding_window=encoding_window
+                #             )
+                #             reprs.append(out)
 
-                    if n_samples < batch_size:
-                        if calc_buffer_l > 0:
-                            out = self._eval_with_pooling(
-                                torch.cat(calc_buffer, dim=0),
-                                mask,
-                                slicing=slice(sliding_padding, sliding_padding+sliding_length),
-                                encoding_window=encoding_window
-                            )
-                            reprs += torch.split(out, n_samples)
-                            calc_buffer = []
-                            calc_buffer_l = 0
+                #     if n_samples < batch_size:
+                #         if calc_buffer_l > 0:
+                #             out = self._eval_with_pooling(
+                #                 torch.cat(calc_buffer, dim=0),
+                #                 mask,
+                #                 slicing=slice(sliding_padding, sliding_padding+sliding_length),
+                #                 encoding_window=encoding_window
+                #             )
+                #             reprs += torch.split(out, n_samples)
+                #             calc_buffer = []
+                #             calc_buffer_l = 0
                     
-                    out = torch.cat(reprs, dim=1)
-                    if encoding_window == 'full_series':
-                        out = F.max_pool1d(
-                            out.transpose(1, 2).contiguous(),
-                            kernel_size = out.size(1),
-                        ).squeeze(1)
-                else:
-                    out = self._eval_with_pooling(x, mask, encoding_window=encoding_window)
-                    if encoding_window == 'full_series':
-                        out = out.squeeze(1)
-                        
+                #     out = torch.cat(reprs, dim=1)
+                #     if encoding_window == 'full_series':
+                #         out = F.max_pool1d(
+                #             out.transpose(1, 2).contiguous(),
+                #             kernel_size = out.size(1),
+                #         ).squeeze(1)
+                # else:
+                #     out = self._eval_with_pooling(x, mask, encoding_window=encoding_window)
+                #     if encoding_window == 'full_series':
+                #         out = out.squeeze(1)
+
+                out = self.net(x) # (batch_size, seq_length, output_dim)
                 output.append(out)
                 
             output = torch.cat(output, dim=0)
