@@ -19,9 +19,9 @@ def TAdv(samples, toreturn='dataframe'):
 
         tadv_mat = []
         # For each point of vehicle i
-        for point_i, point_other_i in zip([point_i1, point_i2, point_i3, point_i4], [point_i2, point_i1, point_i4, point_i3]):
+        for point_i in [point_i1, point_i2, point_i3, point_i4]:
             # For each point of vehicle j
-            for point_j, point_other_j in zip([point_j1, point_j2, point_j3, point_j4], [point_j2, point_j1, point_j4, point_j3]):
+            for point_j in [point_j1, point_j2, point_j3, point_j4]:
                 # intersection point between 
                 # 1) the line extended from the point of vehicle i along the direction of its velocity and
                 # 2) the line extended from the point of vehicle j along the direction of its velocity
