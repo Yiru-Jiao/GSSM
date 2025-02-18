@@ -64,7 +64,7 @@ def main(args):
     if 'current' in args.encoder_name:
         bslr_list = ['bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001']
     else:
-        bslr_list = ['bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001']
+        bslr_list = ['bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001', 'bs128_lr0.001']
     
     if os.path.exists(results_dir):
         eval_results = pd.read_csv(results_dir)
