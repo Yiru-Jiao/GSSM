@@ -26,9 +26,9 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 2 in stage: # multiple datasets, current only
         exp_config.extend([
-            [['Argoverse', 'SafeBaseline'], ['current'], [], False],
-            [['Argoverse', 'SafeBaseline', 'highD'], ['current'], [], False],
-            [['Argoverse', 'SafeBaseline', 'highD', 'INTERACTION'], ['current'], [], False],
+            # [['Argoverse', 'SafeBaseline'], ['current'], [], False],
+            # [['Argoverse', 'SafeBaseline', 'highD'], ['current'], [], False],
+            # [['Argoverse', 'SafeBaseline', 'highD', 'INTERACTION'], ['current'], [], False],
         ])
     if 3 in stage: # single dataset, encoder pretrained with all datasets
         exp_config.extend([
@@ -37,14 +37,16 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['INTERACTION'], ['current'], [], True],
             [['Argoverse'], ['current'], [], True],
         ])
-    if 4 in stage: # on SafeBaseline, add environment and profiles
+    if 4 in stage: # on SafeBaseline, add extra features
         exp_config.extend([
-            [['SafeBaseline'], ['current', 'environment'], [], False],
-            [['SafeBaseline'], ['current', 'environment'], [], True],
-            [['SafeBaseline'], ['current','environment','profiles'], [], False],
-            [['SafeBaseline'], ['current','environment','profiles'], [], True],
+            [['SafeBaseline'], ['current+acc'], [], True],
+            [['SafeBaseline'], ['current+acc', 'environment'], [], True],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], [], True],
+            [['SafeBaseline'], ['current+acc'], [], False],
+            [['SafeBaseline'], ['current+acc', 'environment'], [], False],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], [], False],
         ])
-    if 5 in stage: # best performing model plus profiles
+    if 5 in stage: # on SafeBaseline, cross attention
         exp_config.extend([
             # [['highD'], ['current','profiles'], [], False],
             # [['SafeBaseline'], ['current','environment','profiles'], [], True],
