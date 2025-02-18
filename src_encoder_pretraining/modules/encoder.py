@@ -15,23 +15,23 @@ import numpy as np
 #####################
 
 class LSTMEncoder(nn.Module):
-    def __init__(self, input_dim=3, hidden_dim=20*64, num_layers=2, single_output=True):
+    def __init__(self, input_dims=3, hidden_dims=20*64, num_layers=2, single_output=True):
         super(LSTMEncoder, self).__init__()
-        self.hidden_dim = hidden_dim
+        self.hidden_dims = hidden_dims
         self.num_layers = num_layers
         self.single_output = single_output
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_dims, hidden_dims, num_layers, batch_first=True)
 
-    def forward(self, x): # x: (batch_size, seq_length=20, feature_dim=3)
+    def forward(self, x): # x: (batch_size, seq_length=20, feature_dims=3)
         # Initialize hidden and cell states
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dims).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dims).to(x.device)
         
         # Forward propagate through LSTM
-        output, (hidden, cell) = self.lstm(x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dim)
+        output, (hidden, cell) = self.lstm(x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dims)
         if self.single_output:
             # Only return the hidden state of the last LSTM layer
-            return hidden[-1].view(x.size(0), x.size(1), -1) # (batch_size, seq_length, hidden_dim//seq_length)
+            return hidden[-1].view(x.size(0), x.size(1), -1) # (batch_size, seq_length, hidden_dims//seq_length)
         else:
             # Return all
             return output, (hidden, cell)

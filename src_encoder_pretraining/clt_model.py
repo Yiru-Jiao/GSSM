@@ -43,7 +43,7 @@ class spclt():
         #                               depth=depth,
         #                               mask_mode=mask_mode).to(self.device)
         self._net = encoder.LSTMEncoder(input_dims=input_dims,
-                                        hidden_dim=20*output_dims,
+                                        hidden_dims=20*output_dims,
                                         num_layers=2,
                                         single_output=True).to(self.device)
 
