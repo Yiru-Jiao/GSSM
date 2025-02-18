@@ -41,7 +41,7 @@ class model(nn.Module):
 
     def forward(self, x):
         latent = self.encoder(x)
-        latent = latent.view(latent.size(0), -1)
+        latent = latent.reshape(latent.size(0), -1)
         out = self.decoder(latent)
         return out
 
