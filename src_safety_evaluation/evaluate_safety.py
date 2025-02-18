@@ -247,7 +247,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             continue
 
         # Define scaler and one-hot encoder for normalisation
-        current_scaler = get_scaler(dataset, path_prepared, feature='current')
+        current_scaler = get_scaler(dataset, path_prepared, feature=encoder_selection[0])
         profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
         if 'environment' in encoder_selection:
             environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
@@ -258,6 +258,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if 'current' in encoder_selection:
+            states.append(current_scaler.transform(np.hstack([current_features[:,:7], current_features[:, 8:]])))
+        if 'current+acc' in encoder_selection:
             states.append(current_scaler.transform(current_features))
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
