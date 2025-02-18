@@ -21,8 +21,11 @@ def get_scaler(datasets, dataset_dir, feature):
         scaler_data = pd.concat(scaler_data, ignore_index=True)
         scaler_data = scaler_data[['v_ego','v_sur','angle']].values
         scaler = StandardScaler().fit(scaler_data)
-    elif feature == 'current':
-        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+    elif 'current' in feature:
+        if 'acc' in feature:
+            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+        else:
+            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
         scaler_data = []
         for dataset in datasets:
             for split in ['train', 'val']:
@@ -41,10 +44,10 @@ class DataOrganiser(Dataset):
         self.split = split
         self.dataset = dataset
         if encoder_selection=='all':
-            encoder_selection = ['current', 'environment', 'profiles']
+            encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         self.path_prepared = path_prepared
-        self.current_scaler = get_scaler(dataset, path_prepared, 'current')
+        self.current_scaler = get_scaler(dataset, path_prepared, encoder_selection[0])
         if 'profiles' in encoder_selection:
             self.profiles_scaler = get_scaler(dataset, path_prepared, 'profiles')
         self.data = self.read_data()
@@ -58,13 +61,13 @@ class DataOrganiser(Dataset):
         return x, y
 
     def define_combine_features(self,):
-        if self.encoder_selection==['current']:
+        if len(self.encoder_selection)==1:
             def combine_features(idx):
                 return self.data[0][idx], self.data[-1][idx]
-        elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current','profiles']:
+        elif len(self.encoder_selection)==2:
             def combine_features(idx):
                 return (self.data[0][idx], self.data[1][idx]), self.data[-1][idx]
-        elif self.encoder_selection==['current','environment','profiles']:
+        elif len(self.encoder_selection)==3:
             def combine_features(idx):
                 return (self.data[0][idx], self.data[1][idx], self.data[2][idx]), self.data[-1][idx]
         return combine_features
@@ -82,7 +85,10 @@ class DataOrganiser(Dataset):
         X_current = pd.concat(X_current, ignore_index=True)
         X_current = X_current.sort_values('scene_id').reset_index(drop=True)
         self.scene_ids = X_current['scene_id'].values
-        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+        if 'acc' in self.encoder_selection[0]:
+            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+        else:
+            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
         self.data.append(torch.from_numpy(self.current_scaler.transform(X_current[variables].values)).float())
 
         if 'environment' in self.encoder_selection:
