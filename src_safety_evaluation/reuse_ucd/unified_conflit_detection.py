@@ -10,14 +10,14 @@ import numpy as np
 from tqdm import tqdm
 import pandas as pd
 from scipy.special import erf
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
 
 
 # Create dataloader
-class DataOrganiser:
+class DataOrganiser(Dataset):
     def __init__(self, dataset, path_input):
         self.dataset = dataset
         self.path_input = path_input
@@ -38,7 +38,8 @@ class DataOrganiser:
         features = pd.read_hdf(self.path_input + 'current_features_highD_' + self.dataset + '.h5', key='features')
         self.idx_list = features['scene_id'].values
         features = features.set_index('scene_id')
-        self.interaction_context = features.drop(columns=['s']).copy()
+        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
+        self.interaction_context = features[variables].copy()
         # log-transform spacing, and the spacing must be larger than 0
         if np.any(features['s']<=1e-6):
             print('There are spacings smaller than or equal to 0.')
@@ -63,8 +64,8 @@ class SVGP(gpytorch.models.ApproximateGP):
         self.mean_module = gpytorch.means.ConstantMean()
 
         # Kernel module
-        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=10, ard_num_dims=11)
-        rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=11))
+        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=10, ard_num_dims=10)
+        rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=10))
         self.covar_module = mixture_kernel + rbf_kernel
 
         # To make mean positive
@@ -119,7 +120,6 @@ class train_val_test():
                                         'delta_v2': np.random.uniform(0.,400.,num_inducing_points),
                                         'delta_v': np.random.uniform(-20.,20.,num_inducing_points),
                                         'psi_sur': np.random.uniform(-np.pi,np.pi,num_inducing_points),
-                                        'acc_ego': np.random.uniform(-5.5,5.5,num_inducing_points),
                                         'v_ego2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'v_sur2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
@@ -153,7 +153,7 @@ class train_val_test():
 
         # Training
         loss_records = np.zeros(num_epochs)
-        val_loss_records = [100., 99., 98., 97., 96.]
+        val_loss_records = np.zeros(num_epochs)
 
         self.model.train()
         self.likelihood.train()
@@ -167,7 +167,6 @@ class train_val_test():
         )
 
         progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False)
-        break_flag = False
         for count_epoch in progress_bar:
             train_loss = torch.tensor(0., device=self.device, requires_grad=False)
             for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader, start=1):
@@ -182,25 +181,21 @@ class train_val_test():
 
             val_loss = self.val_loop()
             self.scheduler.step(val_loss)
-            val_loss_records.append(val_loss)
+            val_loss_records[count_epoch] = val_loss
 
             progress_bar.set_postfix({'lr=': self.optimizer.param_groups[0]['lr'], 
                                       'loss=': loss_records[count_epoch], 
                                       'val_loss=': val_loss}, refresh=False)
             progress_bar.update(1)
 
-            if count_epoch > 15:
-                stop_condition = np.all(abs(np.diff(val_loss_records)[-4:]/np.array(val_loss_records)[-4:])<1e-3)
-                if stop_condition:
-                    break_flag = True
-            if break_flag:
+            if (count_epoch>15) and np.all(abs(np.diff(val_loss_records[-5:])/val_loss_records[-5:-1])<1e-3):
                 # early stopping if validation loss converges
                 print('Validation loss converges and training stops at Epoch '+str(count_epoch))
                 break
 
         # Save loss records
         loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records[:count_epoch+1])+1)],
-                                data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[5:count_epoch+6]})
+                                data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[:count_epoch+1]})
         loss_log.to_csv(self.path_output+'loss_log.csv')
         # Save model every epoch
         torch.save(self.model.state_dict(), self.path_output+f'model_{count_epoch+1}epoch.pth')
@@ -217,7 +212,6 @@ def define_model(num_inducing_points, device):
                                       np.random.uniform(0.,400.,(num_inducing_points,1)), # delta_v2
                                       np.random.uniform(-20.,20.,(num_inducing_points,1)), # delta_v
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1)), # psi_sur
-                                      np.random.uniform(-5.5,5.5,(num_inducing_points,1)), # acc_ego
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_ego2
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_sur2
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1))], # rho
@@ -273,7 +267,7 @@ def UCD(data, device):
     rho[['target_id','time']] = data_relative[['target_id','time']]
     interaction_context = data.drop(columns=['hx_sur','hy_sur']).merge(heading_sur, on=['target_id','time']).merge(rho, on=['target_id','time'])
     features = ['length_ego','width_ego','length_sur','width_sur',
-                'delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+                'delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
     interaction_context = interaction_context[features+['event_id','target_id','time']].sort_values(['target_id','time'])
     data_relative = data_relative.merge(interaction_context[['target_id','time']], on=['target_id','time']).sort_values(['target_id','time'])
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
@@ -282,7 +276,7 @@ def UCD(data, device):
     model, likelihood = define_model(100, device)
 
     ## Compute mu_list, sigma_list
-    chunk_size = 2000
+    chunk_size = 512
     mu_list, sigma_list = [], []
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
         for chunk in tqdm(range(0, len(interaction_context), chunk_size), desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
