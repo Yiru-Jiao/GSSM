@@ -276,7 +276,7 @@ def UCD(data, device):
     model, likelihood = define_model(100, device)
 
     ## Compute mu_list, sigma_list
-    chunk_size = 512
+    chunk_size = 1024
     mu_list, sigma_list = [], []
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
         for chunk in tqdm(range(0, len(interaction_context), chunk_size), desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
