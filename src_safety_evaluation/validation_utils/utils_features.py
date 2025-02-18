@@ -48,8 +48,11 @@ def get_scaler(datasets, path_prepared, feature='profiles'):
         scaler_data = pd.concat(scaler_data, ignore_index=True)
         scaler_data = scaler_data[['v_ego','v_sur','angle']].values
         scaler = StandardScaler().fit(scaler_data)
-    elif feature == 'current':
-        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+    elif 'current' in feature:
+        if 'acc' in feature:
+            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+        else:
+            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
         scaler_data = []
         for dataset in datasets:
             for split in ['train', 'val']:
