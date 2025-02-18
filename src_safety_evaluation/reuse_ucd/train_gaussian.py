@@ -56,8 +56,8 @@ def main(args, manual_seed):
         print('Model already trained. Exiting...')
     else:
         pipeline = train_val_test(device, num_inducing_points, 
-                                path_input='./PreparedData/Segments/highD/',
-                                path_output='./src_safety_evaluation/reuse_ucd/')
+                                  path_input='./PreparedData/Segments/highD/',
+                                  path_output='./src_safety_evaluation/reuse_ucd/')
         pipeline.create_dataloader(batch_size, beta)
         print('Training...')
         pipeline.train_model(num_qepochs, initial_lr)
