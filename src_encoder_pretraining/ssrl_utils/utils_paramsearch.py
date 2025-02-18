@@ -48,7 +48,6 @@ class trainer():
             regularizer_config = dict(
                 reserve = regularizer,
                 bandwidth = self.bandwidth),
-            encode_args = dict(),
             )
         self.encoder = spclt(**self.model_config)
 
