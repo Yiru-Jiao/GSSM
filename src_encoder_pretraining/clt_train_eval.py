@@ -43,7 +43,7 @@ def parse_args():
     args.regularizer = None
     args.bandwidth = 1.
     args.iters = None
-    args.epochs = 100
+    args.epochs = 300
     args.batch_size = 8
     args.lr = 0.001
     args.weight_lr = 0.01
