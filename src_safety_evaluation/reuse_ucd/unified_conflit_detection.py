@@ -188,7 +188,7 @@ class train_val_test():
                                       'val_loss=': val_loss}, refresh=False)
             progress_bar.update(1)
 
-            if (count_epoch>15) and np.all(abs(np.diff(val_loss_records[-5:])/val_loss_records[-5:-1])<1e-3):
+            if (count_epoch>15) and np.all(abs(np.diff(val_loss_records[-4:])/val_loss_records[-4:-1])<1e-3):
                 # early stopping if validation loss converges
                 print('Validation loss converges and training stops at Epoch '+str(count_epoch))
                 break
