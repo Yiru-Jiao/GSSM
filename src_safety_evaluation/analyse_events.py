@@ -106,12 +106,12 @@ def main(path_result):
     for indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI']:
         if indicator in ['TTC', 'MTTC', 'TTC2D']:
             thresholds = np.unique(np.round(10**np.arange(0,1.68,0.015),1))-1
+        elif indicator == 'DRAC':
+            thresholds = np.unique(np.round(10**np.arange(0,1.,0.01),2))-1
         elif indicator == 'PSD':
             thresholds = np.unique(np.round((10**np.arange(0,2.25,0.015)-1)/50,2))
         elif indicator == 'TAdv':
             thresholds = np.unique(np.round((10**np.arange(0,2.1,0.02)-1)/10,2))
-        elif indicator == 'DRAC':
-            thresholds = np.unique(np.round(10**np.arange(0,1.,0.01),2))-1
         elif indicator == 'ACT':
             thresholds = np.unique(np.round(10**np.arange(0,1.91,0.018),1))-1
         elif indicator == 'EI':
