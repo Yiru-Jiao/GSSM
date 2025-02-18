@@ -121,7 +121,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
     # Read event features
     path_save = path_result + 'EventEvaluation/'
-    model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     os.makedirs(path_save, exist_ok=True)
 
     data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
@@ -230,6 +229,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.to_hdf(path_save + f'TAdv_TTC2D_ACT_EI.h5', key='data', mode='w')
 
     # SSSE models in this study
+    model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     for model_id in range(len(model_evaluation)):
         dataset_name = model_evaluation.iloc[model_id]['dataset']
         dataset = dataset_name.split('_')
