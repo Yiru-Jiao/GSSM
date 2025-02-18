@@ -12,7 +12,6 @@ import pandas as pd
 import torch
 import argparse
 sys.path.append('./')
-from scipy.special import erf
 from unified_conflit_detection import *
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
