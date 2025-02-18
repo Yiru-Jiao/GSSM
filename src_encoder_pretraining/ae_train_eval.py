@@ -61,10 +61,10 @@ def main(args):
     # Define metrics
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
-    if args.encoder_name == 'current':
+    if 'current' in args.encoder_name:
         bslr_list = ['bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001']
     else:
-        bslr_list = ['bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001', 'bs128_lr0.001']
+        bslr_list = ['bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001']
     
     if os.path.exists(results_dir):
         eval_results = pd.read_csv(results_dir)
@@ -79,7 +79,7 @@ def main(args):
     print('---- Loading data ----')
     datasets = ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']
     train_data, test_data = datautils.load_data(datasets, dataset_dir=path_prepared, feature=args.encoder_name)
-    if args.encoder_name == 'current':
+    if 'current' in args.encoder_name:
         test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
 
     if args.reversed_list:
