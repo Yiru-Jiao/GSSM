@@ -24,8 +24,8 @@ class ts_encoder(nn.Module):
                                  dist_metric=self.dist_metric, device=device)
 
     # Load a pretrained model
-    def load(self, model_selection, device, path_prepared='../PreparedData/'):
-        tuned_params_dir = f'{path_prepared}EncoderPretraining/spclt/representation_hyperparameters.csv'
+    def load(self, model_selection, device, path_prepared):
+        tuned_params_dir = f'{path_prepared}representation_hyperparameters.csv'
         if os.path.exists(tuned_params_dir):
             tuned_params = pd.read_csv(tuned_params_dir, index_col=0)
         else:
@@ -35,7 +35,7 @@ class ts_encoder(nn.Module):
         model_config = configure_model(self, self.input_dims, device)
         self.spclt_model = spclt(**model_config)
 
-        run_dir = f'{path_prepared}EncoderPretraining/spclt/trained_models/'
+        run_dir = f'{path_prepared}trained_models/'
         save_dir = os.path.join(run_dir, f'{model_selection}')
         existing_models = glob.glob(f'{save_dir}/*_net.pth')
         best_model = 'model' + existing_models[0].split('model')[-1].split('_net')[0]
@@ -62,8 +62,8 @@ class current_encoder(nn.Module):
         )
 
     # Load a pretrained model
-    def load(self, model_selection, device, path_prepared='../PreparedData/'):
-        run_dir = f'{path_prepared}EncoderPretraining/current_autoencoder/trained_models/'
+    def load(self, model_selection, device, path_prepared):
+        run_dir = f'{path_prepared}trained_models/'
         save_dir = os.path.join(run_dir, f'{model_selection}')
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
@@ -90,8 +90,8 @@ class environment_encoder(nn.Module):
         )
 
     # Load a pretrained model
-    def load(self, model_selection, device, path_prepared='../PreparedData/'):
-        run_dir = f'{path_prepared}EncoderPretraining/environment_autoencoder/trained_models/'
+    def load(self, model_selection, device, path_prepared):
+        run_dir = f'{path_prepared}trained_models/'
         save_dir = os.path.join(run_dir, f'{model_selection}')
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
