@@ -151,10 +151,10 @@ def main(args, events, manual_seed, path_prepared, path_result):
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
 
     # 1D SSMs adapted to 2D
-    if os.path.exists(path_save + f'TTC_DRAC_MTTC.h5'):
-        print(f'The events has been evaluated by TTC, DRAC, and MTTC.')
+    if os.path.exists(path_save + f'TTC_DRAC_MTTC_PSD.h5'):
+        print(f'The events has been evaluated by TTC, DRAC, MTTC, and PSD.')
     else:
-        print('--- Evaluating with TTC, DRAC, and MTTC ---')
+        print('--- Evaluating with TTC, DRAC, MTTC, and PSD ---')
         results = data.merge(pd.DataFrame(event_id_list, columns=['event_id','target_id','time']),
                              on=['event_id','target_id','time'], how='inner')
         rename_columns = dict()
@@ -181,10 +181,14 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results, eval_efficiency = evaluate(longitudinal_ssms.MTTC, 'MTTC',
                                             {'toreturn':'dataframe'},
                                             eval_efficiency, results, path_save)
+        
+        results, eval_efficiency = evaluate(longitudinal_ssms.PSD, 'PSD',
+                                            {'toreturn':'dataframe', 'braking_dec': 5.5},
+                                            eval_efficiency, results, path_save)
 
         results['s_box'] = longitudinal_ssms.CurrentD(results, 'values')
-        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','acc_i','s_box', 'TTC', 'DRAC', 'MTTC']]
-        results.to_hdf(path_save + f'TTC_DRAC_MTTC.h5', key='data', mode='w')
+        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','acc_i','s_box', 'TTC', 'DRAC', 'MTTC', 'PSD']]
+        results.to_hdf(path_save + f'TTC_DRAC_MTTC_PSD.h5', key='data', mode='w')
 
     # 2D SSMs
     if os.path.exists(path_save + f'TAdv_TTC2D_ACT_EI.h5'):

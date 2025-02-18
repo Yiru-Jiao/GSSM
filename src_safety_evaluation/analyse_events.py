@@ -90,7 +90,7 @@ def main(path_result):
               * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
               * start: first evaluatable timestamp in the event
               * end: 0.5~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
-    The target has largest intensity/DRAC (or smallest TTC/MTTC) during danger period is considered 
+    The target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TTC2D/TAdv/ACT) during danger period is considered 
     as the conflicting target, and the safe period is determined specifically
     Then the comparison of ROC curves is between different indicators under various thresholds
     '''
@@ -103,9 +103,11 @@ def main(path_result):
     event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
     
     # 1D and 2D SSMs
-    for indicator in ['TTC', 'DRAC', 'MTTC', 'TAdv', 'TTC2D', 'ACT', 'EI']:
+    for indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI']:
         if indicator in ['TTC', 'MTTC', 'TTC2D']:
             thresholds = np.unique(np.round(10**np.arange(0,1.68,0.015),1))-1
+        elif indicator == 'PSD':
+            thresholds = np.unique(np.round((10**np.arange(0,2.25,0.015)-1)/50,2))
         elif indicator == 'TAdv':
             thresholds = np.unique(np.round((10**np.arange(0,2.1,0.02)-1)/10,2))
         elif indicator == 'DRAC':
@@ -153,7 +155,7 @@ def main(path_result):
     Analysis 3 - Warning timeliness
     Using the optimal threshold for every model,
     - optimal threshold: the threshold that makes true positive rate and false positive rate closest to (100%, 0%)
-    for each event, the target has largest intensity/DRAC/EI (or smallest TTC/MTTC/TAdv/TTC2D/ACT) during danger period is considered 
+    for each event, the target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TAdv/TTC2D/ACT) during danger period is considered 
     as the conflicting target; if a driver reaction is recorded, check if the first warning is before the reaction_timestamp
     - first warning: the last safe->unsafe transition moment before impact_timestamp
     '''
@@ -169,7 +171,7 @@ def main(path_result):
             event_meta['danger_end'] = danger_end
         
         results = []
-        for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
+        for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
             print('--- Issuing warning', conflict_indicator, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
             safety_evaluation = read_evaluation(conflict_indicator, path_results)

@@ -1,6 +1,6 @@
 import numpy as np
 import warnings
-from .longitudinal_ssms import TTC, DRAC, MTTC, TTC_DRAC_MTTC
+from .longitudinal_ssms import TTC, DRAC, MTTC, PSD, TTC_DRAC_MTTC
 from .two_dimensional_ssms import TAdv
 
 
@@ -13,10 +13,12 @@ def efficiency(samples, indicator, iterations):
         compute_func = DRAC
     elif indicator=='MTTC':
         compute_func = MTTC
+    elif indicator=='PSD':
+        compute_func = PSD
     elif indicator=='TTC_DRAC_MTTC':
         compute_func = TTC_DRAC_MTTC
     else:
-        print('Incorrect indicator. Please specify \'TTC\', \'DRAC\', \'MTTC\', or \'TTC_DRAC_MTTC\'.')
+        print('Incorrect indicator. Please specify \'TTC\', \'DRAC\', \'MTTC\', \'PSD\', or \'TTC_DRAC_MTTC\'.')
         return None
     import time as systime
     ts = []

@@ -116,6 +116,28 @@ def MTTC(samples, toreturn='dataframe'):
             return samples
         elif toreturn=='values':
             return mttc.values
+        
+
+def PSD(samples, toreturn='dataframe', braking_dec=5.5):
+    '''
+    https://onlinepubs.trb.org/Onlinepubs/trr/1978/667/667-009.pdf
+    '''
+    if toreturn!='dataframe' and toreturn!='values':
+        warnings.warn('Incorrect target to return. Please specify \'dataframe\' or \'values\'.')
+    else:
+        v_ego = np.sqrt(samples['vx_i']**2+samples['vy_i']**2)
+        dtc_ij, leaving_ij = DTC_ij(samples)
+        braking_dist = v_ego**2 / 2 / braking_dec
+        psd = dtc_ij / braking_dist
+        psd[leaving_ij<20] = 10. # the two vehicles will not collide if they keep current velocity
+        psd[(leaving_ij>20)&(leaving_ij%20!=0)] = -1 # -1 means the bounding boxes of the two vehicles are overlapping
+
+        if toreturn=='dataframe':
+            samples = samples.copy()
+            samples['PSD'] = psd
+            return samples
+        elif toreturn=='values':
+            return psd.values
 
 
 def TTC_DRAC_MTTC(samples, toreturn='dataframe'):

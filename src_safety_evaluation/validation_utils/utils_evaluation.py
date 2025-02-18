@@ -26,8 +26,8 @@ def read_events(path_events, meta_only=False):
 
 
 def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, cross_attention_name=None, pretraining=None):
-    if indicator in ['TTC', 'DRAC', 'MTTC']:
-        safety_evaluation = pd.read_hdf(path_results + f'TTC_DRAC_MTTC.h5', key='data')
+    if indicator in ['TTC', 'DRAC', 'MTTC', 'PSD']:
+        safety_evaluation = pd.read_hdf(path_results + f'TTC_DRAC_MTTC_PSD.h5', key='data')
         return safety_evaluation
     elif indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
         safety_evaluation = pd.read_hdf(path_results + f'TAdv_TTC2D_ACT_EI.h5', key='data')
@@ -127,7 +127,7 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
     evaluation = evaluation.reset_index()
     evaluation['conflict'] = False
 
-    if conflict_indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+    if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
         evaluation.loc[(evaluation[conflict_indicator]<threshold), 'conflict'] = True
         return evaluation
     
@@ -145,7 +145,7 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
 
 
 def determine_target(indicator, danger, before_danger):
-    if indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+    if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
         if danger[indicator].isna().all() or before_danger[indicator].isna().all():
             target_id = np.nan
             median_before_danger = np.nan
@@ -241,7 +241,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
 
 def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=False):
-    if conflict_indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+    if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
         warning.loc[warning['median_before_danger']<warning['median_danger'], 'danger_recorded'] = False
     elif conflict_indicator in ['DRAC', 'EI', 'SSSE']:
         warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
@@ -256,7 +256,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
     if curve_type=='ROC':
         statistics['true positive rate'] = statistics['TP']/(statistics['TP']+statistics['FN'])
         statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
-        if conflict_indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+        if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, False, True])
         else:
             statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, False, False])
@@ -264,7 +264,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
     elif curve_type=='PRC':
         statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
         statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
-        if conflict_indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']:
+        if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, True])
         else:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
@@ -313,7 +313,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
             continue
-        if (indicator in ['TTC', 'MTTC', 'TAdv', 'TTC2D', 'ACT']) and (median_before_danger < median_danger):
+        if (indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']) and (median_before_danger < median_danger):
             records.loc[event_id, 'danger_recorded'] = False
             continue
         if (indicator in ['DRAC', 'EI', 'SSSE']) and (median_before_danger > median_danger):
