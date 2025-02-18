@@ -73,7 +73,7 @@ class current_encoder(nn.Module):
     def forward(self, x): # x: (batch_size, 10 or 11)
         x = x.view(x.size(0), 1, -1) # (batch_size, 1, 10 or 11)
         out = self.feature_extractor(x) # (batch_size, 64, 10 or 11)
-        return out.permute(0, 2, 1) # (batch_size, 10 or 11, 64)
+        return out.reshape(out.size(0), out.size(2), out.size(1)) # (batch_size, 10 or 11, 64)
 
 
 class environment_encoder(nn.Module):
