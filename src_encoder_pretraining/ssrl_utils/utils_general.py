@@ -5,25 +5,8 @@ This script includes general utility functions that are used in the training and
 import os
 import numpy as np
 import pandas as pd
-import pickle
 import torch
 import random
-from datetime import datetime
-
-
-def pkl_save(name, var):
-    with open(name, 'wb') as f:
-        pickle.dump(var, f)
-
-
-def pkl_load(name):
-    with open(name, 'rb') as f:
-        return pickle.load(f)
-
-
-def name_with_datetime(prefix='default'):
-    now = datetime.now()
-    return prefix + '_' + now.strftime("%Y%m%d_%H%M%S")
 
 
 def save_checkpoint_callback(save_dir, save_every=0, unit='epoch'):
@@ -189,9 +172,6 @@ def configure_model(args, input_dims, device):
         bandwidth=args.bandwidth,
     )
 
-    # Define representation encoding arguments
-    encode_args = dict(encoding_window='full_series') # n_instances x output_dims with max pooling
-
     # Define model configuration
     model_config = dict(
         input_dims=input_dims,
@@ -203,7 +183,6 @@ def configure_model(args, input_dims, device):
         weight_lr=args.weight_lr,
         loss_config=loss_config,
         regularizer_config=regularizer_config,
-        encode_args=encode_args,
         )
     
     return model_config
