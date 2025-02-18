@@ -79,15 +79,23 @@ class UnifiedProximity(nn.Module):
 
     def load_pretrained_encoders(self, path_prepared='../PreparedData/'):
         if 'current' in self.encoder_selection:
-            pretraining_evaluation = pd.read_csv(path_prepared + 'EncoderPretraining/current_autoencoder/evaluation.csv')
+            path_prepared = path_prepared + 'EncoderPretraining/current_autoencoder/'
+            pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
+            best_model = self.select_best_model(pretraining_evaluation)
+            self.current_encoder.load(best_model['bslr'], self.device, path_prepared)
+        if 'current+acc' in self.encoder_selection:
+            path_prepared = path_prepared + 'EncoderPretraining/current+acc_autoencoder/'
+            pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.current_encoder.load(best_model['bslr'], self.device, path_prepared)
         if 'environment' in self.encoder_selection:
-            pretraining_evaluation = pd.read_csv(path_prepared + 'EncoderPretraining/environment_autoencoder/evaluation.csv')
+            path_prepared = path_prepared + 'EncoderPretraining/environment_autoencoder/'
+            pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.environment_encoder.load(best_model['bslr'], self.device, path_prepared)
         if 'profiles' in self.encoder_selection:
-            pretraining_evaluation = pd.read_csv(path_prepared + 'EncoderPretraining/spclt/evaluation.csv')
+            path_prepared = path_prepared + 'EncoderPretraining/spclt/'
+            pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.ts_encoder.load(best_model['model'], self.device, path_prepared)
 
