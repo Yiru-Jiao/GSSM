@@ -98,7 +98,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             continue
 
         # Define scaler and one-hot encoder for normalisation
-        current_scaler = get_scaler(dataset, path_prepared, feature='current')
+        current_scaler = get_scaler(dataset, path_prepared, feature=encoder_selection[0])
         profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
         if 'environment' in encoder_selection:
             environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
@@ -109,6 +109,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if 'current' in encoder_selection:
+            states.append(current_scaler.transform(np.hstack([current_features[:,:7], current_features[:, 8:]])))
+        if 'current+acc' in encoder_selection:
             states.append(current_scaler.transform(current_features))
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
@@ -121,15 +123,10 @@ def main(args, events, manual_seed, path_prepared, path_result):
         else:
             states = [tuple(states), spacing_list]
 
-        mu, sigma, max_intensity = SSSE(states, model, device, current_features[:,-1])
+        mu, sigma, max_intensity = SSSE(states, model, device)
         results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
 
 
-
-        profiles_features_list.append(profiles_features)
-        current_features_list.append(current_features)
-        spacing_list_list.append(spacing_list)
-        event_id_list_list.append(event_id_list)
 
     # Evaluate structure preservation
     profiles_features = np.concatenate(profiles_features_list, axis=0)
@@ -154,7 +151,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         print(f'--- Evaluating {model_name} ---')
 
         # Define scaler and one-hot encoder for normalisation
-        current_scaler = get_scaler(dataset, path_prepared, feature='current')
+        current_scaler = get_scaler(dataset, path_prepared, feature=encoder_selection[0])
         profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
         if 'environment' in encoder_selection:
             environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
@@ -165,6 +162,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if 'current' in encoder_selection:
+            states.append(current_scaler.transform(np.hstack([current_features[:,:7], current_features[:, 8:]])))
+        if 'current+acc' in encoder_selection:
             states.append(current_scaler.transform(current_features))
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
