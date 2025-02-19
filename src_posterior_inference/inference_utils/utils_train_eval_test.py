@@ -189,6 +189,9 @@ class train_val_test():
             loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     data={'train_loss': loss_log, 'val_loss': val_loss_log})
             loss_log.to_csv(self.path_output+'loss_log.csv')
+            self.val_loss_log = val_loss_log
+        else:
+            print('No learning rate scheduler has been used.')
 
     # Validation loop
     def val_loop(self,):
