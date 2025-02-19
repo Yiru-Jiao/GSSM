@@ -129,7 +129,6 @@ def main(path_result):
             event_meta['danger_end'] = danger_end
 
         if 'conflict' not in event_meta.columns:
-            event_meta = event_meta.set_index('event_id')
             for event_id in tqdm(event_meta.index.values):
                 for order in ['first', 'second']:
                     '''
@@ -147,12 +146,11 @@ def main(path_result):
                     event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'second']
                 else:
                     event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
-            event_meta = event_meta.reset_index()
         event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
 
         # Filter out events of which the conflict was not detected
         event_meta = event_meta[event_meta['conflict']!='none']
-        filtered_events = event_meta['event_id'].values
+        filtered_events = event_meta.index.values
 
         results = []
         for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
