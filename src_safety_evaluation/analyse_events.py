@@ -106,16 +106,17 @@ def main(path_result):
     print('--- Analysis 1: Conflict detection comparison completed ---')
 
     '''
-    Analysis 2 - Warning timeliness
+    Analysis 2 - Warning timeliness and warning period
     Using the optimal threshold for every model,
     - optimal threshold: the threshold that makes true positive rate and false positive rate closest to (100%, 0%)
     for each event, the target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TAdv/TTC2D/ACT) during danger period is considered 
     as the conflicting target; if a driver reaction is recorded, check if the first warning is before the reaction_timestamp
     - first warning: the last safe->unsafe transition moment before impact_timestamp
+    - warning period: the percentage of warned time moments within [danger_start, danger_end]
     '''
-    if os.path.exists(path_result + 'Analyses/WarningTimeliness.h5'):
+    if os.path.exists(path_result + 'Analyses/OptimalWarningEvaluation.h5'):
         print('--- Analysis 2: Part of warning timeliness already completed ---')
-        existing_results = pd.read_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results')
+        existing_results = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')
         existing_models = existing_results['model'].unique()
     else:
         existing_models = []
@@ -147,6 +148,11 @@ def main(path_result):
                 else:
                     event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
             event_meta = event_meta.reset_index()
+        event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
+
+        # Filter out events of which the conflict was not detected
+        event_meta = event_meta[event_meta['conflict']!='none']
+        filtered_events = event_meta['event_id'].values
 
         results = []
         for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
@@ -156,7 +162,8 @@ def main(path_result):
                 print('--- Issuing warning', conflict_indicator, '---')
                 conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
                 safety_evaluation = read_evaluation(conflict_indicator, path_results)
-                optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
+                filtered_warning = conflict_warning[conflict_warning['event_id'].isin(filtered_events)]
+                optimal_threshold = optimize_threshold(filtered_warning, conflict_indicator, 'ROC')
                 if conflict_indicator == 'UCD':
                     records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
                 else:
@@ -172,6 +179,7 @@ def main(path_result):
                 print('--- Issuing warning', model_name, '---')
                 conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
                 safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
+                filtered_warning = conflict_warning[conflict_warning['event_id'].isin(filtered_events)]
                 optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
                 records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
                 records['model'] = model_name
@@ -182,8 +190,7 @@ def main(path_result):
             results['danger_recorded'] = results['danger_recorded'].astype(bool)
         if len(existing_models) > 0:
             results = pd.concat([results, existing_results]).reset_index(drop=True)
-        results.to_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results', mode='w')
-        event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
+        results.to_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results', mode='w')
         print('--- Analysis 2: Warning timeliness completed ---')
         print('Analysed models:', results['model'].unique())
 
@@ -236,7 +243,7 @@ def main(path_result):
     # '''
     # if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
     #     event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
-    # warning_timeliness = pd.read_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results')
+    # warning_timeliness = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')
     # for model in warning_timeliness['model'].unique():
     #     warning_model = warning_timeliness[warning_timeliness['model']==model]
     #     event_meta.loc[warning_model['event_id'].values, 'target_id'] = warning_model['target_id'].values
