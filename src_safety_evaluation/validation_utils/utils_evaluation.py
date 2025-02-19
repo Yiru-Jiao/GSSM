@@ -169,14 +169,15 @@ def determine_target(indicator, danger, before_danger):
 
 
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
-    event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
     safety_evaluation = safety_evaluation.sort_values(['target_id','time'])
-    events = safety_evaluation.set_index('event_id')
-    event_ids = np.intersect1d(event_meta.index.values, events.index.unique())
+    event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
+    event_meta = event_meta[event_meta['duration_enough']]
+    safety_evaluation = safety_evaluation.set_index('event_id')
+    event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end']].copy()
     for event_id in event_ids:
-        event = events.loc[event_id].copy()
+        event = safety_evaluation.loc[event_id].copy()
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
