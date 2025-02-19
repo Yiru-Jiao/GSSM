@@ -129,7 +129,7 @@ def main(path_result):
             event_meta['danger_end'] = danger_end
 
         if 'conflict' not in event_meta.columns:
-            for event_id in tqdm(event_meta.index.values):
+            for event_id in tqdm(event_meta.index.values, desc='Severity', ascii=True, dynamic_ncols=False, miniters=714):
                 for order in ['first', 'second']:
                     '''
                     This dataset does not record objects behind the ego vehicle;
