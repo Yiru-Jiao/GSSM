@@ -162,7 +162,7 @@ class spclt():
         elif scheduler == 'reduced':
             train_val_data = train_data[reserved_idx]
             # randomly split the training data into training and validation sets
-            val_indices = np.random.choice(len(train_val_data), int(len(train_val_data)*0.2), replace=False)
+            val_indices = np.random.choice(len(train_val_data), int(len(train_val_data)*0.1), replace=False)
             train_indices = np.setdiff1d(np.arange(len(train_val_data)), val_indices)
             train_data, val_data = train_val_data[train_indices].copy(), train_val_data[val_indices].copy()
             if soft_assignments is None:

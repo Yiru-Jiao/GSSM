@@ -43,7 +43,7 @@ def parse_args():
     args.regularizer = None
     args.bandwidth = 1.
     args.iters = None
-    args.epochs = 300
+    args.epochs = 100
     args.batch_size = 8
     args.lr = 0.001
     args.weight_lr = 0.01
@@ -134,7 +134,7 @@ def main(args):
             model_config['after_epoch_callback'] = save_checkpoint_callback(save_dir, 0, unit='epoch')
             model = spclt(**model_config)
 
-            scheduler = 'reduced'
+            scheduler = 'constant'
             print(f'--- {model_type} training with ReduceLROnPlateau scheduler ---')
             soft_assignments = datautils.assign_soft_labels(train_sim_mat, args.tau_inst)
             loss_log = model.fit(dataset, train_data, soft_assignments, args.epochs, args.iters, scheduler, verbose=verbose)
