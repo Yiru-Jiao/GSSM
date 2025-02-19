@@ -44,8 +44,6 @@ def main(path_result):
     as the conflicting target, and the safe period is determined specifically
     Then the comparison of ROC curves is between different indicators under various thresholds
     '''
-    if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
-        event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     danger_start = np.maximum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
     danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
     event_meta['danger_start'] = danger_start
@@ -73,7 +71,7 @@ def main(path_result):
             print(f'--- Analyzing with {indicator} ---')
             sub_initial_time = systime.time()
             safety_evaluation = read_evaluation(indicator, path_results)
-            records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], indicator) for threshold in thresholds)
+            records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, indicator) for threshold in thresholds)
             records = pd.concat(records).reset_index()
             records['indicator'] = indicator
             records['model'] = indicator
@@ -97,7 +95,7 @@ def main(path_result):
             print('--- Analyzing with', model_name, '---')
             sub_initial_time = systime.time()
             safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
-            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in ssse_thresholds)
+            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'SSSE') for threshold in ssse_thresholds)
             ssse_records = pd.concat(ssse_records).reset_index()
             ssse_records['indicator'] = 'SSSE'
             ssse_records['model'] = model_name
@@ -116,8 +114,11 @@ def main(path_result):
     - first warning: the last safe->unsafe transition moment before impact_timestamp
     '''
     if os.path.exists(path_result + 'Analyses/WarningTimeliness.h5'):
-        print('--- Analysis 2: Warning timeliness already completed ---')
+        print('--- Analysis 2: Part of warning timeliness already completed ---')
+        existing_results = pd.read_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results')
+        existing_models = existing_results['model'].unique()
     else:
+        existing_models = []
         if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
             event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
         if 'danger_start' not in event_meta.columns:
@@ -125,36 +126,66 @@ def main(path_result):
             danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
             event_meta['danger_start'] = danger_start
             event_meta['danger_end'] = danger_end
-        
+
+        if 'conflict' not in event_meta.columns:
+            event_meta = event_meta.set_index('event_id')
+            for event_id in tqdm(event_meta.index.values):
+                for order in ['first', 'second']:
+                    '''
+                    This dataset does not record objects behind the ego vehicle;
+                    neither does it detect obstacles that have not shape.
+                    '''
+                    if event_meta.loc[event_id, order] in ['following', 'obstacle', 'single']:
+                        event_meta.loc[event_id, f'severity_{order}'] = 0
+                
+                if event_meta.loc[event_id, 'severity_first'] < 0.5 and event_meta.loc[event_id, 'severity_second'] < 0.5:
+                    event_meta.loc[event_id, 'conflict'] = 'none'
+                elif event_meta.loc[event_id, 'severity_first'] > event_meta.loc[event_id, 'severity_second']:
+                    event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
+                elif event_meta.loc[event_id, 'severity_second'] > event_meta.loc[event_id, 'severity_first']:
+                    event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'second']
+                else:
+                    event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
+            event_meta = event_meta.reset_index()
+
         results = []
         for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
-            print('--- Issuing warning', conflict_indicator, '---')
-            conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
-            safety_evaluation = read_evaluation(conflict_indicator, path_results)
-            optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
-            if conflict_indicator == 'UCD':
-                records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
+            if conflict_indicator in existing_models:
+                print('--- Warning timeliness with', conflict_indicator, 'already completed ---')
             else:
-                records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
-            records['model'] = conflict_indicator
-            results.append(records.copy())
+                print('--- Issuing warning', conflict_indicator, '---')
+                conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
+                safety_evaluation = read_evaluation(conflict_indicator, path_results)
+                optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
+                if conflict_indicator == 'UCD':
+                    records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
+                else:
+                    records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
+                records['model'] = conflict_indicator
+                results.append(records.copy())
 
         for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
-            print('--- Issuing warning', model_name, '---')
             model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
-            conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
-            optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
-            records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
-            records['model'] = model_name
-            results.append(records.copy())
-
-        results = pd.concat(results).reset_index()
-        results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
-        results['danger_recorded'] = results['danger_recorded'].astype(bool)
+            if model_name in existing_models:
+                print('--- Warning timeliness with', model_name, 'already completed ---')
+            else:
+                print('--- Issuing warning', model_name, '---')
+                conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
+                safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
+                optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
+                records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
+                records['model'] = model_name
+                results.append(records.copy())
+        if len(results) > 0:
+            results = pd.concat(results).reset_index()
+            results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
+            results['danger_recorded'] = results['danger_recorded'].astype(bool)
+        if len(existing_models) > 0:
+            results = pd.concat([results, existing_results]).reset_index(drop=True)
         results.to_hdf(path_result + 'Analyses/WarningTimeliness.h5', key='results', mode='w')
         event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
         print('--- Analysis 2: Warning timeliness completed ---')
+        print('Analysed models:', results['model'].unique())
 
     # '''
     # Analysis 1 - Event severity
