@@ -154,5 +154,5 @@ class LogNormalNLL(nn.Module):
         mu, sigma = out
         var = sigma**2
         log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None)) # use .clamp to avoid log(0)
-        loss = nn.functional.gaussian_nll_loss(log_clipped_y, mu, var, reduction='sum')
+        loss = nn.functional.gaussian_nll_loss(log_clipped_y, mu, var, reduction='mean')
         return loss
