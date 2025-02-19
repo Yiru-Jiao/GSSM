@@ -161,10 +161,11 @@ def main(path_result):
                 conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
                 safety_evaluation = read_evaluation(conflict_indicator, path_results)
                 filtered_warning = conflict_warning[conflict_warning['event_id'].isin(filtered_events)]
-                optimal_threshold = optimize_threshold(filtered_warning, conflict_indicator, 'ROC')
                 if conflict_indicator == 'UCD':
+                    optimal_threshold = optimize_threshold(filtered_warning, 'SSSE', 'ROC')
                     records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
                 else:
+                    optimal_threshold = optimize_threshold(filtered_warning, conflict_indicator, 'ROC')
                     records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
                 records['model'] = conflict_indicator
                 results.append(records.copy())
@@ -178,7 +179,7 @@ def main(path_result):
                 conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
                 safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
                 filtered_warning = conflict_warning[conflict_warning['event_id'].isin(filtered_events)]
-                optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
+                optimal_threshold = optimize_threshold(filtered_warning, 'SSSE', 'ROC')
                 records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
                 records['model'] = model_name
                 results.append(records.copy())
