@@ -115,7 +115,7 @@ def main(path_result):
     - warning period: the percentage of warned time moments within [danger_start, danger_end]
     '''
     if os.path.exists(path_result + 'Analyses/OptimalWarningEvaluation.h5'):
-        print('--- Analysis 2: Part of warning timeliness already completed ---')
+        print('--- Analysis 2: Part of optimal warning analysis already completed ---')
         existing_results = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')
         existing_models = existing_results['model'].unique()
     else:
@@ -155,7 +155,7 @@ def main(path_result):
         results = []
         for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
             if conflict_indicator in existing_models:
-                print('--- Warning timeliness with', conflict_indicator, 'already completed ---')
+                print('--- Optimal warning analysis with', conflict_indicator, 'already completed ---')
             else:
                 print('--- Issuing warning', conflict_indicator, '---')
                 conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
@@ -172,7 +172,7 @@ def main(path_result):
         for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
             model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
             if model_name in existing_models:
-                print('--- Warning timeliness with', model_name, 'already completed ---')
+                print('--- Optimal warning analysis with', model_name, 'already completed ---')
             else:
                 print('--- Issuing warning', model_name, '---')
                 conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
@@ -189,7 +189,7 @@ def main(path_result):
         if len(existing_models) > 0:
             results = pd.concat([results, existing_results]).reset_index(drop=True)
         results.to_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results', mode='w')
-        print('--- Analysis 2: Warning timeliness completed ---')
+        print('--- Analysis 2: Optimal warning analysis completed ---')
         print('Analysed models:', results['model'].unique())
 
     # '''
