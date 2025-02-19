@@ -292,14 +292,15 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
 
 def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
     safety_evaluation = safety_evaluation.sort_values(['target_id','time'])
-    events = safety_evaluation.set_index('event_id')
-    event_ids = np.intersect1d(event_meta.index.values, events.index.unique())
+    event_meta = event_meta[event_meta['duration_enough']]
+    safety_evaluation = safety_evaluation.set_index('event_id')
+    event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end', 'reaction_timestamp', 'impact_timestamp']].copy()
     records['indicator'] = indicator
     records['optimal_threshold'] = optimal_threshold
     for event_id in event_ids:
-        event = events.loc[event_id].copy()
+        event = safety_evaluation.loc[event_id].copy()
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
@@ -322,7 +323,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
             continue
         target = event[event['target_id']==target_id]
 
-        # Determine first warning moment: the last safe->unsafe transition moment before impact timestamp
+        # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
         target = determine_conflicts(target, indicator, optimal_threshold)
 
         warning = target[target['time']<=event_meta.loc[event_id, 'impact_timestamp']/1000]['conflict'].astype(int).values
@@ -332,6 +333,12 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
             records.loc[event_id,'first_warning_timestamp'] = target.iloc[first_warning[-1]+1]['time']*1000
         else: # no warning before impact
             records.loc[event_id,'first_warning_timestamp'] = np.nan
+
+        # Calculate the warning period: the percentage of warned time moments within [danger_start, danger_end]
+        target_danger = target[(target['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
+                               (target['time']<=event_meta.loc[event_id, 'danger_end']/1000)]
+        true_warning = target_danger[target_danger['conflict']]
+        records.loc[event_id, 'true_warning_period'] = len(true_warning) / len(target_danger)
 
         del event # release memory
     return records
