@@ -184,13 +184,13 @@ class spclt():
                 raise ValueError('n_epochs should be specified when using reduced scheduler.')
             # define scheduler
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=3, cooldown=2,
+                self.optimizer, mode='min', factor=0.6, patience=4, cooldown=2,
                 threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
                 )
             
             if self.regularizer_config['reserve'] is not None:
                 self.scheduler_weight = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.optimizer_weight, mode='min', factor=0.6, patience=3, cooldown=2,
+                    self.optimizer_weight, mode='min', factor=0.6, patience=4, cooldown=2,
                     threshold=1e-3, threshold_mode='rel', min_lr=self.weight_lr*0.6**15
                     )
                 def scheduler_step(val_loss, regularizer_loss):
