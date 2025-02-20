@@ -177,6 +177,7 @@ class spclt():
             del soft_assignments, reserved_idx, train_val_data, train_indices, val_indices
             val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
             val_loader = DataLoader(val_dataset, batch_size=min(self.batch_size, len(val_dataset)), shuffle=False, drop_last=True)
+            del val_dataset
             
             if n_epochs is not None:
                 val_loss_log = np.zeros((n_epochs, 2)) * np.nan
@@ -205,6 +206,7 @@ class spclt():
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
+        del train_dataset
         train_iters = int(len(train_loader)*0.5) # use 50% of the total iterations per epoch
         if n_epochs is not None:
             if self.regularizer_config['reserve'] is None:
@@ -241,6 +243,7 @@ class spclt():
                     batch_sim_mat = datautils.compute_sim_mat(x.numpy(), self.dist_metric)
                     soft_labels = datautils.assign_soft_labels(batch_sim_mat, self.loss_config['tau_inst'])
                     soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
+                    del batch_sim_mat
                 else:
                     soft_labels = train_soft_assignments[idx][:,idx] # (B, B)
                     soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
@@ -306,6 +309,7 @@ class spclt():
                             batch_sim_mat = datautils.compute_sim_mat(x.numpy(), self.dist_metric)
                             soft_labels = datautils.assign_soft_labels(batch_sim_mat, self.loss_config['tau_inst'])
                             soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
+                            del batch_sim_mat
                         else:
                             soft_labels = val_soft_assignments[idx][:,idx]
                             soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
@@ -387,6 +391,7 @@ class spclt():
         # create test dataset and dataloader
         val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
         val_loader = DataLoader(val_dataset, batch_size=min(self.batch_size, len(val_dataset)), shuffle=False, drop_last=True)
+        del val_dataset
 
         # define loss function
         self.loss_func = losses.combined_loss
@@ -412,6 +417,7 @@ class spclt():
                     batch_sim_mat = datautils.compute_sim_mat(x.numpy(), self.dist_metric)
                     soft_labels = datautils.assign_soft_labels(batch_sim_mat, loss_config['tau_inst'])
                     soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
+                    del batch_sim_mat
                 else:
                     soft_labels = soft_assignments[idx][:,idx]
                     soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
