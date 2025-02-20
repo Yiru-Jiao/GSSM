@@ -47,7 +47,6 @@ class spclt():
                                         num_layers=2,
                                         single_output=True).to(self.device)
 
-        # self._net.apply(self.initialize_weights) # random initialization
         self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device)
         self.net.update_parameters(self._net)
 
@@ -77,16 +76,6 @@ class spclt():
             self._net.train()
             self.net.train()
             self.loss_log_vars.requires_grad = True
-
-    def initialize_weights(self, m):
-        if isinstance(m, torch.nn.Linear):
-            torch.nn.init.xavier_normal_(m.weight)
-            if m.bias is not None:
-                torch.nn.init.zeros_(m.bias)
-        elif isinstance(m, torch.nn.Conv1d):
-            torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
-            if m.bias is not None:
-                torch.nn.init.zeros_(m.bias)
 
 
     def fit(self, name_data, train_data, soft_assignments=None, n_epochs=None, n_iters=None, scheduler='constant', verbose=0):
