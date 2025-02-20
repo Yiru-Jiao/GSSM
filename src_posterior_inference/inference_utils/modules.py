@@ -55,9 +55,11 @@ class current_encoder(nn.Module):
         self.input_fc = nn.Linear(input_dims, hidden_dims//2)
         self.feature_extractor = DilatedConvEncoder(
             hidden_dims//2,
-            [hidden_dims] + [output_dims] * 2,
+            [hidden_dims, output_dims],
             kernel_size=3
-        ) # [Conv1d(hidden_dims//2, hidden_dims), Conv1d(hidden_dims, output_dims), Conv1d(output_dims, output_dims)]
+        ) # 2 ConvBlocks, each block consists of 2 Conv1d layers
+        #   ConvBlock1: Conv1d(hidden_dims//2, hidden_dims), Conv1d(hidden_dims, hidden_dims), 
+        #   ConvBlock2: Conv1d(hidden_dims, output_dims), Conv1d(output_dims, output_dims)
         self.repr_dropout = nn.Dropout(p=0.1)
 
     # Load a pretrained model
@@ -70,8 +72,10 @@ class current_encoder(nn.Module):
         print(f"Pretrained encoder for current features loaded: {best_model.split('trained_models/')[-1]}")
 
     def forward(self, x): # x: (batch_size, 10 or 11)
-        x = x.view(x.size(0), 1, -1) # (batch_size, 1, 10 or 11)
-        out = self.feature_extractor(x) # (batch_size, 64, 10 or 11)
+        x = x.unsqueeze(-1) # (batch_size, 10 or 11, 1)
+        x = self.input_fc(x) # (batch_size, 10 or 11, hidden_dims//2)
+        xx = x.transpose(1, 2) # (batch_size, hidden_dims//2, 10 or 11)
+        out = self.feature_extractor(xx) # (batch_size, 64, 10 or 11)
         return out.transpose(1, 2) # (batch_size, 10 or 11, 64)
 
 
