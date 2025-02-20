@@ -19,6 +19,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
+    parser.add_argument('--stage', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     parser.add_argument('--reversed_list', type=int, default=0, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
@@ -46,7 +47,10 @@ def main(args, manual_seed, path_prepared):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    exp_config = set_experiments(stage=[1,2,3,4])
+    if args.stage is None:
+        exp_config = set_experiments(stage=[1,2,3,4])
+    else:
+        exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
         exp_config = exp_config[::-1]
 
@@ -69,7 +73,7 @@ def main(args, manual_seed, path_prepared):
 
         initial_lr = 0.0001
         batch_size = 32
-        epochs = 100 if 'profiles' in encoder_selection else 500
+        epochs = 500
         
         condition = (evaluation['dataset']==dataset_name)&\
                     (evaluation['encoder_selection']==encoder_name)&\
