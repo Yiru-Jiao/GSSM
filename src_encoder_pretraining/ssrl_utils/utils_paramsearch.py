@@ -89,6 +89,7 @@ def grid_search(params, dataset, dist_metric,
     gs.fit(train_data, **{'sim_mat':sim_mat, 'dataset': dataset, 'encoder_config': fit_config})
     best_params, best_score = gs.best_params_, round(gs.best_score_, 4)
 
+    del train_data
     del scorer
     del gs
     torch.cuda.empty_cache()
