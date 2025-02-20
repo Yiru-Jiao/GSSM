@@ -350,7 +350,7 @@ class attention_decoder(nn.Module):
         '''
         out, hidden_states = self.combi_decoder(x_tuple)
         mu = out[:, 0].unsqueeze(-1)
-        sigma = F.softplus(out[:, 1].unsqueeze(-1))
+        sigma = F.softplus(out[:, 1].unsqueeze(-1)) + 1e-6 # add small value to avoid near-zero variance
         if self.return_attention:
             return mu, sigma, hidden_states
         else:
