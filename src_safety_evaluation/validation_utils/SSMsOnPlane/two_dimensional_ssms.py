@@ -145,9 +145,10 @@ def TTC2D(samples, toreturn='dataframe'):
             return samples['TTC2D'].values
 
 
-def ACT(samples, toreturn='dataframe'):
+def ACT(samples, toreturn='dataframe', dt=0.1):
     '''
     https://doi.org/10.1016/j.trc.2022.103655
+    We don't use acceleration for vehicle dynamics to make its comparison with others fair.
     '''
     if toreturn!='dataframe' and toreturn!='values':
         warnings.warn('Incorrect target to return. Please specify \'dataframe\' or \'values\'.')
@@ -161,9 +162,14 @@ def ACT(samples, toreturn='dataframe'):
         samples = samples.sort_values(by=['target_id','time']).set_index('target_id')
         # for each event
         for target_id in target_ids:
-            event = samples.loc[target_id]
-            delta = CurrentD(event, toreturn='values')
-            pdelta_pt = np.diff(delta, prepend=np.inf) / -np.diff(event['time'].values, prepend=event['time'].values[0]-0.1)
+            event = samples.loc[target_id].copy()
+            delta = CurrentD(event, toreturn='values') # current distance
+            # update positions after dt
+            for xy in ['x', 'y']:
+                for ij in ['i', 'j']:
+                    event[f'{xy}_{ij}'] = event[f'{xy}_{ij}'].values + event[f'v{xy}_{ij}'].values * dt
+            ddelta = CurrentD(event, toreturn='values') - delta # distance difference
+            pdelta_pt = ddelta / dt
             pdelta_pt[(pdelta_pt>=0)&(pdelta_pt<1e-6)] = 1e-6
             pdelta_pt[(pdelta_pt<0)&(pdelta_pt>-1e-6)] = -1e-6
             samples.loc[target_id, 'ACT'] = delta / pdelta_pt
