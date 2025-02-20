@@ -58,7 +58,7 @@ def main(path_prepared, path_processed):
                 segmenter.environment_features_set.to_hdf(path_save + f'environment_features_{dataset}_{suffix}.h5', key='features')
             initial_scene_id = segmenter.current_features_set['scene_id'].max() + 1
             print(f'Number of scenes: {initial_scene_id - segmenter.initial_scene_id}')
-            print(f'Minimum dist.: {segmenter.current_features_set['s'].min():.2f}')
+            print(f"Minimum dist.: {segmenter.current_features_set['s'].min():.2f}")
             print(f'Unique scene ids in current features set: {segmenter.current_features_set['scene_id'].nunique()}, should be the same as the profiles set: {segmenter.profiles_set['scene_id'].nunique()}')
             ## save a plot of speed distribution
             ax = axes[0] if suffix=='train' else axes[1]
