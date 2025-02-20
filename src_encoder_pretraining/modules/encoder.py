@@ -1,7 +1,7 @@
 '''
 This script defines the encoders for models.
-The TSEncoder is adapted from TS2Vec https://github.com/zhihanyue/ts2vec All adaptations are marked with comments.
-Eventually we use LSTM instead of TSEncoder because it's very slow for large-scale data.
+The CNNEncoder is adapted from TS2Vec https://github.com/zhihanyue/ts2vec All adaptations are marked with comments.
+Eventually we use LSTM instead of CNNEncoder for time series
 '''
 
 import torch
@@ -38,7 +38,7 @@ class LSTMEncoder(nn.Module):
 
 
 #######################
-##     TSEncoder     ##
+##     CNNEncoder     ##
 #######################
 
 def generate_continuous_mask(B, T, n=5, l=0.1):

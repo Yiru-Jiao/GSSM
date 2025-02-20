@@ -11,6 +11,7 @@ import torch.nn.functional as F
 import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.clt_model import spclt
+from src_encoder_pretraining.modules.encoder import DilatedConvEncoder
 from src_encoder_pretraining.ssrl_utils.utils_general import load_tuned_hyperparameters, configure_model
 
 
@@ -49,17 +50,15 @@ class ts_encoder(nn.Module):
 
 
 class current_encoder(nn.Module):
-    def __init__(self, input_dims=1, output_dims=64):
+    def __init__(self, input_dims=1, hidden_dims=32, output_dims=64):
         super(current_encoder, self).__init__()
-        self.feature_extractor = nn.Sequential(
-            nn.Conv1d(input_dims, 32, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Conv1d(32, output_dims, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Conv1d(output_dims, output_dims, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-        )
+        self.input_fc = nn.Linear(input_dims, hidden_dims//2)
+        self.feature_extractor = DilatedConvEncoder(
+            hidden_dims//2,
+            [hidden_dims] + [output_dims] * 2,
+            kernel_size=3
+        ) # [Conv1d(hidden_dims//2, hidden_dims), Conv1d(hidden_dims, output_dims), Conv1d(output_dims, output_dims)]
+        self.repr_dropout = nn.Dropout(p=0.1)
 
     # Load a pretrained model
     def load(self, model_selection, device, path_prepared):
@@ -73,20 +72,20 @@ class current_encoder(nn.Module):
     def forward(self, x): # x: (batch_size, 10 or 11)
         x = x.view(x.size(0), 1, -1) # (batch_size, 1, 10 or 11)
         out = self.feature_extractor(x) # (batch_size, 64, 10 or 11)
-        return out.permute(0, 2, 1) # (batch_size, 10 or 11, 64)
+        return out.transpose(1, 2) # (batch_size, 10 or 11, 64)
 
 
 class environment_encoder(nn.Module):
     def __init__(self, input_dims=27, output_dims=64):
         super(environment_encoder, self).__init__()
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, 64),
+            nn.Linear(input_dims, 32),
             nn.ReLU(),
             nn.Linear(64, output_dims),
             nn.ReLU(),
             nn.Linear(output_dims, output_dims),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.1),
         )
 
     # Load a pretrained model
@@ -155,17 +154,17 @@ class attention_decoder(nn.Module):
     def define_head(self, input_dims, output_dims):
         Query = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(input_dims//2, output_dims)
         )
         Key = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(input_dims//2, output_dims, bias=False)
         )
         Value = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(input_dims//2, output_dims, bias=False)
         )
         return Query, Key, Value
