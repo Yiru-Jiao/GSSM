@@ -19,7 +19,7 @@ def main(path_prepared, path_processed):
     initial_time = systime.time()
     print(f'Available cores for parallel processing: {multiprocessing.cpu_count()}')
 
-    for dataset in ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']:
+    for dataset in ['highD', 'INTERACTION', 'Argoverse', 'SafeBaseline']:
         path_save = f'{path_prepared}{dataset}/'
         os.makedirs(path_save, exist_ok=True)
         if os.path.exists(path_save + 'speed_distribution_' + dataset + '.pdf'):
