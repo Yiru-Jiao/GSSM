@@ -80,11 +80,11 @@ class environment_encoder(nn.Module):
         super(environment_encoder, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims, 32),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(64, output_dims),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(0.1),
         )
 
@@ -144,9 +144,9 @@ class attention_decoder(nn.Module):
         self.Q_out, self.K_out, self.V_out = self.define_head(hidden_dims, fc_dims)
         self.mlp = nn.Sequential(
             nn.Linear(self.final_seq_len * self.fc_dims, 128),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(128, 32),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(32, 2)
         )
         self.combi_decoder = self.define_combi_decoder()
