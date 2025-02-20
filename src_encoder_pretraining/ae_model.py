@@ -160,8 +160,8 @@ class autoencoder():
                 self.train()
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
                     self.scheduler.step(val_loss_log[self.epoch_n])
-                    stop_condition = np.diff(val_loss_log[self.epoch_n-4:self.epoch_n+1]) # diff in the last 4 epochs
-                    stop_condition = np.all(abs(stop_condition/val_loss_log[self.epoch_n-4:self.epoch_n])<self.stop_threshold)
+                    stop_condition = np.diff(val_loss_log[self.epoch_n-3:self.epoch_n+1]) # diff in the last 3 epochs
+                    stop_condition = np.all(abs(stop_condition/val_loss_log[self.epoch_n-3:self.epoch_n])<self.stop_threshold)
                     if stop_condition:
                         # early stopping if validation loss converges
                         print('Early stopping due to validation loss convergence.')
