@@ -59,17 +59,17 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
         scaler = StandardScaler()
-        scaler.fit(scaler_data[['v_ego','v_sur','angle']].values)
-        train_X = scaler.transform(train_data[['v_ego','v_sur','angle']].values).reshape(-1, 20, 3)
-        val_X = scaler.transform(val_data[['v_ego','v_sur','angle']].values).reshape(-1, 20, 3)
+        scaler.fit(scaler_data[['v_ego','v_sur','psi_sur']].values)
+        train_X = scaler.transform(train_data[['v_ego','v_sur','psi_sur']].values).reshape(-1, 20, 3)
+        val_X = scaler.transform(val_data[['v_ego','v_sur','psi_sur']].values).reshape(-1, 20, 3)
 
         assert train_X.ndim == 3 and val_X.ndim == 3
         
     elif 'current' in feature:
         if 'acc' in feature:
-            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho','acc_ego']
         else:
-            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
+            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho']
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 

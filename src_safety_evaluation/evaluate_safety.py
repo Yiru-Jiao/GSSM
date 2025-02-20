@@ -259,7 +259,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if encoder_selection[0]=='current':
-            states.append(current_scaler.transform(np.hstack([current_features[:,:7], current_features[:, 8:]])))
+            states.append(current_scaler.transform(current_features[:,:-1])) # exclude the last column of acc_ego
         if encoder_selection[0]=='current+acc':
             states.append(current_scaler.transform(current_features))
         if 'environment' in encoder_selection:

@@ -19,13 +19,13 @@ def get_scaler(datasets, dataset_dir, feature):
             for split in ['train', 'val']:
                 scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler_data = scaler_data[['v_ego','v_sur','angle']].values
+        scaler_data = scaler_data[['v_ego','v_sur','psi_sur']].values
         scaler = StandardScaler().fit(scaler_data)
     elif 'current' in feature:
         if 'acc' in feature:
-            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho','acc_ego']
         else:
-            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
+            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho']
         scaler_data = []
         for dataset in datasets:
             for split in ['train', 'val']:
@@ -86,9 +86,9 @@ class DataOrganiser(Dataset):
         X_current = X_current.sort_values('scene_id').reset_index(drop=True)
         self.scene_ids = X_current['scene_id'].values
         if 'acc' in self.encoder_selection[0]:
-            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','acc_ego','v_ego2','v_sur2','rho']
+            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho','acc_ego']
         else:
-            variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
+            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho']
         self.data.append(torch.from_numpy(self.current_scaler.transform(X_current[variables].values)).float())
 
         if 'environment' in self.encoder_selection:
@@ -117,7 +117,7 @@ class DataOrganiser(Dataset):
             X_profiles = pd.concat(X_profiles)
             X_profiles = X_profiles.sort_values(['scene_id', 'time']).reset_index(drop=True)
             assert np.all(X_current['scene_id'].values==X_profiles['scene_id'].drop_duplicates().values)
-            X_profiles = X_profiles[['v_ego','v_sur','angle']].values.reshape(-1, 20, 3)
+            X_profiles = X_profiles[['v_ego','v_sur','psi_sur']].values.reshape(-1, 20, 3)
             X_profiles = self.profiles_scaler.transform(X_profiles.reshape(-1, 3)).reshape(X_profiles.shape)
             self.data.append(torch.from_numpy(X_profiles).float())
 

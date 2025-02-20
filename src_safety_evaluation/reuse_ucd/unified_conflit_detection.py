@@ -38,7 +38,7 @@ class DataOrganiser(Dataset):
         features = pd.read_hdf(self.path_input + 'current_features_highD_' + self.dataset + '.h5', key='features')
         self.idx_list = features['scene_id'].values
         features = features.set_index('scene_id')
-        variables = ['l_ego','w_ego','l_sur','w_sur','delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
+        variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho']
         self.interaction_context = features[variables].copy()
         # log-transform spacing, and the spacing must be larger than 0
         if np.any(features['s']<=1e-6):
@@ -114,12 +114,12 @@ class train_val_test():
     def create_inducing_points(self, num_inducing_points):
         # Create representative points for the input space
         inducing_points = pd.DataFrame({'l_ego': np.random.uniform(0.5, 16.2,num_inducing_points),
-                                        'w_ego': np.random.uniform(0.5, 2.6,num_inducing_points),
                                         'l_sur': np.random.uniform(0.5, 16.2,num_inducing_points),
-                                        'w_sur': np.random.uniform(0.5, 2.6,num_inducing_points),
                                         'delta_v2': np.random.uniform(0.,400.,num_inducing_points),
                                         'delta_v': np.random.uniform(-20.,20.,num_inducing_points),
                                         'psi_sur': np.random.uniform(-np.pi,np.pi,num_inducing_points),
+                                        'v_ego': np.random.uniform(0.,45.,num_inducing_points),
+                                        'v_sur': np.random.uniform(0.,45.,num_inducing_points),
                                         'v_ego2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'v_sur2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
@@ -206,12 +206,12 @@ def define_model(num_inducing_points, device):
     # Create representative points for the input space
     # This is defined when training. Don't change it when applying the model.
     inducing_points = np.concatenate([np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_ego
-                                      np.random.uniform(0.5, 2.6,(num_inducing_points,1)), # width_ego
                                       np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_sur
-                                      np.random.uniform(0.5, 2.6,(num_inducing_points,1)), # width_sur
                                       np.random.uniform(0.,400.,(num_inducing_points,1)), # delta_v2
                                       np.random.uniform(-20.,20.,(num_inducing_points,1)), # delta_v
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1)), # psi_sur
+                                      np.random.uniform(0.,45.,(num_inducing_points,1)), # v_ego
+                                      np.random.uniform(0.,45.,(num_inducing_points,1)), # v_sur
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_ego2
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_sur2
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1))], # rho
@@ -266,8 +266,8 @@ def UCD(data, device):
     rho = coortrans.angle(1, 0, data_relative['x_sur'], data_relative['y_sur']).reset_index().rename(columns={0:'rho'})
     rho[['target_id','time']] = data_relative[['target_id','time']]
     interaction_context = data.drop(columns=['hx_sur','hy_sur']).merge(heading_sur, on=['target_id','time']).merge(rho, on=['target_id','time'])
-    features = ['length_ego','width_ego','length_sur','width_sur',
-                'delta_v2','delta_v','psi_sur','v_ego2','v_sur2','rho']
+    features = ['length_ego','length_sur','delta_v2','delta_v','psi_sur',
+                'v_ego','v_sur','v_ego2','v_sur2','rho']
     interaction_context = interaction_context[features+['event_id','target_id','time']].sort_values(['target_id','time'])
     data_relative = data_relative.merge(interaction_context[['target_id','time']], on=['target_id','time']).sort_values(['target_id','time'])
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
