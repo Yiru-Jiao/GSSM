@@ -48,19 +48,19 @@ class ts_encoder(nn.Module):
         out = self.spclt_model.encode(x) # out: (batch_size, seq_len=20, repr_dims=64)
         return out # (batch_size, 20, 64)
 
-
 class current_encoder(nn.Module):
-    def __init__(self, input_dims=1, hidden_dims=32, output_dims=64):
+    def __init__(self, input_dims=1, output_dims=64):
         super(current_encoder, self).__init__()
-        self.input_fc = nn.Linear(input_dims, hidden_dims//2)
-        self.feature_extractor = DilatedConvEncoder(
-            hidden_dims//2,
-            [hidden_dims, output_dims],
-            kernel_size=3
-        ) # 2 ConvBlocks, each block consists of 2 Conv1d layers
-        #   ConvBlock1: Conv1d(hidden_dims//2, hidden_dims), Conv1d(hidden_dims, hidden_dims), 
-        #   ConvBlock2: Conv1d(hidden_dims, output_dims), Conv1d(output_dims, output_dims)
-        self.repr_dropout = nn.Dropout(p=0.1)
+        self.input_fc = nn.Linear(input_dims, 16)
+        self.feature_extractor = nn.Sequential(
+            nn.Conv1d(16, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv1d(32, output_dims, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv1d(output_dims, output_dims, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+        )
 
     # Load a pretrained model
     def load(self, model_selection, device, path_prepared):
@@ -73,9 +73,9 @@ class current_encoder(nn.Module):
 
     def forward(self, x): # x: (batch_size, 10 or 11)
         x = x.unsqueeze(-1) # (batch_size, 10 or 11, 1)
-        x = self.input_fc(x) # (batch_size, 10 or 11, hidden_dims//2)
-        xx = x.transpose(1, 2) # (batch_size, hidden_dims//2, 10 or 11)
-        out = self.feature_extractor(xx) # (batch_size, 64, 10 or 11)
+        x = self.input_fc(x) # (batch_size, 10 or 11, 16)
+        x = x.transpose(1, 2) # (batch_size, 16, 10 or 11)
+        out = self.feature_extractor(x) # (batch_size, 64, 10 or 11)
         return out.transpose(1, 2) # (batch_size, 10 or 11, 64)
 
 
@@ -85,7 +85,7 @@ class environment_encoder(nn.Module):
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims, 32),
             nn.GELU(),
-            nn.Linear(64, output_dims),
+            nn.Linear(32, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.GELU(),
