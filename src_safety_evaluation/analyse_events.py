@@ -86,7 +86,7 @@ def main(path_result):
     cross_attention_name_list = model_evaluation['cross_attention'].values
     pretraining_list = model_evaluation['pretraining'].values
 
-    ssse_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
+    ssse_thresholds = np.unique(np.round(10**(np.arange(0,2.3,0.0142)**2))).astype(int)
     for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
