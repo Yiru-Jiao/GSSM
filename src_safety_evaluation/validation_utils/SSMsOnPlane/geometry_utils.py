@@ -7,7 +7,7 @@ import warnings
 
 def line(point0, point1):
     '''
-    Get the line equation from two points.
+    Get the line equation from two points: ax+by+c=0.
     '''
     x0, y0 = point0
     x1, y1 = point1
@@ -28,7 +28,7 @@ def angle(vec1x, vec1y, vec2x, vec2y):
     - vec2y: y-component of the second vector
 
     Returns:
-    - angle: angle between the two vectors in [-pi, pi]
+    - angle: angle between the two vectors in [-pi, pi], with the first vector as the reference
     '''
     sin = vec1x * vec2y - vec2x * vec1y
     cos = vec1x * vec2x + vec1y * vec2y
@@ -136,9 +136,11 @@ def CurrentD(samples, toreturn='dataframe'):
 
         dist_mat = []
         count_i = 0
-        for point_i_start, point_i_end in zip([point_i1, point_i4, point_i3, point_i2],[point_i2, point_i3, point_i1, point_i4]):
+        for point_i_start, point_i_end in zip([point_i1, point_i4, point_i3, point_i2],
+                                              [point_i2, point_i3, point_i1, point_i4]):
             count_j = 0
-            for point_j_start, point_j_end in zip([point_j1, point_j4, point_j3, point_j2],[point_j2, point_j3, point_j1, point_j4]):
+            for point_j_start, point_j_end in zip([point_j1, point_j4, point_j3, point_j2],
+                                                  [point_j2, point_j3, point_j1, point_j4]):
                 if count_i<2 and count_j<2 :
                     # Distance from point to point
                     dist_mat.append(np.sqrt((point_i_start[0]-point_j_start[0])**2+(point_i_start[1]-point_j_start[1])**2))
