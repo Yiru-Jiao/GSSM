@@ -26,9 +26,9 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 2 in stage: # multiple datasets, current only
         exp_config.extend([
-            # [['Argoverse', 'SafeBaseline'], ['current'], [], False],
-            # [['Argoverse', 'SafeBaseline', 'highD'], ['current'], [], False],
-            # [['Argoverse', 'SafeBaseline', 'highD', 'INTERACTION'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], [], False],
         ])
     if 3 in stage: # single dataset, encoder pretrained with all datasets
         exp_config.extend([
