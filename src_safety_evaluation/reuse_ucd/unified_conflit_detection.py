@@ -38,7 +38,9 @@ class DataOrganiser(Dataset):
         features = pd.read_hdf(self.path_input + 'current_features_highD_' + self.dataset + '.h5', key='features')
         self.idx_list = features['scene_id'].values
         features = features.set_index('scene_id')
-        variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho']
+        variables = ['l_ego','l_sur','combined_width','psi_sur',
+                     'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
+                     'delta_v2','delta_v','rho']
         self.interaction_context = features[variables].copy()
         # log-transform spacing, and the spacing must be larger than 0
         if np.any(features['s']<=1e-6):
@@ -64,8 +66,8 @@ class SVGP(gpytorch.models.ApproximateGP):
         self.mean_module = gpytorch.means.ConstantMean()
 
         # Kernel module
-        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=10, ard_num_dims=10)
-        rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=10))
+        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=10, ard_num_dims=12)
+        rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=12))
         self.covar_module = mixture_kernel + rbf_kernel
 
         # To make mean positive
@@ -110,18 +112,19 @@ class train_val_test():
         # Define the likelihood of the model
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
 
-
     def create_inducing_points(self, num_inducing_points):
         # Create representative points for the input space
         inducing_points = pd.DataFrame({'l_ego': np.random.uniform(0.5, 16.2,num_inducing_points),
                                         'l_sur': np.random.uniform(0.5, 16.2,num_inducing_points),
-                                        'delta_v2': np.random.uniform(0.,400.,num_inducing_points),
-                                        'delta_v': np.random.uniform(-20.,20.,num_inducing_points),
+                                        'combined_width': np.random.uniform(0.,5.,num_inducing_points),
                                         'psi_sur': np.random.uniform(-np.pi,np.pi,num_inducing_points),
-                                        'v_ego': np.random.uniform(0.,45.,num_inducing_points),
-                                        'v_sur': np.random.uniform(0.,45.,num_inducing_points),
+                                        'vy_ego': np.random.uniform(0.,45.,num_inducing_points),
+                                        'vx_sur': np.random.uniform(0.,45.,num_inducing_points),
+                                        'vy_sur': np.random.uniform(0.,45.,num_inducing_points),
                                         'v_ego2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'v_sur2': np.random.uniform(0.,2000.,num_inducing_points),
+                                        'delta_v2': np.random.uniform(0.,400.,num_inducing_points),
+                                        'delta_v': np.random.uniform(-20.,20.,num_inducing_points),
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
         return inducing_points.values
 
@@ -207,13 +210,15 @@ def define_model(num_inducing_points, device):
     # This is defined when training. Don't change it when applying the model.
     inducing_points = np.concatenate([np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_ego
                                       np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_sur
-                                      np.random.uniform(0.,400.,(num_inducing_points,1)), # delta_v2
-                                      np.random.uniform(-20.,20.,(num_inducing_points,1)), # delta_v
+                                      np.random.uniform(0.,5.,(num_inducing_points,1)), # combined_width
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1)), # psi_sur
-                                      np.random.uniform(0.,45.,(num_inducing_points,1)), # v_ego
-                                      np.random.uniform(0.,45.,(num_inducing_points,1)), # v_sur
+                                      np.random.uniform(0.,45.,(num_inducing_points,1)), # vy_ego
+                                      np.random.uniform(0.,45.,(num_inducing_points,1)), # vx_sur
+                                      np.random.uniform(0.,45.,(num_inducing_points,1)), # vy_sur
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_ego2
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_sur2
+                                      np.random.uniform(0.,400.,(num_inducing_points,1)), # delta_v2
+                                      np.random.uniform(-20.,20.,(num_inducing_points,1)), # delta_v
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1))], # rho
                                       axis=1)
     inducing_points = torch.from_numpy(inducing_points).float()
@@ -252,22 +257,24 @@ def UCD(data, device):
     data = data.rename(columns={'x_ego':'y_ego', 'y_ego':'x_ego', 'x_sur':'y_sur', 'y_sur':'x_sur',
                                 'vx_ego':'vy_ego', 'vy_ego':'vx_ego', 'vx_sur':'vy_sur', 'vy_sur':'vx_sur',
                                 'hx_ego':'hy_ego', 'hy_ego':'hx_ego', 'hx_sur':'hy_sur', 'hy_sur':'hx_sur'})
-    data['psi_ego'] = coortrans.angle(1, 0, data['hx_ego'], data['hy_ego'])
-    data['psi_sur'] = coortrans.angle(1, 0, data['hx_sur'], data['hy_sur'])
 
     ## Transform coordinates and formulate input data
-    data['delta_v2'] = (data['vx_ego']-data['vx_sur'])**2 + (data['vy_ego']-data['vy_sur'])**2
-    data['delta_v'] = np.sqrt(data['delta_v2']) * np.sign(data['v_ego']-data['v_sur'])
+    data['combined_width'] = (data['width_ego']+data['width_sur'])/2
     data['v_ego2'] = data['v_ego']**2
     data['v_sur2'] = data['v_sur']**2
+    data['delta_v2'] = (data['vx_ego']-data['vx_sur'])**2 + (data['vy_ego']-data['vy_sur'])**2
+    data['delta_v'] = np.sqrt(data['delta_v2']) * np.sign(data['v_ego2']-data['v_sur2'])
     data_view_ego = coortrans.transform_coor(data, view='i')
-    heading_sur = data_view_ego[['target_id','time','hx_sur','hy_sur']]
+    view_ego_features = ['hx_sur','hy_sur','vy_ego','vx_sur','vy_sur']
+    data_view_ego = data_view_ego[['target_id','time']+view_ego_features]
     data_relative = coortrans.transform_coor(data, view='relative')
     rho = coortrans.angle(1, 0, data_relative['x_sur'], data_relative['y_sur']).reset_index().rename(columns={0:'rho'})
     rho[['target_id','time']] = data_relative[['target_id','time']]
-    interaction_context = data.drop(columns=['hx_sur','hy_sur']).merge(heading_sur, on=['target_id','time']).merge(rho, on=['target_id','time'])
-    features = ['length_ego','length_sur','delta_v2','delta_v','psi_sur',
-                'v_ego','v_sur','v_ego2','v_sur2','rho']
+    interaction_context = data.drop(columns=view_ego_features).merge(data_view_ego, on=['target_id','time']).merge(rho, on=['target_id','time'])
+    interaction_context['psi_sur'] = coortrans.angle(0, 1, interaction_context['hx_sur'], interaction_context['hy_sur'])
+    features = ['length_ego','length_sur','combined_width','psi_sur',
+                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
+                'delta_v2','delta_v','rho']
     interaction_context = interaction_context[features+['event_id','target_id','time']].sort_values(['target_id','time'])
     data_relative = data_relative.merge(interaction_context[['target_id','time']], on=['target_id','time']).sort_values(['target_id','time'])
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
