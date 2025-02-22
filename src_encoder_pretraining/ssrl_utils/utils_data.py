@@ -67,9 +67,13 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
         
     elif 'current' in feature:
         if 'acc' in feature:
-            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho','acc_ego']
+            variables = ['l_ego','l_sur','combined_width','psi_sur',
+                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
+                         'delta_v2','delta_v','rho','acc_ego']
         else:
-            variables = ['l_ego','l_sur','delta_v2','delta_v','psi_sur','v_ego','v_sur','v_ego2','v_sur2','rho']
+            variables = ['l_ego','l_sur','combined_width','psi_sur',
+                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
+                         'delta_v2','delta_v','rho']
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 

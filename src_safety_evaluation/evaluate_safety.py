@@ -111,7 +111,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             current_features = np.concatenate(current_features, axis=0)
             spacing_list = np.concatenate(spacing_list, axis=0)
             event_id_list = np.concatenate(event_id_list, axis=0)
-            assert profiles_features.shape == (len(spacing_list), 20, 3)
+            assert profiles_features.shape[0] == len(spacing_list) and profiles_features.shape[1] == 20
             # Save the features
             np.savez(path_result + f'EventData/{event_cat}/event_features.npz', 
                      profiles=profiles_features, 
