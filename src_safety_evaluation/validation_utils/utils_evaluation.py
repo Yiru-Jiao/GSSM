@@ -242,10 +242,10 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
 
 def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=False):
-    if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-        warning.loc[warning['median_before_danger']<warning['median_danger'], 'danger_recorded'] = False
-    elif conflict_indicator in ['DRAC', 'EI', 'SSSE']:
-        warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
+    # if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+    #     warning.loc[warning['median_before_danger']<warning['median_danger'], 'danger_recorded'] = False
+    # elif conflict_indicator in ['DRAC', 'EI', 'SSSE']:
+    #     warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
 
     true_positives = warning[warning['danger_recorded']&(warning['true warning'].astype(bool))].groupby('threshold').size()
     false_positives = warning[warning['safety_recorded']&(warning['false warning'].astype(bool))].groupby('threshold').size()
