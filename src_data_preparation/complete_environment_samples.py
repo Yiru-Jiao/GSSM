@@ -2,6 +2,7 @@
 This script generates all possible combinations of the environment features for pretraining the autoencoder of them.
 '''
 
+import os
 import sys
 import time as systime
 import numpy as np
@@ -31,9 +32,10 @@ def main(path_prepared):
     all_combinations = categorical_encoder.transform(all_combinations)
     all_combinations = pd.DataFrame(all_combinations, columns=categorical_encoder.get_feature_names_out(environment_feature_names))
     all_combinations = all_combinations.astype(np.int32)
-
+    os.makedirs(path_prepared + 'Segments/', exist_ok=True)
     train_data = all_combinations.sample(frac=0.8, random_state=manual_seed)
     val_data = all_combinations.drop(train_data.index)
+
     train_data.to_hdf(path_prepared + 'Segments/environment_features_train_AE.h5', key='features')
     val_data.to_hdf(path_prepared + 'Segments/environment_features_val_AE.h5', key='features')
 
