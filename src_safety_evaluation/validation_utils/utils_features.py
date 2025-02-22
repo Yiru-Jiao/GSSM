@@ -52,7 +52,7 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
 #         if 'acc' in feature:
 #             variables = ['l_ego','l_sur','combined_width','psi_sur',
 #                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-#                          'delta_v2','delta_v','rho','acc_ego']
+#                          'delta_v2','delta_v','acc_ego','rho']
 #         else:
 #             variables = ['l_ego','l_sur','combined_width','psi_sur',
 #                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
@@ -101,8 +101,8 @@ def segment_data(df, veh_dimensions):
         current_features[8] = vx_sur**2 + vy_sur**2
         current_features[9] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2
         current_features[10] = np.sqrt(current_features[9]) * np.sign(current_features[7]-current_features[8])
-        current_features[11] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
-        current_features[12] = df.iloc[idx_end]['acc_ego']
+        current_features[11] = df.iloc[idx_end]['acc_ego']
+        current_features[12] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
         spacing = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2)
 
         profiles_set.append(profiles.values)

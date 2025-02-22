@@ -25,7 +25,7 @@ from torch.utils.data import Dataset
 #         if 'acc' in feature:
 #             variables = ['l_ego','l_sur','combined_width','psi_sur',
 #                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-#                          'delta_v2','delta_v','rho','acc_ego']
+#                          'delta_v2','delta_v','acc_ego','rho']
 #         else:
 #             variables = ['l_ego','l_sur','combined_width','psi_sur',
 #                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
@@ -92,7 +92,7 @@ class DataOrganiser(Dataset):
         if 'acc' in self.encoder_selection[0]:
             variables = ['l_ego','l_sur','combined_width','psi_sur',
                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-                         'delta_v2','delta_v','rho','acc_ego']
+                         'delta_v2','delta_v','acc_ego','rho']
         else:
             variables = ['l_ego','l_sur','combined_width','psi_sur',
                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',

@@ -121,8 +121,8 @@ class ContextSegmenter(coortrans):
                     current_features[8] = vx_sur**2 + vy_sur**2
                     current_features[9] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2 # squared relative velocity
                     current_features[10] = np.sqrt(current_features[9]) * np.sign(current_features[7]-current_features[8]) # relative speed
-                    current_features[11] = self.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur']) # relative angle
-                    current_features[12] = df.iloc[idx_end]['acc_ego']
+                    current_features[11] = df.iloc[idx_end]['acc_ego']
+                    current_features[12] = self.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur']) # relative angle
                     current_features[13] = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2) # spacing
                     current_features[-1] = scene_id
 
@@ -137,7 +137,7 @@ class ContextSegmenter(coortrans):
         profiles_set['scene_id'] = profiles_set['scene_id'].astype(int)
         current_features_set = pd.DataFrame(current_features_set, columns=['l_ego','l_sur','combined_width','psi_sur',
                                                                            'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-                                                                           'delta_v2','delta_v','rho','acc_ego',
+                                                                           'delta_v2','delta_v','acc_ego','rho',
                                                                            's','scene_id'])
         current_features_set['scene_id'] = current_features_set['scene_id'].astype(int)
         event_id_list = np.array(event_id_list)

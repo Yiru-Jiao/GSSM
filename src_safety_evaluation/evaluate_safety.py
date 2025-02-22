@@ -259,8 +259,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if encoder_selection[0]=='current':
-            # states.append(current_scaler.transform(current_features[:,:-1])) # exclude the last column of acc_ego
-            states.append(current_features[:,:-1])
+            # states.append(current_scaler.transform(current_features[:,:-1]))
+            states.append(np.concatenate([current_features[:,:-2], current_features[:,-1:]], axis=1)) # exclude the column of acc_ego
         if encoder_selection[0]=='current+acc':
             # states.append(current_scaler.transform(current_features))
             states.append(current_features)
