@@ -56,10 +56,6 @@ def main(args):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__}, Available threads: {os.cpu_count()} ---')
     
-    # Set result-saving directory
-    save_dir = f'{path_prepared}EncoderPretraining/spclt/'
-    os.makedirs(save_dir, exist_ok=True)
-
     def use_best_params(best_param_log, phase):
         best_params = best_param_log[phase]
         if 'score' in best_params:
@@ -94,12 +90,17 @@ def main(args):
     start_time = systime.time()
     # Load dataset
     print('---- Loading data ----')
-    dataset = 'highD_SafeBaseline_INTERACTION_Argoverse'
-    train_data, _ = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
+    dataset = 'SafeBaseline'
+    # train_data, _ = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
+    train_data, _ = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles')
     
     dist_metric = 'DTW'
     sim_mat = None # to be computed per batch during training
     
+    # Set result-saving directory
+    save_dir = f'{path_prepared}EncoderPretraining/spclt/{dataset}/'
+    os.makedirs(save_dir, exist_ok=True)
+
     # Predefine default params and search spacef
     default_params = {'tau_inst': [0],
                       'tau_temp': [0],

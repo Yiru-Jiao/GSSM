@@ -63,7 +63,10 @@ def main(args):
     
     # Iterate over different datasets and hyperparameters
     verbose = 5 # update per n_epochs // (1+verbose*4) epoch
-    datasets_list = [['highD'], ['SafeBaseline'], ['INTERACTION'], ['Argoverse']]
+    if args.encoder_name == 'environment':
+        datasets_list = [['none']]
+    else:
+        datasets_list = [['highD'], ['SafeBaseline'], ['INTERACTION'], ['Argoverse']]
     if args.reversed_list:
         datasets_list = datasets_list[::-1]
         bslr_list = bslr_list[::-1]
@@ -71,8 +74,12 @@ def main(args):
     for datasets in datasets_list:
         # Create the directory to save the evaluation results
         dataset_name = '_'.join(datasets)
-        run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/trained_models/'
-        results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/evaluation.csv'
+        if args.encoder_name == 'environment':
+            run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/trained_models/'
+            results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/evaluation.csv'
+        else:
+            run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/trained_models/'
+            results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/evaluation.csv'
         os.makedirs(run_dir, exist_ok=True)
 
         if os.path.exists(results_dir):
