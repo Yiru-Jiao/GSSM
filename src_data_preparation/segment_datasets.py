@@ -17,7 +17,7 @@ def main(path_prepared, path_processed):
     for dataset in ['highD', 'INTERACTION', 'SafeBaseline', 'Argoverse']:
         path_save = f'{path_prepared}{dataset}/'
         os.makedirs(path_save, exist_ok=True)
-        if os.path.exists(path_save + 'speed_distribution_' + dataset + '.pdf'):
+        if os.path.exists(path_save + f'profiles_{dataset}_val.h5'):
             print(f'{dataset} set already segmented.')
             continue
 
