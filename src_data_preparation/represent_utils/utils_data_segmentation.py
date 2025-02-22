@@ -87,7 +87,7 @@ class ContextSegmenter(coortrans):
         event_id_list = []
         scene_id = self.initial_scene_id
 
-        for id_count, target_id in tqdm(enumerate(self.target_ids), desc='Target', total=len(self.target_ids), ascii=True, dynamic_ncols=False, miniters=1000):
+        for id_count, target_id in tqdm(enumerate(self.target_ids), desc='Target', total=len(self.target_ids), ascii=True, dynamic_ncols=False, miniters=100):
             df = self.data.loc(axis=0)[target_id, :]
             if len(df)<25: # skip if the target was detected for less than 2.5 seconds
                 continue

@@ -36,7 +36,7 @@ def main(meta_both, events):
         assert data['event_id'].nunique() == len(event_meta)
         data = data.reset_index().set_index('event_id')
 
-        for event_id in tqdm(event_meta.index.values, desc='Event'):
+        for event_id in tqdm(event_meta.index.values, desc=event_cat, ascii=True, dynamic_ncols=False, miniters=100):
             df = data.loc[event_id]
             # Annotate key timestamps
             raw_vars = ['eventStart', 'eventEnd', 'impactProximity', 'subjectReactionStart']
