@@ -59,7 +59,7 @@ class ContextSegmenter(coortrans):
         self.data = data
         self.initial_scene_id = initial_scene_id
         self.dataset = dataset
-        self.current_feature_size = 12
+        self.current_feature_size = 14
         if self.dataset=='SafeBaseline':
             self.events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
             self.environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
@@ -99,29 +99,31 @@ class ContextSegmenter(coortrans):
             indices_end = np.arange(len(df)-1, 23, -10) # avoid the first 0.3 second due to likely unreliable data
             for idx_end in indices_end:
                 # sample 2-second scenes every 1 second
-                profiles = df.iloc[idx_end-20:idx_end][['v_ego','v_sur']] # speed of ego and surrounding
-                profiles['psi_sur'] = self.angle(0, 1, # heading of the surrounding in the ego's view
-                                                 df_view_ego.iloc[idx_end-20:idx_end]['hx_sur'].values,
-                                                 df_view_ego.iloc[idx_end-20:idx_end]['hy_sur'].values)
+                profiles = df.iloc[idx_end-20:idx_end][['acc_ego','v_ego']]
+                profiles['vx_sur'] = df_view_ego.iloc[idx_end-20:idx_end]['vx_sur'].values
+                profiles['vy_sur'] = df_view_ego.iloc[idx_end-20:idx_end]['vy_sur'].values
 
                 # if there is no missing value in the profiles or df
                 if profiles.isna().sum().sum()==0 and df.iloc[idx_end].isna().sum()==0:
                     profiles['scene_id'] = scene_id
 
                     current_features = np.zeros(self.current_feature_size+1)
+                    vx_ego, vy_ego, vx_sur, vy_sur = df.iloc[idx_end][['vx_ego','vy_ego','vx_sur','vy_sur']].values
+
                     current_features[0] = df.iloc[idx_end]['length_ego']
                     current_features[1] = df.iloc[idx_end]['length_sur']
-                    vx_ego, vy_ego, vx_sur, vy_sur = df.iloc[idx_end][['vx_ego','vy_ego','vx_sur','vy_sur']].values
-                    current_features[2] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2 # squared relative velocity
-                    current_features[3] = np.sqrt(current_features[2]) * np.sign(df.iloc[idx_end]['v_ego']-df.iloc[idx_end]['v_sur']) # relative speed
-                    current_features[4] = self.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur']) # heading angle of the surrounding vehicle
-                    current_features[5] = df.iloc[idx_end]['v_ego']
-                    current_features[6] = df.iloc[idx_end]['v_sur']
-                    current_features[7] = current_features[5]**2
-                    current_features[8] = current_features[6]**2
-                    current_features[9] = self.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur']) # relative angle
-                    current_features[10] = df.iloc[idx_end]['acc_ego']
-                    current_features[11] = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2) # spacing
+                    current_features[2] = (df.iloc[idx_end]['width_ego']+df.iloc[idx_end]['width_sur'])/2
+                    current_features[3] = self.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur']) # heading angle of the surrounding vehicle
+                    current_features[4] = df_view_ego.iloc[idx_end]['vy_ego']
+                    current_features[5] = df_view_ego.iloc[idx_end]['vx_sur']
+                    current_features[6] = df_view_ego.iloc[idx_end]['vy_sur']
+                    current_features[7] = vx_ego**2 + vy_ego**2
+                    current_features[8] = vx_sur**2 + vy_sur**2
+                    current_features[9] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2 # squared relative velocity
+                    current_features[10] = np.sqrt(current_features[9]) * np.sign(current_features[7]-current_features[8]) # relative speed
+                    current_features[11] = self.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur']) # relative angle
+                    current_features[12] = df.iloc[idx_end]['acc_ego']
+                    current_features[13] = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2) # spacing
                     current_features[-1] = scene_id
 
                     if id_count%10000==9999: # concat per every 10000 targets to speed up
@@ -133,13 +135,9 @@ class ContextSegmenter(coortrans):
                     scene_id += 1
         profiles_set = pd.concat(profiles_set, axis=0)
         profiles_set['scene_id'] = profiles_set['scene_id'].astype(int)
-        current_features_set = pd.DataFrame(current_features_set, columns=['l_ego','l_sur',
-                                                                           'delta_v2','delta_v',
-                                                                           'psi_sur',
-                                                                           'v_ego','v_sur',
-                                                                           'v_ego2','v_sur2',
-                                                                           'rho',
-                                                                           'acc_ego',
+        current_features_set = pd.DataFrame(current_features_set, columns=['l_ego','l_sur','combined_width','psi_sur',
+                                                                           'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
+                                                                           'delta_v2','delta_v','rho','acc_ego',
                                                                            's','scene_id'])
         current_features_set['scene_id'] = current_features_set['scene_id'].astype(int)
         event_id_list = np.array(event_id_list)
