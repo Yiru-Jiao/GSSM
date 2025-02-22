@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from sklearn.preprocessing import StandardScaler
+# from sklearn.preprocessing import StandardScaler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_distance_matrix import *
 
@@ -57,11 +57,14 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles') for dataset in datasets])
 
-        scaler_data = pd.concat([train_data, val_data], ignore_index=True)
-        scaler = StandardScaler()
-        scaler.fit(scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values)
-        train_X = scaler.transform(train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
-        val_X = scaler.transform(val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
+        # scaler_data = pd.concat([train_data, val_data], ignore_index=True)
+        # scaler = StandardScaler()
+        # scaler.fit(scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values)
+        # train_X = scaler.transform(train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
+        # val_X = scaler.transform(val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
+
+        train_X = train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 20, 4)
+        val_X = val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 20, 4)
 
         assert train_X.ndim == 3 and val_X.ndim == 3
         
@@ -77,11 +80,14 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 
-        scaler_data = pd.concat([train_data, val_data], ignore_index=True)
-        scaler = StandardScaler()
-        scaler.fit(scaler_data[variables].values)
-        train_X = scaler.transform(train_data[variables].values)
-        val_X = scaler.transform(val_data[variables].values)
+        # scaler_data = pd.concat([train_data, val_data], ignore_index=True)
+        # scaler = StandardScaler()
+        # scaler.fit(scaler_data[variables].values)
+        # train_X = scaler.transform(train_data[variables].values)
+        # val_X = scaler.transform(val_data[variables].values)
+
+        train_X = train_data[variables].values
+        val_X = val_data[variables].values
 
     elif feature == 'environment':
         train_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_train_AE.h5', key='features')

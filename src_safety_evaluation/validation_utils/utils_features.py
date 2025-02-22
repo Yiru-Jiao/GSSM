@@ -6,7 +6,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+# from sklearn.preprocessing import StandardScaler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
@@ -38,35 +38,35 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
         return data_ego, data_sur
 
 
-def get_scaler(datasets, path_prepared, feature='profiles'):
-    print(f'Getting scaler for {feature}...')
-    if feature == 'profiles':
-        scaler_data = []
-        for dataset in datasets:
-            for split in ['train', 'val']:
-                scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
-        scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler_data = scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values
-        scaler = StandardScaler().fit(scaler_data)
-    elif 'current' in feature:
-        if 'acc' in feature:
-            variables = ['l_ego','l_sur','combined_width','psi_sur',
-                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-                         'delta_v2','delta_v','rho','acc_ego']
-        else:
-            variables = ['l_ego','l_sur','combined_width','psi_sur',
-                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-                         'delta_v2','delta_v','rho']
-        scaler_data = []
-        for dataset in datasets:
-            for split in ['train', 'val']:
-                scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
-        scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler_data = scaler_data[variables].values
-        scaler = StandardScaler().fit(scaler_data)
-    elif feature == 'environment':
-        print('No scaler is needed for environment features.')
-    return scaler
+# def get_scaler(datasets, path_prepared, feature='profiles'):
+#     print(f'Getting scaler for {feature}...')
+#     if feature == 'profiles':
+#         scaler_data = []
+#         for dataset in datasets:
+#             for split in ['train', 'val']:
+#                 scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
+#         scaler_data = pd.concat(scaler_data, ignore_index=True)
+#         scaler_data = scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values
+#         scaler = StandardScaler().fit(scaler_data)
+#     elif 'current' in feature:
+#         if 'acc' in feature:
+#             variables = ['l_ego','l_sur','combined_width','psi_sur',
+#                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
+#                          'delta_v2','delta_v','rho','acc_ego']
+#         else:
+#             variables = ['l_ego','l_sur','combined_width','psi_sur',
+#                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
+#                          'delta_v2','delta_v','rho']
+#         scaler_data = []
+#         for dataset in datasets:
+#             for split in ['train', 'val']:
+#                 scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
+#         scaler_data = pd.concat(scaler_data, ignore_index=True)
+#         scaler_data = scaler_data[variables].values
+#         scaler = StandardScaler().fit(scaler_data)
+#     elif feature == 'environment':
+#         print('No scaler is needed for environment features.')
+#     return scaler
 
 
 def segment_data(df, veh_dimensions):
