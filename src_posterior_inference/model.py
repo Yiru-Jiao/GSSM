@@ -89,7 +89,7 @@ class UnifiedProximity(nn.Module):
             best_model = self.select_best_model(pretraining_evaluation)
             self.current_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'environment' in self.encoder_selection:
-            path_prepared = path_prepared + f'EncoderPretraining/environment_autoencoder/{dataset_name}/'
+            path_prepared = path_prepared + f'EncoderPretraining/environment_autoencoder/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.environment_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
