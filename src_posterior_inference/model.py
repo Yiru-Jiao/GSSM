@@ -77,19 +77,19 @@ class UnifiedProximity(nn.Module):
         best_model = pretraining_evaluation.sort_values(by='avg_order').iloc[0]
         return best_model
 
-    def load_pretrained_encoders(self, path_prepared='../PreparedData/', continue_training=False):
+    def load_pretrained_encoders(self, dataset_name, path_prepared='../PreparedData/', continue_training=False):
         if 'current' in self.encoder_selection:
-            path_prepared = path_prepared + 'EncoderPretraining/current_autoencoder/'
+            path_prepared = path_prepared + f'EncoderPretraining/current_autoencoder/{dataset_name}/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.current_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'current+acc' in self.encoder_selection:
-            path_prepared = path_prepared + 'EncoderPretraining/current+acc_autoencoder/'
+            path_prepared = path_prepared + f'EncoderPretraining/current+acc_autoencoder/{dataset_name}/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.current_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'environment' in self.encoder_selection:
-            path_prepared = path_prepared + 'EncoderPretraining/environment_autoencoder/'
+            path_prepared = path_prepared + f'EncoderPretraining/environment_autoencoder/{dataset_name}/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.environment_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)

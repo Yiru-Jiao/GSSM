@@ -53,99 +53,105 @@ def main(args):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    # Create the directory to save the evaluation results
-    run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/trained_models/'
-    results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/evaluation.csv'
-    os.makedirs(run_dir, exist_ok=True)
-
     # Define metrics
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     if 'current' in args.encoder_name:
-        bslr_list = ['bs16_lr0.0001', 'bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001']
+        bslr_list = ['bs32_lr0.0001', 'bs64_lr0.0001', 'bs128_lr0.0001', 'bs256_lr0.0001']
     else:
-        bslr_list = ['bs16_lr0.001', 'bs32_lr0.001', 'bs64_lr0.001', 'bs128_lr0.001']
+        bslr_list = ['bs32_lr0.001', 'bs64_lr0.001', 'bs128_lr0.001', 'bs256_lr0.001']
     
-    if os.path.exists(results_dir):
-        eval_results = pd.read_csv(results_dir)
-    else:
-        metrics = ['global_'+metric for metric in knn_metrics]
-        eval_results = pd.DataFrame(np.zeros((len(bslr_list), 4), dtype=np.float32), columns=metrics)
-        eval_results['bslr'] = bslr_list
-        eval_results.to_csv(results_dir, index=False)
-    
-    # Iterate over different model sets
+    # Iterate over different datasets and hyperparameters
     verbose = 5 # update per n_epochs // (1+verbose*4) epoch
-    print('---- Loading data ----')
-    datasets = ['highD', 'SafeBaseline', 'INTERACTION', 'Argoverse']
-    train_data, test_data = datautils.load_data(datasets, dataset_dir=path_prepared, feature=args.encoder_name)
-    if 'current' in args.encoder_name:
-        test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
-
+    datasets_list = [['highD'], ['SafeBaseline'], ['INTERACTION'], ['Argoverse']]
     if args.reversed_list:
+        datasets_list = datasets_list[::-1]
         bslr_list = bslr_list[::-1]
-    for bslr in bslr_list:
-        args.batch_size = int(bslr.split('_')[0].replace('bs',''))
-        args.lr = float(bslr.split('_')[1].replace('lr',''))
+    
+    for datasets in datasets_list:
+        # Create the directory to save the evaluation results
+        dataset_name = '_'.join(datasets)
+        run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/trained_models/'
+        results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/evaluation.csv'
+        os.makedirs(run_dir, exist_ok=True)
 
-        save_dir = os.path.join(run_dir, f'{bslr}')
-        os.makedirs(save_dir, exist_ok=True)
-
-        if eval_results[eval_results['bslr']==bslr]['global_mean_shared_neighbours'].values[0]>0:
-            final_epoch = eval_results[eval_results['bslr']==bslr]['model_used'].values[0].split('epo')[0].split('_')[-1]
-            print(f'--- {bslr} has been trained until epoch {final_epoch}, skipping evaluation ---')
-            continue
-
-        start_time = systime.time()
-        # Train model if not already trained
-        if os.path.exists(f'{save_dir}/loss_log.csv'):
-            print(f'--- {bslr} has been trained, loading final model ---')
+        if os.path.exists(results_dir):
+            eval_results = pd.read_csv(results_dir)
         else:
-            # Create model
-            model = autoencoder(args.encoder_name, args.lr, device, args.batch_size,
-                                after_epoch_callback = save_checkpoint_callback(save_dir, 0, unit='epoch'))
-            scheduler = 'reduced'
-            print(f'--- {bslr} training with ReduceLROnPlateau scheduler ---')
-            train_losses, val_losses = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
-            # Save loss log
-            loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(train_losses)+1)],
-                                    data={'train_loss': train_losses, 'val_loss': val_losses})
-            loss_log.to_csv(f'{save_dir}/loss_log.csv')
-            print(f'Training time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)))
+            metrics = ['global_'+metric for metric in knn_metrics]
+            eval_results = pd.DataFrame(np.zeros((len(bslr_list), 4), dtype=np.float32), columns=metrics)
+            eval_results['bslr'] = bslr_list
+            eval_results.to_csv(results_dir, index=False)
         
-        # Reserve the latest model and remove the rest
-        existing_models = glob.glob(f'{save_dir}/*_encoder.pth')
-        if len(existing_models)>1:
-            existing_models.sort(key=os.path.getmtime, reverse=True)
-            for model_epoch in existing_models[1:]:
-                os.remove(model_epoch)
-                os.remove(model_epoch.replace('_encoder.pth', '_decoder.pth'))
-        best_model = 'model' + existing_models[0].split('model')[-1].split('_encoder')[0]
+        print(f'---- Training and evaluating with datasets: {datasets} ----')
+        train_data, test_data = datautils.load_data(datasets, dataset_dir=path_prepared, feature=args.encoder_name)
+        if 'current' in args.encoder_name:
+            if test_data.shape[0]>10000:
+                test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
 
-        # Load best model for evaluation
-        model = autoencoder(args.encoder_name, args.lr, device, args.batch_size)
-        model.load(f'{save_dir}/{best_model}')
+        for bslr in bslr_list:
+            args.batch_size = int(bslr.split('_')[0].replace('bs',''))
+            args.lr = float(bslr.split('_')[1].replace('lr',''))
 
-        # Evaluate model
-        print(f'Evaluating with {best_model} ...')
-        
-        ## distance and density results
-        global_dist_dens_results = evaluate(test_data, model, batch_size=512, local=False)
+            save_dir = os.path.join(run_dir, f'{bslr}')
+            os.makedirs(save_dir, exist_ok=True)
 
-        ## loss results
-        loss_results = model.compute_loss(test_data)
-        loss_results = {'loss': loss_results}
+            if eval_results[eval_results['bslr']==bslr]['global_mean_shared_neighbours'].values[0]>0:
+                final_epoch = eval_results[eval_results['bslr']==bslr]['model_used'].values[0].split('epo')[0].split('_')[-1]
+                print(f'--- {bslr} has been trained until epoch {final_epoch}, skipping evaluation ---')
+                continue
 
-        # Save evaluation results
-        key_values = {**loss_results, **global_dist_dens_results}
-        keys = list(key_values.keys())
-        values = np.array(list(key_values.values())).astype(np.float32)
-        eval_results = pd.read_csv(results_dir) # read saved results again to avoid overwriting
-        eval_results.loc[(eval_results['bslr']==bslr), keys] = values
-        eval_results.loc[(eval_results['bslr']==bslr), 'model_used'] = best_model
+            start_time = systime.time()
+            # Train model if not already trained
+            if os.path.exists(f'{save_dir}/loss_log.csv'):
+                print(f'--- {bslr} has been trained, loading final model ---')
+            else:
+                # Create model
+                model = autoencoder(args.encoder_name, args.lr, device, args.batch_size,
+                                    after_epoch_callback = save_checkpoint_callback(save_dir, 0, unit='epoch'))
+                scheduler = 'reduced'
+                print(f'--- {bslr} training with ReduceLROnPlateau scheduler ---')
+                train_losses, val_losses = model.fit(train_data, args.epochs, scheduler, verbose=verbose)
+                # Save loss log
+                loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(train_losses)+1)],
+                                        data={'train_loss': train_losses, 'val_loss': val_losses})
+                loss_log.to_csv(f'{save_dir}/loss_log.csv')
+                print(f'Training time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)))
+            
+            # Reserve the latest model and remove the rest
+            existing_models = glob.glob(f'{save_dir}/*_encoder.pth')
+            if len(existing_models)>1:
+                existing_models.sort(key=os.path.getmtime, reverse=True)
+                for model_epoch in existing_models[1:]:
+                    os.remove(model_epoch)
+                    os.remove(model_epoch.replace('_encoder.pth', '_decoder.pth'))
+            best_model = 'model' + existing_models[0].split('model')[-1].split('_encoder')[0]
 
-        # Save evaluation results per dataset and model
-        eval_results.to_csv(results_dir, index=False)
+            # Load best model for evaluation
+            model = autoencoder(args.encoder_name, args.lr, device, args.batch_size)
+            model.load(f'{save_dir}/{best_model}')
+
+            # Evaluate model
+            print(f'Evaluating with {best_model} ...')
+            
+            ## distance and density results
+            global_dist_dens_results = evaluate(test_data, model, batch_size=512, local=False)
+
+            ## loss results
+            loss_results = model.compute_loss(test_data)
+            loss_results = {'loss': loss_results}
+
+            # Save evaluation results
+            key_values = {**loss_results, **global_dist_dens_results}
+            keys = list(key_values.keys())
+            values = np.array(list(key_values.values())).astype(np.float32)
+            eval_results = pd.read_csv(results_dir) # read saved results again to avoid overwriting
+            eval_results.loc[(eval_results['bslr']==bslr), keys] = values
+            eval_results.loc[(eval_results['bslr']==bslr), 'model_used'] = best_model
+
+            # Save evaluation results per dataset and model
+            eval_results.to_csv(results_dir, index=False)
+        print(f'--- {bslr} evaluation time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + ' ---')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
