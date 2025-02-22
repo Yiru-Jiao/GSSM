@@ -2,7 +2,8 @@
 This script searches the hyperparameters for the contrastive learning training of the profile encoder.
 
 Search strategy:
-Fix `lr`=0.001, the training score is the contrastive learning loss (without regularization)
+Fix `lr`=0.001 and `bs`=8 (as learned in our previous research), 
+the training score is the contrastive learning loss (without regularization)
 
 - SoftCLT (use soft labels, no regularizer):
   Phase 1: with other parameters default, search for best `tau_temp` and `temporal_hierarchy`
@@ -18,7 +19,7 @@ Fix `lr`=0.001, the training score is the contrastive learning loss (without reg
 
 -------------------------------------------------------------------------------------------------------
 |            |  SoftCLT   | TopoSoftCLT | GGeoSoftCLT |  in total  |
-|    runs    |  5x3+5x3   |      3      |     5x3     |     48     |
+|    runs    |  5x3+5x1   |      3      |     5x3     |     38     |
 -------------------------------------------------------------------------------------------------------
 '''
 
@@ -112,7 +113,7 @@ def main(args):
                     'tau_temp': [0.5, 1., 1.5, 2., 2.5], # used in softclt study
                     'temporal_hierarchy': [None, 'linear', 'exponential'],
                     'bandwidth': [0.25, 1., 9., 25., 49.], # used in geometry regularizer only
-                    'batch_size': [8, 16, 32],
+                    'batch_size': [8],
                     'weight_lr': [0.005, 0.01, 0.05]}
     print(f"--- batch_size search space: {search_space['batch_size']} ---")
 
