@@ -50,6 +50,7 @@ class ts_encoder(nn.Module):
         out = self.spclt_model.encode(x) # out: (batch_size, seq_len=20, repr_dims=256)
         return out # (batch_size, 20, 256)
 
+
 class current_encoder(nn.Module):
     def __init__(self, input_dims=1, output_dims=256):
         super(current_encoder, self).__init__()
@@ -64,6 +65,15 @@ class current_encoder(nn.Module):
         #     nn.Dropout(0.1),
         # )
         self.feature_extractor = nn.Sequential(
+            nn.Linear(input_dims, 64),
+            nn.GELU(),
+            nn.Linear(64, output_dims),
+            nn.GELU(),
+            nn.Linear(output_dims, output_dims),
+            nn.GELU(),
+            nn.Dropout(0.1),
+        )
+        self.rho_extractor = nn.Sequential(
             nn.Linear(input_dims, 64),
             nn.GELU(),
             nn.Linear(64, output_dims),
@@ -91,9 +101,12 @@ class current_encoder(nn.Module):
         # x = x.transpose(1, 2) # (batch_size, 16, 12 or 13)
         # out = self.feature_extractor(x) # (batch_size, 64, 12 or 13)
         # return out.transpose(1, 2) # (batch_size, 12 or 13, 64)
-        x = x.unsqueeze(-1) # (batch_size, 12 or 13, 1)
-        out = self.feature_extractor(x)
-        return out # (batch_size, 12 or 13, 256)
+        rho = x[:, -1:].unsqueeze(-1) # (batch_size, 1, 1), the last column is 'rho'
+        features = x[:, :-1].unsqueeze(-1) # (batch_size, 11 or 12, 1)
+        rho_out = self.rho_extractor(rho) # (batch_size, 1, 256)
+        feature_out = self.feature_extractor(features) # (batch_size, 11 or 12, 256)
+        out = torch.cat([feature_out, rho_out], dim=1) # (batch_size, 12 or 13, 256)
+        return out
 
 
 class environment_encoder(nn.Module):
