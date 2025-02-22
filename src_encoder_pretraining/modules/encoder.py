@@ -15,7 +15,7 @@ import numpy as np
 #####################
 
 class LSTMEncoder(nn.Module):
-    def __init__(self, input_dims=4, hidden_dims=20*64, num_layers=2, single_output=True):
+    def __init__(self, input_dims=4, hidden_dims=20*256, num_layers=2, single_output=True):
         super(LSTMEncoder, self).__init__()
         self.hidden_dims = hidden_dims
         self.num_layers = num_layers

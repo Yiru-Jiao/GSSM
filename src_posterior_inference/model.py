@@ -51,13 +51,13 @@ class UnifiedProximity(nn.Module):
         self.encoder_selection = encoder_selection
         self.cross_attention = cross_attention
         if 'current' in encoder_selection or 'current+acc' in encoder_selection:
-            self.current_encoder = modules.current_encoder(input_dims=1, output_dims=64)
+            self.current_encoder = modules.current_encoder(input_dims=1, output_dims=256)
         else:
             Warning('Current encoder must be selected.')
         if 'environment' in encoder_selection:
-            self.environment_encoder = modules.environment_encoder(input_dims=27, output_dims=64)
+            self.environment_encoder = modules.environment_encoder(input_dims=27, output_dims=256)
         if 'profiles' in encoder_selection:
-            self.ts_encoder = modules.ts_encoder(device, input_dims=4, output_dims=64)
+            self.ts_encoder = modules.ts_encoder(device, input_dims=4, output_dims=256)
         self.attention_decoder = modules.attention_decoder(encoder_selection=self.encoder_selection,
                                                            cross_attention=self.cross_attention,
                                                            return_attention=return_attention)

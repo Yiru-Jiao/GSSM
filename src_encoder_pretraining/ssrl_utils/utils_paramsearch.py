@@ -34,7 +34,7 @@ class trainer():
     def define_encoder(self, sim_mat, input_dims, device, regularizer=None):
         self.model_config = dict(
             input_dims = input_dims,
-            output_dims = 64,
+            output_dims = 256,
             dist_metric = self.dist_metric,
             device = device,
             batch_size = self.batch_size,

@@ -35,7 +35,7 @@ def parse_args():
 
     # Set default parameters
     args.sliding_padding = 0
-    args.repr_dims = 64
+    args.repr_dims = 256
     args.dist_metric = 'DTW'
     args.tau_inst = 0
     args.tau_temp = 0
