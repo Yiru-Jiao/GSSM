@@ -267,7 +267,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             environment_features = one_hot_encoder.transform(environment_features.values)
             states.append(environment_features)
         if 'profiles' in encoder_selection:
-            states.append(profiles_scaler.transform(profiles_features.reshape(-1, 3)).reshape(profiles_features.shape))
+            states.append(profiles_scaler.transform(profiles_features.reshape(-1, 4)).reshape(profiles_features.shape))
         if len(states) == 1: # only current features
             states = [states[0], spacing_list]
         else:

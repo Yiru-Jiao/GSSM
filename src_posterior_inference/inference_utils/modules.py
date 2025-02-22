@@ -16,7 +16,7 @@ from src_encoder_pretraining.ssrl_utils.utils_general import load_tuned_hyperpar
 
 
 class ts_encoder(nn.Module):
-    def __init__(self, device, input_dims=3, output_dims=64):
+    def __init__(self, device, input_dims=4, output_dims=64):
         super(ts_encoder, self).__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
@@ -25,7 +25,7 @@ class ts_encoder(nn.Module):
                                  dist_metric=self.dist_metric, device=device)
 
     # Load a pretrained model
-    def load(self, model_selection, device, path_prepared):
+    def load(self, model_selection, device, path_prepared, continue_training=False):
         tuned_params_dir = f'{path_prepared}representation_hyperparameters.csv'
         if os.path.exists(tuned_params_dir):
             tuned_params = pd.read_csv(tuned_params_dir, index_col=0)
@@ -42,7 +42,9 @@ class ts_encoder(nn.Module):
         best_model = 'model' + existing_models[0].split('model')[-1].split('_net')[0]
         self.spclt_model.load(f'{save_dir}/{best_model}')
         print(f'Pretrained encoder for profiles loaded: {best_model}')
-        self.feature_extractor = self.spclt_model.net
+        if not continue_training:
+            for param in self.net.parameters():
+                param.requires_grad = False
         
     def forward(self, x):
         out = self.spclt_model.encode(x) # out: (batch_size, seq_len=20, repr_dims=64)
@@ -63,20 +65,23 @@ class current_encoder(nn.Module):
         )
 
     # Load a pretrained model
-    def load(self, model_selection, device, path_prepared):
+    def load(self, model_selection, device, path_prepared, continue_training=False):
         run_dir = f'{path_prepared}trained_models/'
         save_dir = os.path.join(run_dir, f'{model_selection}')
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
         self.load_state_dict(state_dict)
         print(f"Pretrained encoder for current features loaded: {best_model.split('trained_models/')[-1]}")
+        if not continue_training:
+            for param in self.parameters():
+                param.requires_grad = False
 
-    def forward(self, x): # x: (batch_size, 10 or 11)
-        x = x.unsqueeze(-1) # (batch_size, 10 or 11, 1)
-        x = self.input_fc(x) # (batch_size, 10 or 11, 16)
-        x = x.transpose(1, 2) # (batch_size, 16, 10 or 11)
-        out = self.feature_extractor(x) # (batch_size, 64, 10 or 11)
-        return out.transpose(1, 2) # (batch_size, 10 or 11, 64)
+    def forward(self, x): # x: (batch_size, 12 or 13)
+        x = x.unsqueeze(-1) # (batch_size, 12 or 13, 1)
+        x = self.input_fc(x) # (batch_size, 12 or 13, 16)
+        x = x.transpose(1, 2) # (batch_size, 16, 12 or 13)
+        out = self.feature_extractor(x) # (batch_size, 64, 12 or 13)
+        return out.transpose(1, 2) # (batch_size, 12 or 13, 64)
 
 
 class environment_encoder(nn.Module):
@@ -93,13 +98,16 @@ class environment_encoder(nn.Module):
         )
 
     # Load a pretrained model
-    def load(self, model_selection, device, path_prepared):
+    def load(self, model_selection, device, path_prepared, continue_training=False):
         run_dir = f'{path_prepared}trained_models/'
         save_dir = os.path.join(run_dir, f'{model_selection}')
         best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
         state_dict = torch.load(best_model, map_location=device, weights_only=True)
         self.load_state_dict(state_dict)
         print(f"Pretrained encoder for environment features loaded: {best_model.split('trained_models/')[-1]}")
+        if not continue_training:
+            for param in self.parameters():
+                param.requires_grad = False
 
     def forward(self, x):
         x = x.view(x.size(0), 1, -1) # (batch_size, 1, 27)
@@ -109,14 +117,14 @@ class environment_encoder(nn.Module):
 class attention_decoder(nn.Module):
     def __init__(self, latent_dims=64, hidden_dims=32, fc_dims=8, encoder_selection=[], cross_attention=[], return_attention=False):
         '''
-        State (Current + Environment) self-attention: (batch_size, 10/11+1, latent_dims=64) -> (batch_size, 10/11+1, hidden_dims=32)
+        State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=64) -> (batch_size, 12/13+1, hidden_dims=32)
         TimeSeries self-attention: (batch_size, 20, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
 
         Optional cross-attention, use State to query TimeSeries key-value
-        First1sec cross-attention: (batch_size, 10~12, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
-        Last1sec cross-attention: (batch_size, 10~12, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
+        First1sec cross-attention: (batch_size, 12~14, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
+        Last1sec cross-attention: (batch_size, 12~14, latent_dims=64) -> (batch_size, 20, hidden_dims=32)
 
-        Output self-attention: (batch_size, 30~56, hidden_dims=32) -> (batch_size, 30~56, fc_dims=8)
+        Output self-attention: (batch_size, 32~62, hidden_dims=32) -> (batch_size, 32~62, fc_dims=8)
         
         output: (batch_size, 2)
         '''
@@ -130,9 +138,9 @@ class attention_decoder(nn.Module):
         
         self.final_seq_len = 0
         if 'current' in self.encoder_selection:
-            self.final_seq_len += 10
+            self.final_seq_len += 12
         if 'current+acc' in self.encoder_selection:
-            self.final_seq_len += 11
+            self.final_seq_len += 13
         if 'environment' in self.encoder_selection:
             self.final_seq_len += 1
         self.Q_state, self.K_state, self.V_state = self.define_head(latent_dims, hidden_dims)
@@ -188,7 +196,7 @@ class attention_decoder(nn.Module):
     
     def state_self_attention(self, state, attention_matrices, return_q=False):
         q_state, k_state, v_state = self.get_qkv(state, self.Q_state, self.K_state, self.V_state)
-        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 11 or 12, hidden_dims=32)
+        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 13 or 14, hidden_dims=32)
         attention_matrices['state'] = state_attention
         if return_q:
             return attended_state, attention_matrices, q_state
@@ -207,7 +215,7 @@ class attention_decoder(nn.Module):
             q_seg, k_seg, v_seg = self.get_qkv(ts[:, :seg_length], self.Q_first, self.K_first, self.V_first)
         elif segment=='last':
             q_seg, k_seg, v_seg = self.get_qkv(ts[:, -seg_length:], self.Q_last, self.K_last, self.V_last)
-        attended_seg, seg_attention = self.head_forward(qstate, k_seg, v_seg) # (batch_size, 10~12, hidden_dims=32)
+        attended_seg, seg_attention = self.head_forward(qstate, k_seg, v_seg) # (batch_size, 12~14, hidden_dims=32)
         attention_matrices[segment] = seg_attention
         return attended_seg, attention_matrices
     
@@ -226,7 +234,7 @@ class attention_decoder(nn.Module):
     def define_combi_decoder(self,):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_decoder(x_tuple):
-                state = x_tuple[0] # (batch_size, 10 or 11, latent_dims=64)
+                state = x_tuple[0] # (batch_size, 12 or 13, latent_dims=64)
                 attention_matrices = dict()
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
@@ -237,7 +245,7 @@ class attention_decoder(nn.Module):
             def combi_decoder(x_tuple):
                 current, environment = x_tuple
                 attention_matrices = dict()
-                state = torch.cat([current, environment], dim=1) # (batch_size, 11 or 12, latent_dims=64)
+                state = torch.cat([current, environment], dim=1) # (batch_size, 13 or 14, latent_dims=64)
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
                 attended_out, out = self.mlp_forward(attended_out)
@@ -250,7 +258,7 @@ class attention_decoder(nn.Module):
                     attention_matrices = dict()
                     attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 30 or 31, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 32 or 34, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -262,7 +270,7 @@ class attention_decoder(nn.Module):
                     attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
                     attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 40 or 42, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 44 or 48, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -274,7 +282,7 @@ class attention_decoder(nn.Module):
                     attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
                     attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 40 or 42, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 44 or 48, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -287,7 +295,7 @@ class attention_decoder(nn.Module):
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
                     attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
                     attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 50 or 53, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 56 or 62, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -348,7 +356,7 @@ class attention_decoder(nn.Module):
 
     def forward(self, x_tuple):
         '''
-        current: (batch_size, 10 or 11, latent_dims=64)
+        current: (batch_size, 12 or 13, latent_dims=64)
         environment: (batch_size, 1, latent_dims=64)
         ts: (batch_size, 20, latent_dims=64)
         '''

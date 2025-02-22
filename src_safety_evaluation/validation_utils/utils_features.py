@@ -46,7 +46,7 @@ def get_scaler(datasets, path_prepared, feature='profiles'):
             for split in ['train', 'val']:
                 scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler_data = scaler_data[['v_ego','v_sur','psi_sur']].values
+        scaler_data = scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values
         scaler = StandardScaler().fit(scaler_data)
     elif 'current' in feature:
         if 'acc' in feature:

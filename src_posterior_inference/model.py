@@ -57,7 +57,7 @@ class UnifiedProximity(nn.Module):
         if 'environment' in encoder_selection:
             self.environment_encoder = modules.environment_encoder(input_dims=27, output_dims=64)
         if 'profiles' in encoder_selection:
-            self.ts_encoder = modules.ts_encoder(device, input_dims=3, output_dims=64)
+            self.ts_encoder = modules.ts_encoder(device, input_dims=4, output_dims=64)
         self.attention_decoder = modules.attention_decoder(encoder_selection=self.encoder_selection,
                                                            cross_attention=self.cross_attention,
                                                            return_attention=return_attention)
@@ -77,27 +77,27 @@ class UnifiedProximity(nn.Module):
         best_model = pretraining_evaluation.sort_values(by='avg_order').iloc[0]
         return best_model
 
-    def load_pretrained_encoders(self, path_prepared='../PreparedData/'):
+    def load_pretrained_encoders(self, path_prepared='../PreparedData/', continue_training=False):
         if 'current' in self.encoder_selection:
             path_prepared = path_prepared + 'EncoderPretraining/current_autoencoder/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.current_encoder.load(best_model['bslr'], self.device, path_prepared)
+            self.current_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'current+acc' in self.encoder_selection:
             path_prepared = path_prepared + 'EncoderPretraining/current+acc_autoencoder/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.current_encoder.load(best_model['bslr'], self.device, path_prepared)
+            self.current_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'environment' in self.encoder_selection:
             path_prepared = path_prepared + 'EncoderPretraining/environment_autoencoder/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.environment_encoder.load(best_model['bslr'], self.device, path_prepared)
+            self.environment_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'profiles' in self.encoder_selection:
             path_prepared = path_prepared + 'EncoderPretraining/spclt/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.ts_encoder.load(best_model['model'], self.device, path_prepared)
+            self.ts_encoder.load(best_model['model'], self.device, path_prepared, continue_training)
 
     def define_combi_encoder(self,):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:

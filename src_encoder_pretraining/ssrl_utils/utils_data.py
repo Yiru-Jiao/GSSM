@@ -59,9 +59,9 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
         scaler = StandardScaler()
-        scaler.fit(scaler_data[['v_ego','v_sur','psi_sur']].values)
-        train_X = scaler.transform(train_data[['v_ego','v_sur','psi_sur']].values).reshape(-1, 20, 3)
-        val_X = scaler.transform(val_data[['v_ego','v_sur','psi_sur']].values).reshape(-1, 20, 3)
+        scaler.fit(scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values)
+        train_X = scaler.transform(train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
+        val_X = scaler.transform(val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
 
         assert train_X.ndim == 3 and val_X.ndim == 3
         
