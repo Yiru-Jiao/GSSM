@@ -55,10 +55,6 @@ class autoencoder():
         self.net = model(encoder_name).to(self.device)
         self.loss_log_vars = torch.nn.Parameter(torch.zeros(2, device=self.device))
         self.after_epoch_callback = after_epoch_callback
-        if 'current' in encoder_name:
-            self.stop_threshold = 1e-3
-        elif encoder_name == 'environment':
-            self.stop_threshold = 1e-4
         self.encoder_name = encoder_name
 
 
@@ -161,7 +157,7 @@ class autoencoder():
                 if self.epoch_n >= 20: # start scheduler after 20 epochs
                     self.scheduler.step(val_loss_log[self.epoch_n])
                     stop_condition = np.diff(val_loss_log[self.epoch_n-3:self.epoch_n+1]) # diff in the last 3 epochs
-                    stop_condition = np.all(abs(stop_condition/val_loss_log[self.epoch_n-3:self.epoch_n])<self.stop_threshold)
+                    stop_condition = np.all(abs(stop_condition/val_loss_log[self.epoch_n-3:self.epoch_n])<1e-4)
                     if stop_condition:
                         # early stopping if validation loss converges
                         print('Early stopping due to validation loss convergence.')
