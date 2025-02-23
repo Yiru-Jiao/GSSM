@@ -64,7 +64,7 @@ def main(args):
     # Iterate over different datasets and hyperparameters
     verbose = 5 # update per n_epochs // (1+verbose*4) epoch
     if args.encoder_name == 'environment':
-        datasets_list = [['none']]
+        datasets_list = [['SafeBaseline']]
     else:
         datasets_list = [['highD'], ['SafeBaseline'], ['INTERACTION'], ['Argoverse']]
     if args.reversed_list:
