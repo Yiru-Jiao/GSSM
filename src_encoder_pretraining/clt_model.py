@@ -93,9 +93,9 @@ class spclt():
             num_samples = train_data.shape[0]
             n_iters = num_samples * 32 / self.batch_size
             if num_samples < 1000000:
-                n_iters = int(n_iters / 64)
+                n_iters = int(n_iters / 32)
             else:
-                n_iters = int(n_iters / 128)
+                n_iters = int(n_iters / 64)
             print(f'Number of iterations is set to {n_iters}.')
 
         # define a progress bar
