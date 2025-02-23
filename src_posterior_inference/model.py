@@ -153,5 +153,5 @@ class LogNormalNLL(nn.Module):
     def forward(self, out, y):
         mu, sigma = out
         log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None)) # use .clamp to avoid log(0)
-        loss = torch.log(sigma) + 0.5*((log_clipped_y-mu)/sigma)**2 + log_clipped_y
+        loss = log_clipped_y + torch.log(sigma) + 0.5*((log_clipped_y-mu)/sigma)**2
         return loss.mean()
