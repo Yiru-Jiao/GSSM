@@ -23,13 +23,15 @@ from torch.utils.data import Dataset
 #         scaler = StandardScaler().fit(scaler_data)
 #     elif 'current' in feature:
 #         if 'acc' in feature:
-#             variables = ['l_ego','l_sur','combined_width','psi_sur',
-#                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-#                          'delta_v2','delta_v','acc_ego','rho']
+#             variables = ['l_ego','l_sur','w_ego','w_sur',
+#                          'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
+#                          'vx_relative','vy_relative','v_relative2','v_relative',
+#                          'acc_ego','rho']
 #         else:
-#             variables = ['l_ego','l_sur','combined_width','psi_sur',
-#                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-#                          'delta_v2','delta_v','rho']
+#             variables = ['l_ego','l_sur','w_ego','w_sur',
+#                          'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
+#                          'vx_relative','vy_relative','v_relative2','v_relative',
+#                          'rho']
 #         scaler_data = []
 #         for dataset in datasets:
 #             for split in ['train', 'val']:
@@ -90,13 +92,15 @@ class DataOrganiser(Dataset):
         X_current = X_current.sort_values('scene_id').reset_index(drop=True)
         self.scene_ids = X_current['scene_id'].values
         if 'acc' in self.encoder_selection[0]:
-            variables = ['l_ego','l_sur','combined_width','psi_sur',
-                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-                         'delta_v2','delta_v','acc_ego','rho']
+            variables = ['l_ego','l_sur','w_ego','w_sur',
+                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
+                         'vx_relative','vy_relative','v_relative2','v_relative',
+                         'acc_ego','rho']
         else:
-            variables = ['l_ego','l_sur','combined_width','psi_sur',
-                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-                         'delta_v2','delta_v','rho']
+            variables = ['l_ego','l_sur','w_ego','w_sur',
+                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
+                         'vx_relative','vy_relative','v_relative2','v_relative',
+                         'rho']
         # self.data.append(torch.from_numpy(self.current_scaler.transform(X_current[variables].values)).float())
         self.data.append(torch.from_numpy(X_current[variables].values).float())
 

@@ -59,7 +59,7 @@ class ContextSegmenter(coortrans):
         self.data = data
         self.initial_scene_id = initial_scene_id
         self.dataset = dataset
-        self.current_feature_size = 14
+        self.current_feature_size = 17
         if self.dataset=='SafeBaseline':
             self.events = pd.read_csv('./RawData/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
             self.environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
@@ -112,18 +112,21 @@ class ContextSegmenter(coortrans):
 
                     current_features[0] = df.iloc[idx_end]['length_ego']
                     current_features[1] = df.iloc[idx_end]['length_sur']
-                    current_features[2] = (df.iloc[idx_end]['width_ego']+df.iloc[idx_end]['width_sur'])/2
-                    current_features[3] = self.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur']) # heading angle of the surrounding vehicle
-                    current_features[4] = df_view_ego.iloc[idx_end]['vy_ego']
-                    current_features[5] = df_view_ego.iloc[idx_end]['vx_sur']
-                    current_features[6] = df_view_ego.iloc[idx_end]['vy_sur']
-                    current_features[7] = vx_ego**2 + vy_ego**2
-                    current_features[8] = vx_sur**2 + vy_sur**2
-                    current_features[9] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2 # squared relative velocity
-                    current_features[10] = np.sqrt(current_features[9]) * np.sign(current_features[7]-current_features[8]) # relative speed
-                    current_features[11] = df.iloc[idx_end]['acc_ego']
-                    current_features[12] = self.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur']) # relative angle
-                    current_features[13] = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2) # spacing
+                    current_features[2] = df.iloc[idx_end]['width_ego']
+                    current_features[3] = df.iloc[idx_end]['width_sur']
+                    current_features[4] = df_view_ego.iloc[idx_end]['hx_sur']
+                    current_features[5] = df_view_ego.iloc[idx_end]['hy_sur']
+                    current_features[6] = vx_ego**2 + vy_ego**2
+                    current_features[7] = vx_sur**2 + vy_sur**2
+                    current_features[8] = np.sqrt(current_features[6]) # speed of ego
+                    current_features[9] = np.sqrt(current_features[7]) # speed of sur
+                    current_features[10] = vx_ego-vx_sur
+                    current_features[11] = vy_ego-vy_sur
+                    current_features[12] = current_features[10]**2 + current_features[11]**2 # squared relative velocity
+                    current_features[13] = np.sqrt(current_features[12]) * np.sign(current_features[8]-current_features[9]) # relative speed
+                    current_features[14] = df.iloc[idx_end]['acc_ego']
+                    current_features[15] = self.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur']) # relative angle
+                    current_features[16] = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2) # spacing
                     current_features[-1] = scene_id
 
                     if id_count%10000==9999: # concat per every 10000 targets to speed up
@@ -135,9 +138,10 @@ class ContextSegmenter(coortrans):
                     scene_id += 1
         profiles_set = pd.concat(profiles_set, axis=0)
         profiles_set['scene_id'] = profiles_set['scene_id'].astype(int)
-        current_features_set = pd.DataFrame(current_features_set, columns=['l_ego','l_sur','combined_width','psi_sur',
-                                                                           'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2',
-                                                                           'delta_v2','delta_v','acc_ego','rho',
+        current_features_set = pd.DataFrame(current_features_set, columns=['l_ego','l_sur','w_ego','w_sur',
+                                                                           'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
+                                                                           'vx_relative','vy_relative','v_relative2','v_relative',
+                                                                           'acc_ego','rho',
                                                                            's','scene_id'])
         current_features_set['scene_id'] = current_features_set['scene_id'].astype(int)
         event_id_list = np.array(event_id_list)

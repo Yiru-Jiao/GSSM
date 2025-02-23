@@ -95,17 +95,17 @@ class current_encoder(nn.Module):
             for param in self.parameters():
                 param.requires_grad = False
 
-    def forward(self, x): # x: (batch_size, 12 or 13)
-        # x = x.unsqueeze(-1) # (batch_size, 12 or 13, 1)
-        # x = self.input_fc(x) # (batch_size, 12 or 13, 16)
-        # x = x.transpose(1, 2) # (batch_size, 16, 12 or 13)
-        # out = self.feature_extractor(x) # (batch_size, 64, 12 or 13)
-        # return out.transpose(1, 2) # (batch_size, 12 or 13, 64)
+    def forward(self, x): # x: (batch_size, 15 or 16)
+        # x = x.unsqueeze(-1) # (batch_size, 15 or 16, 1)
+        # x = self.input_fc(x) # (batch_size, 15 or 16, 16)
+        # x = x.transpose(1, 2) # (batch_size, 16, 15 or 16)
+        # out = self.feature_extractor(x) # (batch_size, 64, 15 or 16)
+        # return out.transpose(1, 2) # (batch_size, 15 or 16, 64)
         rho = x[:, -1:].unsqueeze(-1) # (batch_size, 1, 1), the last column is 'rho'
-        features = x[:, :-1].unsqueeze(-1) # (batch_size, 11 or 12, 1)
+        features = x[:, :-1].unsqueeze(-1) # (batch_size, 14 or 15, 1)
         rho_out = self.rho_extractor(rho) # (batch_size, 1, 128)
-        feature_out = self.feature_extractor(features) # (batch_size, 11 or 12, 128)
-        out = torch.cat([feature_out, rho_out], dim=1) # (batch_size, 12 or 13, 128)
+        feature_out = self.feature_extractor(features) # (batch_size, 14 or 15, 128)
+        out = torch.cat([feature_out, rho_out], dim=1) # (batch_size, 15 or 16, 128)
         return out
 
 
@@ -142,14 +142,14 @@ class environment_encoder(nn.Module):
 class attention_decoder(nn.Module):
     def __init__(self, latent_dims=128, hidden_dims=32, fc_dims=8, encoder_selection=[], cross_attention=[], return_attention=False):
         '''
-        State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=128) -> (batch_size, 12/13+1, hidden_dims=32)
+        State (Current + Environment) self-attention: (batch_size, 15/16+1, latent_dims=128) -> (batch_size, 15/16+1, hidden_dims=32)
         TimeSeries self-attention: (batch_size, 20, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
 
         Optional cross-attention, use State to query TimeSeries key-value
-        First1sec cross-attention: (batch_size, 12~14, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
-        Last1sec cross-attention: (batch_size, 12~14, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
+        First (ealier) cross-attention: (batch_size, 15~17, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
+        Last (later) cross-attention: (batch_size, 15~17, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
 
-        Output self-attention: (batch_size, 32~62, hidden_dims=32) -> (batch_size, 32~62, fc_dims=8)
+        Output self-attention: (batch_size, 15~54, hidden_dims=32) -> (batch_size, 15~54, fc_dims=8)
         
         output: (batch_size, 2)
         '''
@@ -163,9 +163,9 @@ class attention_decoder(nn.Module):
         
         self.final_seq_len = 0
         if 'current' in self.encoder_selection:
-            self.final_seq_len += 12
+            self.final_seq_len += 15
         if 'current+acc' in self.encoder_selection:
-            self.final_seq_len += 13
+            self.final_seq_len += 16
         if 'environment' in self.encoder_selection:
             self.final_seq_len += 1
         self.Q_state, self.K_state, self.V_state = self.define_head(latent_dims, hidden_dims)
@@ -221,7 +221,7 @@ class attention_decoder(nn.Module):
     
     def state_self_attention(self, state, attention_matrices, return_q=False):
         q_state, k_state, v_state = self.get_qkv(state, self.Q_state, self.K_state, self.V_state)
-        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 13 or 14, hidden_dims=32)
+        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 16 or 17, hidden_dims=32)
         attention_matrices['state'] = state_attention
         if return_q:
             return attended_state, attention_matrices, q_state
@@ -240,7 +240,7 @@ class attention_decoder(nn.Module):
             q_seg, k_seg, v_seg = self.get_qkv(ts[:, :seg_length], self.Q_first, self.K_first, self.V_first)
         elif segment=='last':
             q_seg, k_seg, v_seg = self.get_qkv(ts[:, -seg_length:], self.Q_last, self.K_last, self.V_last)
-        attended_seg, seg_attention = self.head_forward(qstate, k_seg, v_seg) # (batch_size, 12~14, hidden_dims=32)
+        attended_seg, seg_attention = self.head_forward(qstate, k_seg, v_seg) # (batch_size, 15~17, hidden_dims=32)
         attention_matrices[segment] = seg_attention
         return attended_seg, attention_matrices
     
@@ -259,7 +259,7 @@ class attention_decoder(nn.Module):
     def define_combi_decoder(self,):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_decoder(x_tuple):
-                state = x_tuple[0] # (batch_size, 12 or 13, latent_dims=128)
+                state = x_tuple[0] # (batch_size, 15 or 16, latent_dims=128)
                 attention_matrices = dict()
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
@@ -270,7 +270,7 @@ class attention_decoder(nn.Module):
             def combi_decoder(x_tuple):
                 current, environment = x_tuple
                 attention_matrices = dict()
-                state = torch.cat([current, environment], dim=1) # (batch_size, 13 or 14, latent_dims=128)
+                state = torch.cat([current, environment], dim=1) # (batch_size, 16 or 17, latent_dims=128)
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
                 attended_out, out = self.mlp_forward(attended_out)
@@ -283,7 +283,7 @@ class attention_decoder(nn.Module):
                     attention_matrices = dict()
                     attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 32 or 34, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 33 or 37, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -295,7 +295,7 @@ class attention_decoder(nn.Module):
                     attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
                     attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 44 or 48, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 50 or 52, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -307,23 +307,23 @@ class attention_decoder(nn.Module):
                     attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
                     attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 44 or 48, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 50 or 52, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
             
-            elif self.cross_attention==['first','last']:
-                def combi_decoder(x_tuple):
-                    state, ts = x_tuple
-                    attention_matrices = dict()
-                    attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-                    attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 56 or 62, hidden_dims=32)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    attended_out, out = self.mlp_forward(attended_out)
-                    return out, (attended_out, attention_matrices)
+            # elif self.cross_attention==['first','last']:
+            #     def combi_decoder(x_tuple):
+            #         state, ts = x_tuple
+            #         attention_matrices = dict()
+            #         attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
+            #         attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
+            #         attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
+            #         attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
+            #         out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 65 or 68, hidden_dims=32)
+            #         attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
+            #         attended_out, out = self.mlp_forward(attended_out)
+            #         return out, (attended_out, attention_matrices)
 
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             if self.cross_attention==[]:
@@ -333,7 +333,7 @@ class attention_decoder(nn.Module):
                     state = torch.cat([current, environment], dim=1)
                     attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 31 or 32, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 36 or 37, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -346,7 +346,7 @@ class attention_decoder(nn.Module):
                     attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
                     attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 42 or 44, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 52 or 54, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
@@ -359,29 +359,29 @@ class attention_decoder(nn.Module):
                     attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
                     attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
                     attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 42 or 44, hidden_dims=32)
+                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 52 or 54, hidden_dims=32)
                     attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
                     attended_out, out = self.mlp_forward(attended_out)
                     return out, (attended_out, attention_matrices)
             
-            elif self.cross_attention==['first','last']:
-                def combi_decoder(x_tuple):
-                    current, environment, ts = x_tuple
-                    attention_matrices = dict()
-                    state = torch.cat([current, environment], dim=1)
-                    attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-                    attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 53 or 56, hidden_dims=32)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    attended_out, out = self.mlp_forward(attended_out)
-                    return out, (attended_out, attention_matrices)
+            # elif self.cross_attention==['first','last']:
+            #     def combi_decoder(x_tuple):
+            #         current, environment, ts = x_tuple
+            #         attention_matrices = dict()
+            #         state = torch.cat([current, environment], dim=1)
+            #         attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
+            #         attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
+            #         attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
+            #         attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
+            #         out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 68 or 71, hidden_dims=32)
+            #         attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
+            #         attended_out, out = self.mlp_forward(attended_out)
+            #         return out, (attended_out, attention_matrices)
         return combi_decoder
 
     def forward(self, x_tuple):
         '''
-        current: (batch_size, 12 or 13, latent_dims=128)
+        current: (batch_size, 15 or 16, latent_dims=128)
         environment: (batch_size, 1, latent_dims=128)
         ts: (batch_size, 20, latent_dims=128)
         '''
