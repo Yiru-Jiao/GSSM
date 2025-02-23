@@ -71,8 +71,8 @@ def main(args, manual_seed, path_prepared):
         cross_attention_name = '_'.join(cross_attention) if len(cross_attention)>0 else 'not_crossed'
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
 
-        initial_lr = 0.0001
-        batch_size = 32
+        initial_lr = 0.001
+        batch_size = 512
         epochs = 500
         
         condition = (evaluation['dataset']==dataset_name)&\

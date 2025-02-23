@@ -24,20 +24,27 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['INTERACTION'], ['current'], [], False],
             [['Argoverse'], ['current'], [], False],
         ])
-    if 2 in stage: # multiple datasets, current only
-        exp_config.extend([
-            [['Argoverse', 'INTERACTION'], ['current'], [], False],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], [], False],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], [], False],
-        ])
-    if 3 in stage: # single dataset, encoder pretrained with all datasets
+    if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
         exp_config.extend([
             [['highD'], ['current'], [], True],
             [['SafeBaseline'], ['current'], [], True],
             [['INTERACTION'], ['current'], [], True],
             [['Argoverse'], ['current'], [], True],
         ])
-    if 4 in stage: # on SafeBaseline, add extra features
+    if 3 in stage: # multiple datasets, current only
+        exp_config.extend([
+            [['Argoverse', 'INTERACTION'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], [], False],
+        ])
+    if 4 in stage: # single dataset, encoder pretrained with all datasets
+        exp_config.extend([
+            [['highD'], ['current'], [], True],
+            [['SafeBaseline'], ['current'], [], True],
+            [['INTERACTION'], ['current'], [], True],
+            [['Argoverse'], ['current'], [], True],
+        ])
+    if 5 in stage: # on SafeBaseline, add extra features
         exp_config.extend([
             [['SafeBaseline'], ['current+acc'], [], True],
             [['SafeBaseline'], ['current+acc', 'environment'], [], True],
@@ -46,13 +53,13 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['SafeBaseline'], ['current+acc', 'environment'], [], False],
             [['SafeBaseline'], ['current+acc','environment','profiles'], [], False],
         ])
-    if 5 in stage: # on SafeBaseline, cross attention
+    if 6 in stage: # on SafeBaseline, cross attention
         exp_config.extend([
             # [['highD'], ['current','profiles'], [], False],
             # [['SafeBaseline'], ['current','environment','profiles'], [], True],
             # [['Argoverse', 'SafeBaseline'], ['current','profiles'], [], True],
         ])
-    # if 6 in stage: # model variants, cross attention
+    # if 7 in stage: # model variants, cross attention
     #     exp_config.extend([
             # [[], ['current','profiles'], ['first'], False],
             # [[], ['current','profiles'], ['first'], True],
@@ -98,7 +105,7 @@ class train_val_test():
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.cross_attention, self.return_attention)
         if self.pretrained_encoder:
-            self.model.load_pretrained_encoders(self.path_prepared)
+            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=False)
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
@@ -177,7 +184,7 @@ class train_val_test():
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
-            if (epoch_n>15) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-3):
+            if (epoch_n>25) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
