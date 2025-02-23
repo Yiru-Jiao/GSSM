@@ -44,7 +44,7 @@ def main(args, manual_seed):
 
     # Read event data
     beta = 5
-    initial_lr = 0.02
+    initial_lr = 0.025
     batch_size = 2048
     num_qepochs = 500
     num_inducing_points = 100
