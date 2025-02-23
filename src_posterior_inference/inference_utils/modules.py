@@ -134,8 +134,8 @@ class environment_encoder(nn.Module):
             for param in self.parameters():
                 param.requires_grad = False
 
-    def forward(self, x):
-        x = x.view(x.size(0), 1, -1) # (batch_size, 1, 27)
+    def forward(self, x): # x: (batch_size, 27)
+        x = x.unsqueeze(1) # (batch_size, 1, 27)
         return self.feature_extractor(x) # (batch_size, 1, 256)
 
 
