@@ -27,7 +27,7 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 `/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
 
 ### Training data preparation
-`src_data_preparation/prepare_highD.py`, `src_data_preparation/prepare_INT.py`, `src_data_preparation/prepare_argoverse.py`
+`src_data_preparation/prepare_highD.py`, `src_data_preparation/prepare_INT.ipynb`, `src_data_preparation/prepare_argoverse.py`
 `src_data_preparation/segment_datasets.py`, `src_data_preparation/complete_environment_samples.py`
 
 ### Encoder pretraining
@@ -37,7 +37,7 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 `src_posterior_inference/pi_search_bslr.py`, `src_posterior_inference/pi_train_eval.py`
 
 ### Safety evaluation
-`src_safety_evaluation/organise_events.py`, `src_safety_evaluation/evaluate_safety.py`, `src_safety_evaluation/analyse_events.py`
+`src_safety_evaluation/organise_events.py`, `src_safety_evaluation/evaluate_safety.py`, `src_safety_evaluation/analyse_events.py`, `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`, 
 
 ## Copyright
 ### Citation
@@ -48,12 +48,18 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 
 ### Repo references
 Thanks to GitHub for offering the open environment, from which this work reuses/learns/adapts the following repositories to different extents:
-- TS2Vec https://github.com/zhihanyue/ts2vec
-- SoftCLT https://github.com/seunghan96/softclt
-- TopoAE https://github.com/BorgwardtLab/topological-autoencoders
-- GGAE https://github.com/JungbinLim/GGAE-public
-- TAM https://github.com/dmfolgado/tam/
+
 - Multidimensional Kalman-Filter
   - https://github.com/balzer82/Kalman/blob/master/Extended-Kalman-Filter-CTRA.ipynb
   - https://github.com/balzer82/Kalman/blob/master/Extended-Kalman-Filter-CHCV.ipynb
-- UnifiedConflictDetection https://github.com/Yiru-Jiao/UnifiedConflictDetection
+- Time series contrastive learning and structure preservation
+  - SPCLT https://github.com/yiru-jiao/spclt
+    - TS2Vec https://github.com/zhihanyue/ts2vec
+    - SoftCLT https://github.com/seunghan96/softclt
+    - TopoAE https://github.com/BorgwardtLab/topological-autoencoders
+    - GGAE https://github.com/JungbinLim/GGAE-public
+- Two-dimensional traffic safety evaluation
+  - EmergencyIndex https://github.com/AutoChengh/EmergencyIndex
+  - UnifiedConflictDetection https://github.com/Yiru-Jiao/UnifiedConflictDetection
+
+We are grateful for the authors' contributions to open science and reproducible research.
