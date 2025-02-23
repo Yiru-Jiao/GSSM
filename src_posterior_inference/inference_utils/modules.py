@@ -16,7 +16,7 @@ from src_encoder_pretraining.ssrl_utils.utils_general import load_tuned_hyperpar
 
 
 class ts_encoder(nn.Module):
-    def __init__(self, device, input_dims=4, output_dims=256):
+    def __init__(self, device, input_dims=4, output_dims=128):
         super(ts_encoder, self).__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
@@ -47,12 +47,12 @@ class ts_encoder(nn.Module):
                 param.requires_grad = False
         
     def forward(self, x):
-        out = self.spclt_model.encode(x) # out: (batch_size, seq_len=20, repr_dims=256)
-        return out # (batch_size, 20, 256)
+        out = self.spclt_model.encode(x) # out: (batch_size, seq_len=20, repr_dims=128)
+        return out # (batch_size, 20, 128)
 
 
 class current_encoder(nn.Module):
-    def __init__(self, input_dims=1, output_dims=256):
+    def __init__(self, input_dims=1, output_dims=128):
         super(current_encoder, self).__init__()
         # self.input_fc = nn.Linear(input_dims, 16)
         # self.feature_extractor = nn.Sequential(
@@ -65,18 +65,18 @@ class current_encoder(nn.Module):
         #     nn.Dropout(0.1),
         # )
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, 64),
+            nn.Linear(input_dims, output_dims//2),
             nn.GELU(),
-            nn.Linear(64, output_dims),
+            nn.Linear(output_dims//2, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.GELU(),
             nn.Dropout(0.1),
         )
         self.rho_extractor = nn.Sequential(
-            nn.Linear(input_dims, 64),
+            nn.Linear(input_dims, output_dims//2),
             nn.GELU(),
-            nn.Linear(64, output_dims),
+            nn.Linear(output_dims//2, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.GELU(),
@@ -103,19 +103,19 @@ class current_encoder(nn.Module):
         # return out.transpose(1, 2) # (batch_size, 12 or 13, 64)
         rho = x[:, -1:].unsqueeze(-1) # (batch_size, 1, 1), the last column is 'rho'
         features = x[:, :-1].unsqueeze(-1) # (batch_size, 11 or 12, 1)
-        rho_out = self.rho_extractor(rho) # (batch_size, 1, 256)
-        feature_out = self.feature_extractor(features) # (batch_size, 11 or 12, 256)
-        out = torch.cat([feature_out, rho_out], dim=1) # (batch_size, 12 or 13, 256)
+        rho_out = self.rho_extractor(rho) # (batch_size, 1, 128)
+        feature_out = self.feature_extractor(features) # (batch_size, 11 or 12, 128)
+        out = torch.cat([feature_out, rho_out], dim=1) # (batch_size, 12 or 13, 128)
         return out
 
 
 class environment_encoder(nn.Module):
-    def __init__(self, input_dims=27, output_dims=256):
+    def __init__(self, input_dims=27, output_dims=128):
         super(environment_encoder, self).__init__()
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, 64),
+            nn.Linear(input_dims, output_dims//2),
             nn.GELU(),
-            nn.Linear(64, output_dims),
+            nn.Linear(output_dims//2, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.GELU(),
@@ -136,18 +136,18 @@ class environment_encoder(nn.Module):
 
     def forward(self, x): # x: (batch_size, 27)
         x = x.unsqueeze(1) # (batch_size, 1, 27)
-        return self.feature_extractor(x) # (batch_size, 1, 256)
+        return self.feature_extractor(x) # (batch_size, 1, 128)
 
 
 class attention_decoder(nn.Module):
-    def __init__(self, latent_dims=256, hidden_dims=32, fc_dims=8, encoder_selection=[], cross_attention=[], return_attention=False):
+    def __init__(self, latent_dims=128, hidden_dims=32, fc_dims=8, encoder_selection=[], cross_attention=[], return_attention=False):
         '''
-        State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=256) -> (batch_size, 12/13+1, hidden_dims=32)
-        TimeSeries self-attention: (batch_size, 20, latent_dims=256) -> (batch_size, 20, hidden_dims=32)
+        State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=128) -> (batch_size, 12/13+1, hidden_dims=32)
+        TimeSeries self-attention: (batch_size, 20, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
 
         Optional cross-attention, use State to query TimeSeries key-value
-        First1sec cross-attention: (batch_size, 12~14, latent_dims=256) -> (batch_size, 20, hidden_dims=32)
-        Last1sec cross-attention: (batch_size, 12~14, latent_dims=256) -> (batch_size, 20, hidden_dims=32)
+        First1sec cross-attention: (batch_size, 12~14, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
+        Last1sec cross-attention: (batch_size, 12~14, latent_dims=128) -> (batch_size, 20, hidden_dims=32)
 
         Output self-attention: (batch_size, 32~62, hidden_dims=32) -> (batch_size, 32~62, fc_dims=8)
         
@@ -259,7 +259,7 @@ class attention_decoder(nn.Module):
     def define_combi_decoder(self,):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_decoder(x_tuple):
-                state = x_tuple[0] # (batch_size, 12 or 13, latent_dims=256)
+                state = x_tuple[0] # (batch_size, 12 or 13, latent_dims=128)
                 attention_matrices = dict()
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
@@ -270,7 +270,7 @@ class attention_decoder(nn.Module):
             def combi_decoder(x_tuple):
                 current, environment = x_tuple
                 attention_matrices = dict()
-                state = torch.cat([current, environment], dim=1) # (batch_size, 13 or 14, latent_dims=256)
+                state = torch.cat([current, environment], dim=1) # (batch_size, 13 or 14, latent_dims=128)
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
                 attended_out, out = self.mlp_forward(attended_out)
@@ -381,9 +381,9 @@ class attention_decoder(nn.Module):
 
     def forward(self, x_tuple):
         '''
-        current: (batch_size, 12 or 13, latent_dims=256)
-        environment: (batch_size, 1, latent_dims=256)
-        ts: (batch_size, 20, latent_dims=256)
+        current: (batch_size, 12 or 13, latent_dims=128)
+        environment: (batch_size, 1, latent_dims=128)
+        ts: (batch_size, 20, latent_dims=128)
         '''
         out, hidden_states = self.combi_decoder(x_tuple)
         mu = out[:, 0].unsqueeze(-1)

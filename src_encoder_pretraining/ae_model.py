@@ -28,14 +28,14 @@ class model(nn.Module):
     def __init__(self, encoder_name):
         super(model, self).__init__()
         if encoder_name == 'current':
-            self.encoder = current_encoder(input_dims=1, output_dims=256)
-            self.decoder = shared_decoder(input_dims=12*256, output_dims=12)
+            self.encoder = current_encoder(input_dims=1, output_dims=128)
+            self.decoder = shared_decoder(input_dims=12*128, output_dims=12)
         elif encoder_name == 'current+acc':
-            self.encoder = current_encoder(input_dims=1, output_dims=256)
-            self.decoder = shared_decoder(input_dims=13*256, output_dims=13)
+            self.encoder = current_encoder(input_dims=1, output_dims=128)
+            self.decoder = shared_decoder(input_dims=13*128, output_dims=13)
         elif encoder_name == 'environment':
-            self.encoder = environment_encoder(input_dims=27, output_dims=256)
-            self.decoder = shared_decoder(input_dims=256, output_dims=27)
+            self.encoder = environment_encoder(input_dims=27, output_dims=128)
+            self.decoder = shared_decoder(input_dims=128, output_dims=27)
         else:
             ValueError("Undefined encoder name: should be among 'current', 'current+acc', 'environment'.")
 
@@ -248,7 +248,7 @@ class autoencoder():
         
         if org_training:
             self.train()
-        return encoded_data # (n_samples, 12, 256) for current, (n_samples, 13, 256) for current+acc, (n_samples, 1, 256) for environment
+        return encoded_data # (n_samples, 12, 128) for current, (n_samples, 13, 128) for current+acc, (n_samples, 1, 128) for environment
 
 
     def save(self, fn):
