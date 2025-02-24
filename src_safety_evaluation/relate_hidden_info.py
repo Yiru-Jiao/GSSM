@@ -84,11 +84,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
             dataset = dataset_name.split('_')
             encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
             encoder_selection = encoder_name.split('_')
-            cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
-            cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
             pretraining = model_evaluation.iloc[model_id]['pretraining']
             pretrained_encoder = True if pretraining=='pretrained' else False
-            model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+            model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
             if model_name==model2use:
                 break
         print(f'--- Evaluating {model_name} ---')
@@ -105,7 +103,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
         # Define and load trained model
-        model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
+        model = define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention=True)
 
         states = []
         if 'current' in encoder_selection:
@@ -146,11 +144,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
         dataset = dataset_name.split('_')
         encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
         encoder_selection = encoder_name.split('_')
-        cross_attention_name = model_evaluation.iloc[model_id]['cross_attention']
-        cross_attention = cross_attention_name.split('_') if cross_attention_name!='not_crossed' else []
         pretraining = model_evaluation.iloc[model_id]['pretraining']
         pretrained_encoder = True if pretraining=='pretrained' else False
-        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+        model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         print(f'--- Evaluating {model_name} ---')
 
         # Define scaler and one-hot encoder for normalisation
@@ -161,7 +157,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
         # Define and load trained model
-        model = define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder)
+        model = define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention=True)
 
         states = []
         if 'current' in encoder_selection:
@@ -195,7 +191,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
         model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # read saved results again to avoid overwriting
         model_evaluation.loc[(model_evaluation['dataset']==dataset_name)&
                                 (model_evaluation['encoder_selection']==encoder_name)&
-                                (model_evaluation['cross_attention']==cross_attention_name)&
                                 (model_evaluation['pretraining']==pretraining), keys] = values
         model_evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
 

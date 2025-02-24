@@ -153,20 +153,14 @@ class attention_decoder(nn.Module):
     State (Current + Environment) self-attention: (batch_size, 15/16+1, latent_dims=128) -> (batch_size, 15/16+1, hidden_dims=64)
     TimeSeries self-attention: (batch_size, 20, latent_dims=128) -> (batch_size, 20, hidden_dims=64)
 
-    Optional cross-attention, use State to query TimeSeries key-value
-    First (ealier) cross-attention: (batch_size, 15~17, latent_dims=128) -> (batch_size, 20, hidden_dims=64)
-    Last (later) cross-attention: (batch_size, 15~17, latent_dims=128) -> (batch_size, 20, hidden_dims=64)
-
-    Output self-attention: (batch_size, 15~54, hidden_dims=64) -> (batch_size, 15~54, 1)
-    
+    Output self-attention: (batch_size, 15~54, hidden_dims=64) -> (batch_size, 15~54, 1)    
     Output with linear: (batch_size, 15~54, 1) -> (batch_size, 2)
     '''
-    def __init__(self, latent_dims=128, hidden_dims=64, encoder_selection=[], cross_attention=[], return_attention=False):
+    def __init__(self, latent_dims=128, hidden_dims=64, encoder_selection=[], return_attention=False):
         super(attention_decoder, self).__init__()
         self.latent_dims = latent_dims
         self.hidden_dims = hidden_dims
         self.encoder_selection = encoder_selection
-        self.cross_attention = cross_attention
         self.return_attention = return_attention
         
         # Determine the final sequence length

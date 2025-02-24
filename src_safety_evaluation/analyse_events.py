@@ -83,18 +83,17 @@ def main(path_result):
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
-    cross_attention_name_list = model_evaluation['cross_attention'].values
     pretraining_list = model_evaluation['pretraining'].values
 
     ssse_thresholds = np.unique(np.round(10**(np.arange(0,2.3,0.0142)**2))).astype(int)
-    for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
-        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+    for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
+        model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
             print('--- Analysis 1 with', model_name, 'already completed ---')
         else:
             print('--- Analyzing with', model_name, '---')
             sub_initial_time = systime.time()
-            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
+            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
             ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'SSSE') for threshold in ssse_thresholds)
             ssse_records = pd.concat(ssse_records).reset_index()
             ssse_records['indicator'] = 'SSSE'
@@ -170,14 +169,14 @@ def main(path_result):
             records['model'] = conflict_indicator
             results.append(records.copy())
 
-    for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
-        model_name = f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}'
+    for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
+        model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         if model_name in existing_models:
             print('--- Optimal warning analysis with', model_name, 'already completed ---')
         else:
             print('--- Issuing warning', model_name, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
+            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
             filtered_warning = conflict_warning[conflict_warning['event_id'].isin(filtered_events)]
             optimal_threshold = optimize_threshold(filtered_warning, 'SSSE', 'ROC')
             records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
@@ -205,8 +204,8 @@ def main(path_result):
     # else:
     #     ground_truth = event_meta[event_meta['duration_enough']]
     #     results = []
-    #     for dataset_name, encoder_name, cross_attention_name, pretraining in zip(dataset_name_list, encoder_name_list, cross_attention_name_list, pretraining_list):
-    #         safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, cross_attention_name, pretraining)
+    #     for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
+    #         safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
     #         safety_evaluation = safety_evaluation[safety_evaluation['event_id'].isin(ground_truth.index.values)]
     #         safety_evaluation['impact_time'] = ground_truth.loc[safety_evaluation['event_id'].values, 'impact_timestamp'].values/1000
     #         safety_evaluation['period_start'] = safety_evaluation['impact_time'] - 0.5
@@ -215,7 +214,7 @@ def main(path_result):
     #                                             (safety_evaluation['time']<=safety_evaluation['period_end'])]
     #         avg_intensity = safety_evaluation.groupby(['event_id','target_id'])['intensity'].mean().reset_index().set_index('event_id')
     #         result = []
-    #         for event_id in tqdm(avg_intensity.index.unique(), desc=pretraining+'_'+encoder_name+'_'+cross_attention_name, ascii=True, dynamic_ncols=False):
+    #         for event_id in tqdm(avg_intensity.index.unique(), desc=pretraining+'_'+encoder_name, ascii=True, dynamic_ncols=False):
     #             if ground_truth.loc[event_id, 'severity_first'] >= ground_truth.loc[event_id, 'severity_second']:
     #                 severity_higher = ground_truth.loc[event_id, 'severity_first']
     #                 severity_lower = ground_truth.loc[event_id, 'severity_second']
@@ -230,7 +229,7 @@ def main(path_result):
     #             result.append([str(event_id)+'-higher', severity_higher, intensity_higher])
     #             result.append([str(event_id)+'-lower', severity_lower, intensity_lower])
     #         result = pd.DataFrame(result, columns=['event','given_severity','evaluated_intensity'])
-    #         result['model'] = pretraining + '_' + encoder_name + '_' + cross_attention_name
+    #         result['model'] = pretraining + '_' + encoder_name
     #         results.append(result)
     #     results = pd.concat(results)
     #     results.to_hdf(path_result + f'Analyses/EventSeverity.h5', key='results', mode='w')

@@ -25,7 +25,7 @@ def read_events(path_events, meta_only=False):
         return event_meta, event_data
 
 
-def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, cross_attention_name=None, pretraining=None):
+def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, pretraining=None):
     if indicator in ['TTC', 'DRAC', 'MTTC', 'PSD']:
         safety_evaluation = pd.read_hdf(path_results + f'TTC_DRAC_MTTC_PSD.h5', key='data')
         return safety_evaluation
@@ -36,20 +36,20 @@ def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=Non
         safety_evaluation = pd.read_hdf(path_results + f'highD_UCD.h5', key='data')
         return safety_evaluation
     elif indicator=='SSSE':
-        if np.any([config is None for config in [dataset_name, encoder_name, cross_attention_name, pretraining]]):
+        if np.any([config is None for config in [dataset_name, encoder_name, pretraining]]):
             print('Please specify model configuration for SSSE evaluation.')
             return None
         else:
-            safety_evaluation = pd.read_hdf(path_results + f'{dataset_name}_{encoder_name}_{cross_attention_name}_{pretraining}.h5', key='data')
+            safety_evaluation = pd.read_hdf(path_results + f'{dataset_name}_{encoder_name}_{pretraining}.h5', key='data')
             return safety_evaluation
 
 
-def define_model(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder):
+def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention=False):
     # Define the model
-    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, cross_attention, pretrained_encoder, return_attention=True)
+    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention)
     ## Load trained model
     pipeline.load_model()
-    print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}-{pipeline.cross_attention_name}')
+    print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}-{pipeline.pretraining}')
     return pipeline.model
 
 
@@ -109,7 +109,7 @@ def SSSE(states, model, device):
     for x in data_loader:
         with torch.no_grad():
             out = model(send_x_to_device(x, device))
-            mu, sigma, _ = out
+            mu, sigma = out
         mu_list.append(mu.squeeze().cpu().numpy())
         sigma_list.append(sigma.squeeze().cpu().numpy())
 

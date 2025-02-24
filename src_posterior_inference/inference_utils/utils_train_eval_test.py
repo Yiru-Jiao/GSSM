@@ -36,6 +36,9 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['Argoverse', 'INTERACTION'], ['current'], [], False],
             [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], [], False],
             [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], [], False],
+            [['Argoverse', 'INTERACTION'], ['current'], [], True],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], [], True],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], [], True],
         ])
     if 4 in stage: # single dataset, encoder pretrained with all datasets
         exp_config.extend([
@@ -46,35 +49,19 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 5 in stage: # on SafeBaseline, add extra features
         exp_config.extend([
-            [['SafeBaseline'], ['current+acc'], [], True],
-            [['SafeBaseline'], ['current+acc', 'environment'], [], True],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], [], True],
-            [['SafeBaseline'], ['current+acc'], [], False],
-            [['SafeBaseline'], ['current+acc', 'environment'], [], False],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], [], False],
+            [['SafeBaseline'], ['current+acc'], ['last'], False],
+            [['SafeBaseline'], ['current+acc', 'environment'], ['last'], False],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], ['last'], False],
+            [['SafeBaseline'], ['current+acc'], ['last'], True],
+            [['SafeBaseline'], ['current+acc', 'environment'], ['last'], True],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], ['last'], True],
         ])
-    if 6 in stage: # on SafeBaseline, cross attention
-        exp_config.extend([
-            # [['highD'], ['current','profiles'], [], False],
-            # [['SafeBaseline'], ['current','environment','profiles'], [], True],
-            # [['Argoverse', 'SafeBaseline'], ['current','profiles'], [], True],
-        ])
-    # if 7 in stage: # model variants, cross attention
-    #     exp_config.extend([
-            # [[], ['current','profiles'], ['first'], False],
-            # [[], ['current','profiles'], ['first'], True],
-            # [[], ['current','profiles'], ['last'], False],
-            # [[], ['current','profiles'], ['last'], True],
-            # [[], ['current','profiles'], ['first','last'], False],
-            # [[], ['current','profiles'], ['first','last'], True],
-        # ])
     return exp_config
 
 
 class train_val_test():
     def __init__(self, device, path_prepared, dataset,
                  encoder_selection='all', 
-                 cross_attention=[],
                  pretrained_encoder=False,
                  return_attention=False):
         super(train_val_test, self).__init__()
@@ -87,23 +74,20 @@ class train_val_test():
             encoder_selection = ['current+acc', 'environment', 'profiles']
         encoder_name = '_'.join(encoder_selection)
         self.encoder_name = encoder_name
-        cross_attention_name = '_'.join(cross_attention) if len(cross_attention) > 0 else 'not_crossed'
-        self.cross_attention_name = cross_attention_name
         if not return_attention:
             if pretrained_encoder:
-                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained/{encoder_name}_{cross_attention_name}/'
+                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained/{encoder_name}/'
             else:
-                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/not_pretrained/{encoder_name}_{cross_attention_name}/'
+                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/not_pretrained/{encoder_name}/'
             os.makedirs(self.path_output, exist_ok=True)
         self.encoder_selection = encoder_selection
-        self.cross_attention = cross_attention
         self.pretrained_encoder = pretrained_encoder
         self.return_attention = return_attention
         self.define_model()
         self.loss_func = LogNormalNLL()
 
     def define_model(self,):
-        self.model = UnifiedProximity(self.device, self.encoder_selection, self.cross_attention, self.return_attention)
+        self.model = UnifiedProximity(self.device, self.encoder_selection, self.return_attention)
         if self.pretrained_encoder:
             self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=False)
 
@@ -178,7 +162,7 @@ class train_val_test():
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
-            if (epoch_n>25) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
+            if (epoch_n>25) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<5e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
@@ -213,9 +197,9 @@ class train_val_test():
     def load_model(self, batch_size=None, initial_lr=None):
         if 'path_output' not in self.__dict__:
             if self.pretrained_encoder:
-                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}_{self.cross_attention_name}/'
+                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}/'
             else:
-                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}_{self.cross_attention_name}/'
+                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}/'
         if batch_size is not None and initial_lr is not None:
             self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
         else:
