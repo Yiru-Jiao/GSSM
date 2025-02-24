@@ -74,12 +74,8 @@ def main(args):
     for datasets in datasets_list:
         # Create the directory to save the evaluation results
         dataset_name = '_'.join(datasets)
-        if args.encoder_name == 'environment':
-            run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/trained_models/'
-            results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/evaluation.csv'
-        else:
-            run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/trained_models/'
-            results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/evaluation.csv'
+        run_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/trained_models/'
+        results_dir = f'{path_prepared}EncoderPretraining/{args.encoder_name}_autoencoder/{dataset_name}/evaluation.csv'
         os.makedirs(run_dir, exist_ok=True)
 
         if os.path.exists(results_dir):
