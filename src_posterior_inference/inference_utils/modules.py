@@ -166,18 +166,24 @@ class attention_decoder(nn.Module):
             nn.Linear(input_dims, input_dims//2),
             nn.GELU(),
             nn.Linear(input_dims//2, output_dims),
+            nn.GELU(),
+            nn.Linear(output_dims, output_dims),
             nn.LayerNorm(output_dims)
         )
         Key = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
             nn.GELU(),
             nn.Linear(input_dims//2, output_dims, bias=False),
+            nn.GELU(),
+            nn.Linear(output_dims, output_dims),
             nn.LayerNorm(output_dims)
         )
         Value = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
             nn.GELU(),
             nn.Linear(input_dims//2, output_dims, bias=False),
+            nn.GELU(),
+            nn.Linear(output_dims, output_dims),
             nn.LayerNorm(output_dims)
         )
         return Query, Key, Value
