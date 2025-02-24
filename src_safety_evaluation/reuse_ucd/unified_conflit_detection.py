@@ -286,7 +286,7 @@ def UCD(data, device):
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
 
     ## Load trained model
-    model, likelihood = define_model(100, device)
+    model, likelihood = define_model(500, device)
 
     ## Compute mu_list, sigma_list
     chunk_size = 1024
