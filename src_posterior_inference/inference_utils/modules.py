@@ -157,7 +157,7 @@ class attention_decoder(nn.Module):
                 if 'last' in self.cross_attention:
                     self.Q_last, self.K_last, self.V_last = self.define_head(latent_dims, hidden_dims)
                 self.final_seq_len += (self.final_seq_len - 20) * len(self.cross_attention)
-        self.Q_out, self.K_out, self.V_out = self.define_out_head(hidden_dims, 1)
+        self.Q_out, self.K_out, self.V_out = self.define_out_head(hidden_dims)
         self.linear = nn.Sequential( # (batch_size, final_seq_len, 1)
             nn.Flatten(1), # (batch_size, final_seq_len)
             nn.Linear(self.final_seq_len, 2),
