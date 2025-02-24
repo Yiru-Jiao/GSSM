@@ -54,26 +54,7 @@ class ts_encoder(nn.Module):
 class current_encoder(nn.Module):
     def __init__(self, input_dims=1, output_dims=128):
         super(current_encoder, self).__init__()
-        # self.input_fc = nn.Linear(input_dims, 16)
-        # self.feature_extractor = nn.Sequential(
-        #     nn.Conv1d(16, 32, kernel_size=3, stride=1, padding=1),
-        #     nn.GELU(),
-        #     nn.Conv1d(32, output_dims, kernel_size=3, stride=1, padding=1),
-        #     nn.GELU(),
-        #     nn.Conv1d(output_dims, output_dims, kernel_size=3, stride=1, padding=1),
-        #     nn.GELU(),
-        #     nn.Dropout(0.1),
-        # )
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, output_dims//2),
-            nn.GELU(),
-            nn.Linear(output_dims//2, output_dims),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-            nn.GELU(),
-            nn.Dropout(0.1),
-        )
-        self.rho_extractor = nn.Sequential(
             nn.Linear(input_dims, output_dims//2),
             nn.GELU(),
             nn.Linear(output_dims//2, output_dims),
@@ -96,16 +77,8 @@ class current_encoder(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 15 or 16)
-        # x = x.unsqueeze(-1) # (batch_size, 15 or 16, 1)
-        # x = self.input_fc(x) # (batch_size, 15 or 16, 16)
-        # x = x.transpose(1, 2) # (batch_size, 16, 15 or 16)
-        # out = self.feature_extractor(x) # (batch_size, 64, 15 or 16)
-        # return out.transpose(1, 2) # (batch_size, 15 or 16, 64)
-        rho = x[:, -1:].unsqueeze(-1) # (batch_size, 1, 1), the last column is 'rho'
-        features = x[:, :-1].unsqueeze(-1) # (batch_size, 14 or 15, 1)
-        rho_out = self.rho_extractor(rho) # (batch_size, 1, 128)
-        feature_out = self.feature_extractor(features) # (batch_size, 14 or 15, 128)
-        out = torch.cat([feature_out, rho_out], dim=1) # (batch_size, 15 or 16, 128)
+        features = x.unsqueeze(-1) #(batch_size, 15 or 16, 1)
+        out = self.feature_extractor(features) # (batch_size, 15 or 16, 128)
         return out
 
 
@@ -135,8 +108,8 @@ class environment_encoder(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 27)
-        x = x.unsqueeze(1) # (batch_size, 1, 27)
-        return self.feature_extractor(x) # (batch_size, 1, 128)
+        out = self.feature_extractor(x) # (batch_size, 128)
+        return  out.unsqueeze(1) # (batch_size, 1, 128)
 
 
 class attention_decoder(nn.Module):
@@ -192,22 +165,24 @@ class attention_decoder(nn.Module):
         Query = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
             nn.GELU(),
-            nn.Linear(input_dims//2, output_dims)
+            nn.Linear(input_dims//2, output_dims),
+            nn.LayerNorm(output_dims)
         )
         Key = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
             nn.GELU(),
-            nn.Linear(input_dims//2, output_dims, bias=False)
+            nn.Linear(input_dims//2, output_dims, bias=False),
+            nn.LayerNorm(output_dims)
         )
         Value = nn.Sequential(
             nn.Linear(input_dims, input_dims//2),
             nn.GELU(),
-            nn.Linear(input_dims//2, output_dims, bias=False)
+            nn.Linear(input_dims//2, output_dims, bias=False),
+            nn.LayerNorm(output_dims)
         )
         return Query, Key, Value
 
     def get_qkv(self, x, Query, Key, Value):
-        x = F.layer_norm(x, x.size()[1:])
         queries = Query(x)
         keys = Key(x)
         values = Value(x) # (batch_size, seq_len, output_dims)
@@ -251,7 +226,6 @@ class attention_decoder(nn.Module):
         return attended_out, attention_matrices
     
     def mlp_forward(self, attended_out):
-        attended_out = F.layer_norm(attended_out, attended_out.size()[1:]) # (batch_size, final_seq_len, fc_dims=8)
         attended_out = attended_out.view(attended_out.size(0), -1) # (batch_size, final_seq_len * fc_dims=8)
         out = self.mlp(attended_out)
         return attended_out, out # (batch_size, 2)
