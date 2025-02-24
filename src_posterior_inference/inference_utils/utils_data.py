@@ -8,40 +8,38 @@ import numpy as np
 import pandas as pd
 import warnings
 from torch.utils.data import Dataset
-# from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler
 
 
-# def get_scaler(datasets, dataset_dir, feature):
-#     print(f'Getting scaler for {feature}...')
-#     if feature == 'profiles':
-#         scaler_data = []
-#         for dataset in datasets:
-#             for split in ['train', 'val']:
-#                 scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
-#         scaler_data = pd.concat(scaler_data, ignore_index=True)
-#         scaler_data = scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values
-#         scaler = StandardScaler().fit(scaler_data)
-#     elif 'current' in feature:
-#         if 'acc' in feature:
-#             variables = ['l_ego','l_sur','w_ego','w_sur',
-#                          'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-#                          'vx_relative','vy_relative','v_relative2','v_relative',
-#                          'acc_ego','rho']
-#         else:
-#             variables = ['l_ego','l_sur','w_ego','w_sur',
-#                          'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-#                          'vx_relative','vy_relative','v_relative2','v_relative',
-#                          'rho']
-#         scaler_data = []
-#         for dataset in datasets:
-#             for split in ['train', 'val']:
-#                 scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
-#         scaler_data = pd.concat(scaler_data, ignore_index=True)
-#         scaler_data = scaler_data[variables].values
-#         scaler = StandardScaler().fit(scaler_data)
-#     elif feature == 'environment':
-#         print('No scaler is needed for environment features.')
-#     return scaler
+def get_scaler(datasets, dataset_dir, feature):
+    print(f'Getting scaler for {feature}...')
+    if feature == 'profiles':
+        scaler_data = []
+        for dataset in datasets:
+            for split in ['train', 'val']:
+                scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
+        scaler_data = pd.concat(scaler_data, ignore_index=True)
+        scaler_data = scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values
+        scaler = StandardScaler().fit(scaler_data)
+    elif 'current' in feature:
+        if 'acc' in feature:
+            variables = ['l_ego','l_sur','w_ego','w_sur',
+                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
+                         'vx_relative','vy_relative','v_relative2','v_relative','acc_ego']
+        else:
+            variables = ['l_ego','l_sur','w_ego','w_sur',
+                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
+                         'vx_relative','vy_relative','v_relative2','v_relative']
+        scaler_data = []
+        for dataset in datasets:
+            for split in ['train', 'val']:
+                scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
+        scaler_data = pd.concat(scaler_data, ignore_index=True)
+        scaler_data = scaler_data[variables].values
+        scaler = StandardScaler().fit(scaler_data)
+    elif feature == 'environment':
+        print('No scaler is needed for environment features.')
+    return scaler
 
 
 class DataOrganiser(Dataset):
@@ -53,9 +51,9 @@ class DataOrganiser(Dataset):
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         self.path_prepared = path_prepared
-        # self.current_scaler = get_scaler(dataset, path_prepared, encoder_selection[0])
-        # if 'profiles' in encoder_selection:
-        #     self.profiles_scaler = get_scaler(dataset, path_prepared, 'profiles')
+        self.current_scaler = get_scaler(dataset, path_prepared, encoder_selection[0])
+        if 'profiles' in encoder_selection:
+            self.profiles_scaler = get_scaler(dataset, path_prepared, 'profiles')
         self.data = self.read_data()
         self.combine_features = self.define_combine_features()
 
@@ -94,15 +92,15 @@ class DataOrganiser(Dataset):
         if 'acc' in self.encoder_selection[0]:
             variables = ['l_ego','l_sur','w_ego','w_sur',
                          'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-                         'vx_relative','vy_relative','v_relative2','v_relative',
-                         'acc_ego','rho']
+                         'vx_relative','vy_relative','v_relative2','v_relative','acc_ego']
         else:
             variables = ['l_ego','l_sur','w_ego','w_sur',
                          'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-                         'vx_relative','vy_relative','v_relative2','v_relative',
-                         'rho']
-        # self.data.append(torch.from_numpy(self.current_scaler.transform(X_current[variables].values)).float())
-        self.data.append(torch.from_numpy(X_current[variables].values).float())
+                         'vx_relative','vy_relative','v_relative2','v_relative']
+        self.data.append(torch.from_numpy(np.concatenate([
+            self.current_scaler.transform(X_current[variables].values),
+            X_current[['rho']].values
+            ], axis=1)).float())
 
         if 'environment' in self.encoder_selection:
             X_environment = []
@@ -131,7 +129,7 @@ class DataOrganiser(Dataset):
             X_profiles = X_profiles.sort_values(['scene_id', 'time']).reset_index(drop=True)
             assert np.all(X_current['scene_id'].values==X_profiles['scene_id'].drop_duplicates().values)
             X_profiles = X_profiles[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 20, 4)
-            # X_profiles = self.profiles_scaler.transform(X_profiles.reshape(-1, 4)).reshape(X_profiles.shape)
+            X_profiles = self.profiles_scaler.transform(X_profiles.reshape(-1, 4)).reshape(X_profiles.shape)
             self.data.append(torch.from_numpy(X_profiles).float())
 
         if np.any(X_current['s']<=1e-6): # the spacing must be larger than 0

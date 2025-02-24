@@ -109,10 +109,10 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if 'current' in encoder_selection:
-            # states.append(current_scaler.transform(current_features[:,:-1]))
+            #? states.append(current_scaler.transform(current_features[:,:-1]))
             states.append(np.concatenate([current_features[:,:-2], current_features[:,-1:]], axis=1))
         if 'current+acc' in encoder_selection:
-            # states.append(current_scaler.transform(current_features))
+            #? states.append(current_scaler.transform(current_features))
             states.append(current_features)
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
@@ -165,10 +165,10 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if 'current' in encoder_selection:
-            # states.append(current_scaler.transform(current_features[:,:-1]))
+            #? states.append(current_scaler.transform(current_features[:,:-1]))
             states.append(np.concatenate([current_features[:,:-2], current_features[:,-1:]], axis=1))
         if 'current+acc' in encoder_selection:
-            # states.append(current_scaler.transform(current_features))
+            #? states.append(current_scaler.transform(current_features))
             states.append(current_features)
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
