@@ -262,12 +262,12 @@ def main(args, events, manual_seed, path_prepared, path_result):
             states.append(np.concatenate([
                 current_scaler.transform(current_features[:,:-2]),
                 current_features[:,[-1]]
-            ]))
+            ], axis=1))
         if encoder_selection[0]=='current+acc':
             states.append(np.concatenate([
                 current_scaler.transform(current_features[:,:-1]),
                 current_features[:,[-1]]
-            ]))
+            ], axis=1))
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
             environment_features = one_hot_encoder.transform(environment_features.values)
