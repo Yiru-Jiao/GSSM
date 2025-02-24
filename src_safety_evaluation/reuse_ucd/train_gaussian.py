@@ -47,7 +47,7 @@ def main(args, manual_seed):
     initial_lr = 0.01
     batch_size = 1024
     num_qepochs = 500
-    num_inducing_points = 200
+    num_inducing_points = 500
 
     # Training
     existing_files = os.listdir('./src_safety_evaluation/reuse_ucd/')
