@@ -122,44 +122,44 @@ class EnvEncoder(nn.Module):
 class AttentionBlock(nn.Module):
     def __init__(self, input_dims, output_dims):
         super(AttentionBlock, self).__init__()
-        self.linear_q = nn.Linear(input_dims, output_dims)
-        self.linear_k = nn.Linear(input_dims, output_dims)
-        self.linear_v = nn.Linear(input_dims, output_dims)
-
-        # Dropout layers
-        self.attn_dropout = nn.Dropout(0.1)
-        self.out_dropout = nn.Dropout(0.1)
+        self.linear_q = nn.Sequential(
+            nn.LayerNorm(input_dims),
+            nn.Linear(input_dims, input_dims),
+            nn.GELU(),
+            nn.Linear(input_dims, output_dims),
+            nn.GELU(),
+            nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.1),
+        )
+        self.linear_k = nn.Sequential(
+            nn.LayerNorm(input_dims),
+            nn.Linear(input_dims, input_dims),
+            nn.GELU(),
+            nn.Linear(input_dims, output_dims),
+            nn.GELU(),
+            nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.1),
+        )
+        self.linear_v = nn.Sequential(
+            nn.LayerNorm(input_dims),
+            nn.Linear(input_dims, input_dims),
+            nn.GELU(),
+            nn.Linear(input_dims, output_dims),
+            nn.GELU(),
+            nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.1),
+        )
         
-        # LayerNorm applied after adding the residual connection
-        self.layernorm = nn.LayerNorm(output_dims)
-
-        # If input and output dimensions differ, project residual to match output_dims
-        if input_dims != output_dims:
-            self.residual_projection = nn.Linear(input_dims, output_dims)
-        else:
-            self.residual_projection = None
-        
-    def forward(self, x):
-        # x: (batch_size, seq_len, input_dims)
-        residual = x
-        if self.residual_projection is not None:
-            residual = self.residual_projection(residual)
-        
-        # Compute projections for queries, keys, and values
+    def forward(self, x): # x: (batch_size, seq_len, input_dims)
         queries = self.linear_q(x)
         keys = self.linear_k(x)
         values = self.linear_v(x)
 
-        # Scaled dot-product attention
         scores = torch.matmul(queries, keys.transpose(-2, -1)) / (values.size(-1) ** 0.5)
         attention = F.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
-        attention = self.attn_dropout(attention)  # dropout on attention weights
         attended = torch.matmul(attention, values) # (batch_size, seq_len, output_dims)
-        attended = self.out_dropout(attended)  # dropout on output
         
-        # Add residual connection and apply layer normalization
-        out = self.layernorm(attended + residual)
-        return out, attention
+        return attended, attention
 
 
 class StackedAttention(nn.Module):
@@ -171,8 +171,9 @@ class StackedAttention(nn.Module):
         self.prefix = prefix
 
     def forward(self, x, attention_matrices=None):
+        out = x
         for i, block in enumerate(self.blocks):
-            out, attention = block(x)
+            out, attention = block(out)
             if attention_matrices is not None:
                 attention_matrices[f"{self.prefix}_{i+1}"] = attention
         return out, attention_matrices
@@ -207,15 +208,13 @@ class AttentionDecoder(nn.Module):
         # Define the attention blocks
         self.StateAttention = StackedAttention([
             # (self.latent_dims, self.latent_dims),
-            # (self.latent_dims, self.latent_dims),
             (self.latent_dims, self.hidden_dims),
-            # (self.hidden_dims, self.hidden_dims),
+            (self.hidden_dims, self.hidden_dims),
         ], prefix='state')
         self.TSAttention = StackedAttention([
             # (self.latent_dims, self.latent_dims),
-            # (self.latent_dims, self.latent_dims),
             (self.latent_dims, self.hidden_dims),
-            # (self.hidden_dims, self.hidden_dims),
+            (self.hidden_dims, self.hidden_dims),
         ], prefix='ts')
         self.OutAttention = StackedAttention([
             # (self.hidden_dims, self.hidden_dims),
