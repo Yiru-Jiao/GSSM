@@ -66,7 +66,7 @@ class SVGP(gpytorch.models.ApproximateGP):
         self.mean_module = gpytorch.means.ConstantMean()
 
         # Kernel module
-        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=15, ard_num_dims=15)
+        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=20, ard_num_dims=15)
         rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=15))
         self.covar_module = mixture_kernel + rbf_kernel
 
@@ -286,7 +286,7 @@ def UCD(data, device):
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
 
     ## Load trained model
-    model, likelihood = define_model(500, device)
+    model, likelihood = define_model(200, device)
 
     ## Compute mu_list, sigma_list
     chunk_size = 1024
