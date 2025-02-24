@@ -54,7 +54,7 @@ from src_encoder_pretraining.ssrl_utils.utils_distance_matrix import *
 from src_encoder_pretraining.modules.measures import MeasureCalculator
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 from src_encoder_pretraining.ssrl_utils.utils_distance_matrix import get_EUC
-from src_posterior_inference.inference_utils.modules import current_encoder, environment_encoder
+from src_posterior_inference.inference_utils.modules import CurrentEncoder, EnvEncoder
 print('--- All the imports in src_encoder_pretraining are successful ---')
 
 # src_posterior_inference

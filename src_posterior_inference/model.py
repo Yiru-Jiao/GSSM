@@ -50,14 +50,14 @@ class UnifiedProximity(nn.Module):
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         if 'current' in encoder_selection or 'current+acc' in encoder_selection:
-            self.current_encoder = modules.current_encoder(input_dims=1, output_dims=128)
+            self.CurrentEncoder = modules.CurrentEncoder(input_dims=1, output_dims=128)
         else:
             Warning('Current encoder must be selected.')
         if 'environment' in encoder_selection:
-            self.environment_encoder = modules.environment_encoder(input_dims=27, output_dims=128)
+            self.EnvEncoder = modules.EnvEncoder(input_dims=27, output_dims=128)
         if 'profiles' in encoder_selection:
-            self.ts_encoder = modules.ts_encoder(device, input_dims=4, output_dims=128)
-        self.attention_decoder = modules.attention_decoder(encoder_selection=self.encoder_selection,
+            self.TSEncoder = modules.TSEncoder(device, input_dims=4, output_dims=128)
+        self.AttentionDecoder = modules.AttentionDecoder(encoder_selection=self.encoder_selection,
                                                            return_attention=return_attention)
         self.combi_encoder = self.define_combi_encoder()
 
@@ -80,46 +80,46 @@ class UnifiedProximity(nn.Module):
             path_prepared = path_prepared + f'EncoderPretraining/current_autoencoder/{dataset_name}/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.current_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
+            self.CurrentEncoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'current+acc' in self.encoder_selection:
             path_prepared = path_prepared + f'EncoderPretraining/current+acc_autoencoder/{dataset_name}/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.current_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
+            self.CurrentEncoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'environment' in self.encoder_selection:
             path_prepared = path_prepared + f'EncoderPretraining/environment_autoencoder/SafeBaseline/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.environment_encoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
+            self.EnvEncoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'profiles' in self.encoder_selection:
             path_prepared = path_prepared + 'EncoderPretraining/spclt/SafeBaseline/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
-            self.ts_encoder.load(best_model['model'], self.device, path_prepared, continue_training)
+            self.TSEncoder.load(best_model['model'], self.device, path_prepared, continue_training)
 
     def define_combi_encoder(self,):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_encoder(x):
-                x_current = self.current_encoder(x)
+                x_current = self.CurrentEncoder(x)
                 return (x_current,)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
-                x_current = self.current_encoder(x_current)
-                x_environment = self.environment_encoder(x_environment)
+                x_current = self.CurrentEncoder(x_current)
+                x_environment = self.EnvEncoder(x_environment)
                 return (x_current, x_environment)
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
             def combi_encoder(x):
                 x_current, x_ts = x
-                x_current = self.current_encoder(x_current)
-                x_ts = self.ts_encoder(x_ts)
+                x_current = self.CurrentEncoder(x_current)
+                x_ts = self.TSEncoder(x_ts)
                 return (x_current, x_ts)
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
-                x_current = self.current_encoder(x_current)
-                x_environment = self.environment_encoder(x_environment)
-                x_ts = self.ts_encoder(x_ts)
+                x_current = self.CurrentEncoder(x_current)
+                x_environment = self.EnvEncoder(x_environment)
+                x_ts = self.TSEncoder(x_ts)
                 return (x_current, x_environment, x_ts)
         else:
             Warning('Invalid encoder selection.')
@@ -127,7 +127,7 @@ class UnifiedProximity(nn.Module):
 
     def forward(self, x):
         latent = self.combi_encoder(x)
-        out = self.attention_decoder(latent)
+        out = self.AttentionDecoder(latent)
         return out # (mu, sigma) if return_attention=False; (mu, sigma, hidden_states) if return_attention=True
 
     def encode(self, states, batch_size):
@@ -138,7 +138,7 @@ class UnifiedProximity(nn.Module):
         for x in data_loader:
             with torch.no_grad():
                 latent = self.combi_encoder(send_x_to_device(x, self.device))
-                _, _, hidden_states = self.attention_decoder(latent)
+                _, _, hidden_states = self.AttentionDecoder(latent)
                 hidden_representations.append(hidden_states[0])
         hidden_representations = torch.cat(hidden_representations, dim=0) # (n_samples, n_compressed_features)
         return hidden_representations.cpu().numpy()

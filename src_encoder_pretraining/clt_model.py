@@ -1,7 +1,6 @@
 '''
 This script defines models for structure-preserving time series contrastive learning.
 The backbone is adapted from TS2Vec https://github.com/zhihanyue/ts2vec and SoftCLT https://github.com/seunghan96/softclt
-We don't use the original TSEncoder because it's very slow for large-scale data
 '''
 
 import os
@@ -36,12 +35,6 @@ class spclt():
         self.loss_config = loss_config
         self.regularizer_config = regularizer_config
                 
-        # define encoder
-        # self._net = encoder.TSEncoder(input_dims=input_dims,
-        #                               output_dims=output_dims,
-        #                               hidden_dims=hidden_dims,
-        #                               depth=depth,
-        #                               mask_mode=mask_mode).to(self.device)
         self._net = encoder.LSTMEncoder(input_dims=input_dims,
                                         hidden_dims=20*output_dims,
                                         num_layers=2,
@@ -419,80 +412,19 @@ class spclt():
             self.train()
         return val_loss
 
-    def _eval_with_pooling(self, x, mask=None, slicing=None, encoding_window=None):
-        """
-        Evaluate the network output with optional pooling and slicing.
-        """
-        out = self.net(x.to(self.device), mask)
-        if encoding_window == 'full_series':
-            if slicing is not None:
-                out = out[:, slicing]
-            out = F.max_pool1d(
-                out.transpose(1, 2),
-                kernel_size = out.size(1),
-            ).transpose(1, 2)
-            
-        elif isinstance(encoding_window, int):
-            out = F.max_pool1d(
-                out.transpose(1, 2),
-                kernel_size = encoding_window,
-                stride = 1,
-                padding = encoding_window // 2
-            ).transpose(1, 2)
-            if encoding_window % 2 == 0:
-                out = out[:, :-1]
-            if slicing is not None:
-                out = out[:, slicing]
-            
-        elif encoding_window == 'multiscale':
-            p = 0
-            reprs = []
-            while (1 << p) + 1 < out.size(1):
-                t_out = F.max_pool1d(
-                    out.transpose(1, 2),
-                    kernel_size = (1 << (p + 1)) + 1,
-                    stride = 1,
-                    padding = 1 << p
-                ).transpose(1, 2)
-                if slicing is not None:
-                    t_out = t_out[:, slicing]
-                reprs.append(t_out)
-                p += 1
-            out = torch.cat(reprs, dim=-1)
-            
-        else:
-            if slicing is not None:
-                out = out[:, slicing]
-            
-        return out
 
-
-    def torch_pad_nan(arr, left=0, right=0, dim=0):
-        if left > 0:
-            padshape = list(arr.shape)
-            padshape[dim] = left
-            arr = torch.cat((torch.full(padshape, np.nan), arr), dim=dim)
-        if right > 0:
-            padshape = list(arr.shape)
-            padshape[dim] = right
-            arr = torch.cat((arr, torch.full(padshape, np.nan)), dim=dim)
-        return arr    
-    
-    
-    def encode(self, data, mask=None, encoding_window=None, causal=False, sliding_length=None, sliding_padding=0, batch_size=None):
+    def encode(self, data, batch_size=None):
         """
         Encodes the input data using the trained neural network model.
         """
         assert self.net is not None, 'please train or load a net first'
         org_training = self.net.training
         self.net.eval()
-        
-        assert data.ndim == 3
-        n_samples, ts_l, _ = data.shape
 
         if batch_size is None:
             batch_size = self.batch_size
 
+        assert data.ndim == 3
         if isinstance(data, torch.Tensor):
             dataset = datautils.custom_dataset(data)
         else:
@@ -503,65 +435,6 @@ class spclt():
             output = []
             for x, _ in dataloader:
                 x = x.to(self.device)
-                # if sliding_length is not None:
-                #     reprs = []
-                #     if n_samples < batch_size:
-                #         calc_buffer = []
-                #         calc_buffer_l = 0
-                #     for i in range(0, ts_l, sliding_length):
-                #         l = i - sliding_padding
-                #         r = i + sliding_length + (sliding_padding if not causal else 0)
-                #         x_sliding = self.torch_pad_nan(
-                #             x[:, max(l, 0) : min(r, ts_l)],
-                #             left=-l if l<0 else 0,
-                #             right=r-ts_l if r>ts_l else 0,
-                #             dim=1
-                #         )
-                #         if n_samples < batch_size:
-                #             if calc_buffer_l + n_samples > batch_size:
-                #                 out = self._eval_with_pooling(
-                #                     torch.cat(calc_buffer, dim=0),
-                #                     mask,
-                #                     slicing=slice(sliding_padding, sliding_padding+sliding_length),
-                #                     encoding_window=encoding_window
-                #                 )
-                #                 reprs += torch.split(out, n_samples)
-                #                 calc_buffer = []
-                #                 calc_buffer_l = 0
-                #             calc_buffer.append(x_sliding)
-                #             calc_buffer_l += n_samples
-                #         else:
-                #             out = self._eval_with_pooling(
-                #                 x_sliding,
-                #                 mask,
-                #                 slicing=slice(sliding_padding, sliding_padding+sliding_length),
-                #                 encoding_window=encoding_window
-                #             )
-                #             reprs.append(out)
-
-                #     if n_samples < batch_size:
-                #         if calc_buffer_l > 0:
-                #             out = self._eval_with_pooling(
-                #                 torch.cat(calc_buffer, dim=0),
-                #                 mask,
-                #                 slicing=slice(sliding_padding, sliding_padding+sliding_length),
-                #                 encoding_window=encoding_window
-                #             )
-                #             reprs += torch.split(out, n_samples)
-                #             calc_buffer = []
-                #             calc_buffer_l = 0
-                    
-                #     out = torch.cat(reprs, dim=1)
-                #     if encoding_window == 'full_series':
-                #         out = F.max_pool1d(
-                #             out.transpose(1, 2).contiguous(),
-                #             kernel_size = out.size(1),
-                #         ).squeeze(1)
-                # else:
-                #     out = self._eval_with_pooling(x, mask, encoding_window=encoding_window)
-                #     if encoding_window == 'full_series':
-                #         out = out.squeeze(1)
-
                 out = self.net(x) # (batch_size, seq_length, output_dim)
                 output.append(out)
                 

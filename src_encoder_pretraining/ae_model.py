@@ -11,7 +11,7 @@ from tqdm import tqdm
 import ssrl_utils.utils_data as datautils
 from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src_posterior_inference.inference_utils.modules import current_encoder, environment_encoder
+from src_posterior_inference.inference_utils.modules import CurrentEncoder, EnvEncoder
 from src_encoder_pretraining.modules.regularizers import *
 
 
@@ -28,13 +28,13 @@ class model(nn.Module):
     def __init__(self, encoder_name):
         super(model, self).__init__()
         if encoder_name == 'current':
-            self.encoder = current_encoder(input_dims=1, output_dims=128)
+            self.encoder = CurrentEncoder(input_dims=1, output_dims=128)
             self.decoder = shared_decoder(input_dims=15*128, output_dims=15)
         elif encoder_name == 'current+acc':
-            self.encoder = current_encoder(input_dims=1, output_dims=128)
+            self.encoder = CurrentEncoder(input_dims=1, output_dims=128)
             self.decoder = shared_decoder(input_dims=16*128, output_dims=16)
         elif encoder_name == 'environment':
-            self.encoder = environment_encoder(input_dims=27, output_dims=128)
+            self.encoder = EnvEncoder(input_dims=27, output_dims=128)
             self.decoder = shared_decoder(input_dims=128, output_dims=27)
         else:
             ValueError("Undefined encoder name: should be among 'current', 'current+acc', 'environment'.")
