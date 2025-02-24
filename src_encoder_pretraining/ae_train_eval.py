@@ -92,6 +92,7 @@ def main(args):
             if test_data.shape[0]>10000:
                 test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
 
+        start_time = systime.time()
         for bslr in bslr_list:
             args.batch_size = int(bslr.split('_')[0].replace('bs',''))
             args.lr = float(bslr.split('_')[1].replace('lr',''))
@@ -104,7 +105,6 @@ def main(args):
                 print(f'--- {bslr} has been trained until epoch {final_epoch}, skipping evaluation ---')
                 continue
 
-            start_time = systime.time()
             # Train model if not already trained
             if os.path.exists(f'{save_dir}/loss_log.csv'):
                 print(f'--- {bslr} has been trained, loading final model ---')
@@ -119,7 +119,6 @@ def main(args):
                 loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(train_losses)+1)],
                                         data={'train_loss': train_losses, 'val_loss': val_losses})
                 loss_log.to_csv(f'{save_dir}/loss_log.csv')
-                print(f'Training time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)))
             
             # Reserve the latest model and remove the rest
             existing_models = glob.glob(f'{save_dir}/*_encoder.pth')
