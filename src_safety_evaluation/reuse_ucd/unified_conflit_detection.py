@@ -66,7 +66,7 @@ class SVGP(gpytorch.models.ApproximateGP):
         self.mean_module = gpytorch.means.ConstantMean()
 
         # Kernel module
-        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=15, ard_num_dims=15)
+        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=20, ard_num_dims=15)
         rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=15))
         self.covar_module = mixture_kernel + rbf_kernel
 
