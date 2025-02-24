@@ -119,6 +119,35 @@ class environment_encoder(nn.Module):
         return  out.unsqueeze(1) # (batch_size, 1, 128)
 
 
+class attention_block(nn.Module):
+    def __init__(self, input_dims, output_dims):
+        super(attention_block, self).__init__()
+        self.Query = nn.Sequential(
+            nn.Linear(input_dims, output_dims),
+            nn.GELU(),
+            nn.LayerNorm(output_dims),
+        )
+        self.Key = nn.Sequential(
+            nn.Linear(input_dims, output_dims),
+            nn.GELU(),
+            nn.LayerNorm(output_dims),
+        )
+        self.Value = nn.Sequential(
+            nn.Linear(input_dims, output_dims),
+            nn.GELU(),
+            nn.LayerNorm(output_dims),
+        )
+    
+    def forward(self, x):
+        queries = self.Query(x)
+        keys = self.Key(x)
+        values = self.Value(x)
+        scores = torch.matmul(queries, keys.transpose(-2, -1)) / (values.size(-1) ** 0.5)
+        attention = F.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
+        out = torch.matmul(attention, values) # (batch_size, seq_len, output_dims)
+        return out, attention
+
+
 class attention_decoder(nn.Module):
     '''
     State (Current + Environment) self-attention: (batch_size, 15/16+1, latent_dims=128) -> (batch_size, 15/16+1, hidden_dims=64)
@@ -140,6 +169,7 @@ class attention_decoder(nn.Module):
         self.cross_attention = cross_attention
         self.return_attention = return_attention
         
+        # Determine the final sequence length
         self.final_seq_len = 0
         if 'current' in self.encoder_selection:
             self.final_seq_len += 15
@@ -147,121 +177,61 @@ class attention_decoder(nn.Module):
             self.final_seq_len += 16
         if 'environment' in self.encoder_selection:
             self.final_seq_len += 1
-        self.Q_state, self.K_state, self.V_state = self.define_head(latent_dims, hidden_dims)
         if 'profiles' in self.encoder_selection:
-            self.Q_ts, self.K_ts, self.V_ts = self.define_head(latent_dims, hidden_dims)
             self.final_seq_len += 20
-            if len(self.cross_attention)>0:
-                if 'first' in self.cross_attention:
-                    self.Q_first, self.K_first, self.V_first = self.define_head(latent_dims, hidden_dims)
-                if 'last' in self.cross_attention:
-                    self.Q_last, self.K_last, self.V_last = self.define_head(latent_dims, hidden_dims)
-                self.final_seq_len += (self.final_seq_len - 20) * len(self.cross_attention)
-        self.Q_out, self.K_out, self.V_out = self.define_out_head(hidden_dims)
+        
+        # Define the attention blocks
+        self.state_block1 = attention_block(self.latent_dims, self.latent_dims)
+        self.state_block2 = attention_block(self.latent_dims, self.hidden_dims)
+        self.state_block3 = attention_block(self.hidden_dims, self.hidden_dims)
+        self.ts_block1 = attention_block(self.latent_dims, self.latent_dims)
+        self.ts_block2 = attention_block(self.latent_dims, self.hidden_dims)
+        self.ts_block3 = attention_block(self.hidden_dims, self.hidden_dims)
+        self.out_block1 = attention_block(self.hidden_dims, self.hidden_dims)
+        self.out_block2 = attention_block(self.hidden_dims, self.hidden_dims//4)
+        self.out_block3 = attention_block(self.hidden_dims//4, 1)
+
+        # Define the combi_decoder and final linear layer
+        self.combi_decoder = self.define_combi_decoder()
         self.linear = nn.Sequential( # (batch_size, final_seq_len, 1)
             nn.Flatten(1), # (batch_size, final_seq_len)
             nn.Linear(self.final_seq_len, 2),
         ) # (batch_size, 2)
-        self.combi_decoder = self.define_combi_decoder()
 
-    def define_head(self, latent_dims, hidden_dims):
-        Query = nn.Sequential(
-            nn.LayerNorm(latent_dims),
-            nn.Linear(latent_dims, latent_dims),
-            nn.GELU(),
-            nn.Linear(latent_dims, hidden_dims),
-            nn.GELU(),
-        )
-        Key = nn.Sequential(
-            nn.LayerNorm(latent_dims),
-            nn.Linear(latent_dims, latent_dims),
-            nn.GELU(),
-            nn.Linear(latent_dims, hidden_dims),
-            nn.GELU(),
-        )
-        Value = nn.Sequential(
-            nn.LayerNorm(latent_dims),
-            nn.Linear(latent_dims, latent_dims),
-            nn.GELU(),
-            nn.Linear(latent_dims, hidden_dims),
-            nn.GELU(),
-        )
-        return Query, Key, Value
-    
-    def define_out_head(self, hidden_dims=64):
-        Query = nn.Sequential(
-            nn.LayerNorm(hidden_dims),
-            nn.Linear(hidden_dims, hidden_dims),
-            nn.GELU(),
-            nn.Linear(hidden_dims, hidden_dims//2),
-            nn.GELU(),
-            nn.Linear(hidden_dims//2, hidden_dims//4),
-            nn.GELU(),
-            nn.Linear(hidden_dims//4, 1),
-        )
-        Key = nn.Sequential(
-            nn.LayerNorm(hidden_dims),
-            nn.Linear(hidden_dims, hidden_dims),
-            nn.GELU(),
-            nn.Linear(hidden_dims, hidden_dims//2),
-            nn.GELU(),
-            nn.Linear(hidden_dims//2, hidden_dims//4),
-            nn.GELU(),
-            nn.Linear(hidden_dims//4, 1),
-        )
-        Value = nn.Sequential(
-            nn.LayerNorm(hidden_dims),
-            nn.Linear(hidden_dims, hidden_dims),
-            nn.GELU(),
-            nn.Linear(hidden_dims, hidden_dims//2),
-            nn.GELU(),
-            nn.Linear(hidden_dims//2, hidden_dims//4),
-            nn.GELU(),
-            nn.Linear(hidden_dims//4, 1),
-        )
-        return Query, Key, Value
-
-    def get_qkv(self, x, Query, Key, Value):
-        queries = Query(x)
-        keys = Key(x)
-        values = Value(x)
-        return queries, keys, values
-
-    def head_forward(self, queries, keys, values):
-        scores = torch.matmul(queries, keys.transpose(-2, -1)) / (values.size(-1) ** 0.5)
-        attention = F.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
-        out = torch.matmul(attention, values) # (batch_size, seq_len, feature_dims)
-        return out, attention
-    
-    def state_self_attention(self, state, attention_matrices, return_q=False):
-        q_state, k_state, v_state = self.get_qkv(state, self.Q_state, self.K_state, self.V_state)
-        attended_state, state_attention = self.head_forward(q_state, k_state, v_state) # (batch_size, 16 or 17, hidden_dims=64)
-        attention_matrices['state'] = state_attention
-        if return_q:
-            return attended_state, attention_matrices, q_state
-        else:
-            return attended_state, attention_matrices
+    def state_self_attention(self, state, attention_matrices):
+        attended_state, state_attention = self.state_block1(state)
+        if self.return_attention:
+            attention_matrices['state_block1'] = state_attention
+        attended_state, state_attention = self.state_block2(attended_state)
+        if self.return_attention:
+            attention_matrices['state_block2'] = state_attention
+        attended_state, state_attention = self.state_block3(attended_state)
+        if self.return_attention:
+            attention_matrices['state_block3'] = state_attention
+        return attended_state, attention_matrices
     
     def ts_self_attention(self, ts, attention_matrices):
-        q_ts, k_ts, v_ts = self.get_qkv(ts, self.Q_ts, self.K_ts, self.V_ts)
-        attended_ts, ts_attention = self.head_forward(q_ts, k_ts, v_ts) # (batch_size, 20, hidden_dims=64)
-        attention_matrices['ts'] = ts_attention
+        attended_ts, ts_attention = self.ts_block1(ts)
+        if self.return_attention:
+            attention_matrices['ts_block1'] = ts_attention
+        attended_ts, ts_attention = self.ts_block2(attended_ts)
+        if self.return_attention:
+            attention_matrices['ts_block2'] = ts_attention
+        attended_ts, ts_attention = self.ts_block3(attended_ts)
+        if self.return_attention:
+            attention_matrices['ts_block3'] = ts_attention
         return attended_ts, attention_matrices
-    
-    def ts_cross_attention(self, ts, attention_matrices, segment, qstate):
-        seg_length = qstate.size(1)
-        if segment=='first':
-            q_seg, k_seg, v_seg = self.get_qkv(ts[:, :seg_length], self.Q_first, self.K_first, self.V_first)
-        elif segment=='last':
-            q_seg, k_seg, v_seg = self.get_qkv(ts[:, -seg_length:], self.Q_last, self.K_last, self.V_last)
-        attended_seg, seg_attention = self.head_forward(qstate, k_seg, v_seg) # (batch_size, 15~17, hidden_dims=64)
-        attention_matrices[segment] = seg_attention
-        return attended_seg, attention_matrices
-    
+
     def output_self_attention(self, out_seq, attention_matrices):
-        q_out, k_out, v_out = self.get_qkv(out_seq, self.Q_out, self.K_out, self.V_out)
-        attended_out, out_attention = self.head_forward(q_out, k_out, v_out) # (batch_size, final_seq_len, 1)
-        attention_matrices['out'] = out_attention
+        attended_out, out_attention = self.out_block1(out_seq)
+        if self.return_attention:
+            attention_matrices['out_block1'] = out_attention
+        attended_out, out_attention = self.out_block2(attended_out)
+        if self.return_attention:
+            attention_matrices['out_block2'] = out_attention
+        attended_out, out_attention = self.out_block3(attended_out)
+        if self.return_attention:
+            attention_matrices['out_block3'] = out_attention
         return attended_out, attention_matrices
 
     def define_combi_decoder(self,):
@@ -272,10 +242,10 @@ class attention_decoder(nn.Module):
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
                 out = self.linear(attended_out)
-                attention_matrices['linear_w'] = self.linear[1].weight
-                attention_matrices['linear_b'] = self.linear[1].bias
+                if self.return_attention:
+                    attention_matrices['linear_w'] = self.linear[1].weight
+                    attention_matrices['linear_b'] = self.linear[1].bias
                 return out, (attended_out, attention_matrices)
-
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_decoder(x_tuple):
                 current, environment = x_tuple
@@ -284,127 +254,37 @@ class attention_decoder(nn.Module):
                 attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
                 attended_out, attention_matrices = self.output_self_attention(attended_state, attention_matrices)
                 out = self.linear(attended_out)
-                attention_matrices['linear_w'] = self.linear[1].weight
-                attention_matrices['linear_b'] = self.linear[1].bias
+                if self.return_attention:
+                    attention_matrices['linear_w'] = self.linear[1].weight
+                    attention_matrices['linear_b'] = self.linear[1].bias
                 return out, (attended_out, attention_matrices)
-        
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
-            if self.cross_attention==[]:
-                def combi_decoder(x_tuple):
-                    state, ts = x_tuple
-                    attention_matrices = dict()
-                    attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 33 or 37, hidden_dims=64)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    out = self.linear(attended_out)
+            def combi_decoder(x_tuple):
+                state, ts = x_tuple
+                attention_matrices = dict()
+                attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
+                attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
+                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 35 or 36, hidden_dims=64)
+                attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
+                out = self.linear(attended_out)
+                if self.return_attention:
                     attention_matrices['linear_w'] = self.linear[1].weight
                     attention_matrices['linear_b'] = self.linear[1].bias
-                    return out, (attended_out, attention_matrices)
-                
-            elif self.cross_attention==['first']:
-                def combi_decoder(x_tuple):
-                    state, ts = x_tuple
-                    attention_matrices = dict()
-                    attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 50 or 52, hidden_dims=64)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    out = self.linear(attended_out)
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                    return out, (attended_out, attention_matrices)
-            
-            elif self.cross_attention==['last']:
-                def combi_decoder(x_tuple):
-                    state, ts = x_tuple
-                    attention_matrices = dict()
-                    attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 50 or 52, hidden_dims=64)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    out = self.linear(attended_out)
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                    return out, (attended_out, attention_matrices)
-            
-            # elif self.cross_attention==['first','last']:
-            #     def combi_decoder(x_tuple):
-            #         state, ts = x_tuple
-            #         attention_matrices = dict()
-            #         attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-            #         attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-            #         attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-            #         attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-            #         out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 65 or 68, hidden_dims=64)
-            #         attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-            #         out = self.linear(attended_out)
-            #         attention_matrices['linear_w'] = self.linear[1].weight
-            #         attention_matrices['linear_b'] = self.linear[1].bias
-            #         return out, (attended_out, attention_matrices)
-
+                return out, (attended_out, attention_matrices)
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
-            if self.cross_attention==[]:
-                def combi_decoder(x_tuple):
-                    current, environment, ts = x_tuple
-                    attention_matrices = dict()
-                    state = torch.cat([current, environment], dim=1)
-                    attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 36 or 37, hidden_dims=64)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    out = self.linear(attended_out)
+            def combi_decoder(x_tuple):
+                current, environment, ts = x_tuple
+                attention_matrices = dict()
+                state = torch.cat([current, environment], dim=1)
+                attended_state, attention_matrices = self.state_self_attention(state, attention_matrices)
+                attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
+                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 36 or 37, hidden_dims=64)
+                attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
+                out = self.linear(attended_out)
+                if self.return_attention:
                     attention_matrices['linear_w'] = self.linear[1].weight
                     attention_matrices['linear_b'] = self.linear[1].bias
-                    return out, (attended_out, attention_matrices)
-            
-            elif self.cross_attention==['first']:
-                def combi_decoder(x_tuple):
-                    current, environment, ts = x_tuple
-                    attention_matrices = dict()
-                    state = torch.cat([current, environment], dim=1)
-                    attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_first], dim=1) # (batch_size, 52 or 54, hidden_dims=64)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    out = self.linear(attended_out)
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                    return out, (attended_out, attention_matrices)
-
-            elif self.cross_attention==['last']:
-                def combi_decoder(x_tuple):
-                    current, environment, ts = x_tuple
-                    attention_matrices = dict()
-                    state = torch.cat([current, environment], dim=1)
-                    attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-                    attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-                    attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-                    out_seq = torch.cat([attended_state, attended_ts, attended_last], dim=1) # (batch_size, 52 or 54, hidden_dims=64)
-                    attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-                    out = self.linear(attended_out)
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                    return out, (attended_out, attention_matrices)
-            
-            # elif self.cross_attention==['first','last']:
-            #     def combi_decoder(x_tuple):
-            #         current, environment, ts = x_tuple
-            #         attention_matrices = dict()
-            #         state = torch.cat([current, environment], dim=1)
-            #         attended_state, attention_matrices, q_state = self.state_self_attention(state, attention_matrices, return_q=True)
-            #         attended_ts, attention_matrices = self.ts_self_attention(ts, attention_matrices)
-            #         attended_first, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'first', q_state)
-            #         attended_last, attention_matrices = self.ts_cross_attention(ts, attention_matrices, 'last', q_state)
-            #         out_seq = torch.cat([attended_state, attended_ts, attended_first, attended_last], dim=1) # (batch_size, 68 or 71, hidden_dims=64)
-            #         attended_out, attention_matrices = self.output_self_attention(out_seq, attention_matrices)
-            #         out = self.linear(attended_out)
-            #         attention_matrices['linear_w'] = self.linear[1].weight
-            #         attention_matrices['linear_b'] = self.linear[1].bias
-            #         return out, (attended_out, attention_matrices)
+                return out, (attended_out, attention_matrices)
         return combi_decoder
 
     def forward(self, x_tuple):
