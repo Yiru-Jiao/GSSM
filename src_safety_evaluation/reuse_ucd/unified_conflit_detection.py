@@ -66,7 +66,7 @@ class SVGP(gpytorch.models.ApproximateGP):
         self.mean_module = gpytorch.means.ConstantMean()
 
         # Kernel module
-        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=10, ard_num_dims=15)
+        mixture_kernel = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=15, ard_num_dims=15)
         rbf_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RQKernel(ard_num_dims=15))
         self.covar_module = mixture_kernel + rbf_kernel
 
@@ -116,10 +116,10 @@ class train_val_test():
         # Create representative points for the input space
         inducing_points = pd.DataFrame({'l_ego': np.random.uniform(0.5, 16.2,num_inducing_points),
                                         'l_sur': np.random.uniform(0.5, 16.2,num_inducing_points),
-                                        'w_ego': np.random.uniform(0.,5.,num_inducing_points),
-                                        'w_sur': np.random.uniform(0.,5.,num_inducing_points),
-                                        'hx_sur': np.random.uniform(0.,1.,num_inducing_points),
-                                        'hy_sur': np.random.uniform(0.,1.,num_inducing_points),
+                                        'w_ego': np.random.uniform(0.,2.5,num_inducing_points),
+                                        'w_sur': np.random.uniform(0.,2.5,num_inducing_points),
+                                        'hx_sur': np.random.uniform(-1.,1.,num_inducing_points),
+                                        'hy_sur': np.random.uniform(-1.,1.,num_inducing_points),
                                         'v_ego2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'v_sur2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'v_ego': np.random.uniform(0.,45.,num_inducing_points),
@@ -194,7 +194,7 @@ class train_val_test():
                                       'val_loss=': val_loss}, refresh=False)
             progress_bar.update(1)
 
-            if (count_epoch>25) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<1e-4):
+            if (count_epoch>25) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<5e-4):
                 # early stopping if validation loss converges
                 print('Validation loss converges and training stops at Epoch '+str(count_epoch))
                 break
@@ -213,10 +213,10 @@ def define_model(num_inducing_points, device):
     # This is defined when training. Don't change it when applying the model.
     inducing_points = np.concatenate([np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_ego
                                       np.random.uniform(0.5, 16.2,(num_inducing_points,1)), # length_sur
-                                      np.random.uniform(0.,5.,(num_inducing_points,1)), # width_ego
-                                      np.random.uniform(0.,5.,(num_inducing_points,1)), # width_sur
-                                      np.random.uniform(0.,1.,(num_inducing_points,1)), # hx_sur
-                                      np.random.uniform(0.,1.,(num_inducing_points,1)), # hy_sur
+                                      np.random.uniform(0.,2.5,(num_inducing_points,1)), # width_ego
+                                      np.random.uniform(0.,2.5,(num_inducing_points,1)), # width_sur
+                                      np.random.uniform(-1.,1.,(num_inducing_points,1)), # hx_sur
+                                      np.random.uniform(-1.,1.,(num_inducing_points,1)), # hy_sur
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_ego2
                                       np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_sur2
                                       np.random.uniform(0.,45.,(num_inducing_points,1)), # v_ego
