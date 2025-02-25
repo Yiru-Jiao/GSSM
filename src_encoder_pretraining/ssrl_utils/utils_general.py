@@ -189,7 +189,9 @@ def configure_model(args, input_dims, device):
 
 
 def save_loss_log(loss_log, save_dir, regularizer=None):
-    if loss_log.shape[-1] == 3:
+    if loss_log.shape[-1] == 1:
+        loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)], columns=['train_loss'])
+    elif loss_log.shape[-1] == 3:
         loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)], 
                                 columns=['train_loss', 'val_loss', 'regularizer'])
     elif loss_log.shape[-1] == 7:
