@@ -165,7 +165,7 @@ class train_val_test():
             lr=self.initial_lr, amsgrad=True)
 
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.6, patience=4, cooldown=2,
+            self.optimizer, mode='min', factor=0.4, patience=15, cooldown=50,
             threshold=1e-3, threshold_mode='rel', min_lr=self.initial_lr*0.6**15
         )
 
@@ -190,7 +190,7 @@ class train_val_test():
                                       'loss=': loss_records[count_epoch], 
                                       'val_loss=': val_loss}, refresh=False)
 
-            if (count_epoch>25) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<1e-3):
+            if (count_epoch>150) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<5e-4):
                 # early stopping if validation loss converges
                 print('Validation loss converges and training stops at Epoch '+str(count_epoch))
                 break
