@@ -115,6 +115,7 @@ def main(args, manual_seed, path_result):
     ucd_records[['indicator', 'model']] = ucd_records[['indicator', 'model']].astype(str)
     ucd_records.to_hdf(path_result + 'Analyses/Warning_UCD.h5', key='results', mode='w')
 
+    progress_bar.close()
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 

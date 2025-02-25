@@ -169,7 +169,7 @@ class train_val_test():
             threshold=1e-3, threshold_mode='rel', min_lr=self.initial_lr*0.6**15
         )
 
-        progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False)
+        progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False, miniters=5)
         for count_epoch in progress_bar:
             train_loss = torch.tensor(0., device=self.device, requires_grad=False)
             for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader, start=1):
@@ -189,13 +189,13 @@ class train_val_test():
             progress_bar.set_postfix({'lr=': self.optimizer.param_groups[0]['lr'], 
                                       'loss=': loss_records[count_epoch], 
                                       'val_loss=': val_loss}, refresh=False)
-            progress_bar.update(1)
 
             if (count_epoch>25) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<5e-4):
                 # early stopping if validation loss converges
                 print('Validation loss converges and training stops at Epoch '+str(count_epoch))
                 break
 
+        progress_bar.close()
         # Save loss records
         loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records[:count_epoch+1])+1)],
                                 data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[:count_epoch+1]})

@@ -71,12 +71,14 @@ def main(path_result):
             print(f'--- Analyzing with {indicator} ---')
             sub_initial_time = systime.time()
             safety_evaluation = read_evaluation(indicator, path_results)
-            records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, indicator) for threshold in thresholds)
+            progress_bar = tqdm(thresholds, desc=indicator, ascii=True, dynamic_ncols=False, miniters=10)
+            records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, indicator) for threshold in progress_bar)
             records = pd.concat(records).reset_index()
             records['indicator'] = indicator
             records['model'] = indicator
             records = fill_na_warning(records)
             records.to_hdf(path_result + f'Analyses/Warning_{indicator}.h5', key='results', mode='w')
+            progress_bar.close()
             print(f'{indicator} time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
     # SSSE
@@ -94,12 +96,14 @@ def main(path_result):
             print('--- Analyzing with', model_name, '---')
             sub_initial_time = systime.time()
             safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
-            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'SSSE') for threshold in ssse_thresholds)
+            progress_bar = tqdm(ssse_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
+            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'SSSE') for threshold in progress_bar)
             ssse_records = pd.concat(ssse_records).reset_index()
             ssse_records['indicator'] = 'SSSE'
             ssse_records['model'] = model_name
             ssse_records = fill_na_warning(ssse_records)
             ssse_records.to_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results', mode='w')
+            progress_bar.close()
             print(model_name, 'time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
     print('--- Analysis 1: Conflict detection comparison completed ---')

@@ -166,6 +166,7 @@ class train_val_test():
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
+        progress_bar.close()
         if lr_schedule:
             # Save model and loss records
             torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')

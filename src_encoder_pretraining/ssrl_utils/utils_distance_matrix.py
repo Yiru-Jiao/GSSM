@@ -56,6 +56,7 @@ def get_DTW(X_tr, multivariate=False):
         dist_rows = Parallel(n_jobs=-1)(delayed(parallel_dtw)(i, X_tr, N) for i in progress_bar)
         dist_mat_upper = np.array(dist_rows)
         dist_mat = dist_mat_upper + dist_mat_upper.T
+        progress_bar.close()
         
     return dist_mat
 
