@@ -229,7 +229,7 @@ class AttentionDecoder(nn.Module):
         self.combi_decoder = self.define_combi_decoder()
         self.linear = nn.Sequential( # (batch_size, final_seq_len, 2)
             nn.Flatten(1), # (batch_size, final_seq_len*2)
-            nn.Linear(self.final_seq_len, 2),
+            nn.Linear(self.final_seq_len*2, 2),
         ) # (batch_size, 2)
 
     def define_combi_decoder(self,):
