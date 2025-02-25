@@ -19,42 +19,42 @@ def set_experiments(stage=[1,2,3,4,5]):
     exp_config = []
     if 1 in stage: # single dataset, current only
         exp_config.extend([
-            [['highD'], ['current'], [], False],
-            [['SafeBaseline'], ['current'], [], False],
-            [['INTERACTION'], ['current'], [], False],
-            [['Argoverse'], ['current'], [], False],
+            [['highD'], ['current'], False],
+            [['SafeBaseline'], ['current'], False],
+            [['INTERACTION'], ['current'], False],
+            [['Argoverse'], ['current'], False],
         ])
     if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
         exp_config.extend([
-            [['highD'], ['current'], [], True],
-            [['SafeBaseline'], ['current'], [], True],
-            [['INTERACTION'], ['current'], [], True],
-            [['Argoverse'], ['current'], [], True],
+            [['highD'], ['current'], True],
+            # [['SafeBaseline'], ['current'], True],
+            # [['INTERACTION'], ['current'], True],
+            # [['Argoverse'], ['current'], True],
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
-            [['Argoverse', 'INTERACTION'], ['current'], [], False],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], [], False],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], [], False],
-            [['Argoverse', 'INTERACTION'], ['current'], [], True],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], [], True],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], [], True],
+            [['Argoverse', 'INTERACTION'], ['current'], False],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], False],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], False],
+            [['Argoverse', 'INTERACTION'], ['current'], True],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], True],
+            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], True],
         ])
     if 4 in stage: # single dataset, encoder pretrained with all datasets
         exp_config.extend([
-            [['highD'], ['current'], [], True],
-            [['SafeBaseline'], ['current'], [], True],
-            [['INTERACTION'], ['current'], [], True],
-            [['Argoverse'], ['current'], [], True],
+            [['highD'], ['current'], True],
+            [['SafeBaseline'], ['current'], True],
+            [['INTERACTION'], ['current'], True],
+            [['Argoverse'], ['current'], True],
         ])
     if 5 in stage: # on SafeBaseline, add extra features
         exp_config.extend([
-            [['SafeBaseline'], ['current+acc'], ['last'], False],
-            [['SafeBaseline'], ['current+acc', 'environment'], ['last'], False],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], ['last'], False],
-            [['SafeBaseline'], ['current+acc'], ['last'], True],
-            [['SafeBaseline'], ['current+acc', 'environment'], ['last'], True],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], ['last'], True],
+            [['SafeBaseline'], ['current+acc'], False],
+            [['SafeBaseline'], ['current+acc', 'environment'], False],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], False],
+            [['SafeBaseline'], ['current+acc'], True],
+            [['SafeBaseline'], ['current+acc', 'environment'], True],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], True],
         ])
     return exp_config
 
