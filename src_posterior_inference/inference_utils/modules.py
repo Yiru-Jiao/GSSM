@@ -236,7 +236,10 @@ class AttentionDecoder(nn.Module):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_decoder(x_tuple):
                 state = x_tuple[0] # (batch_size, 12 or 13, latent_dims=128)
-                attention_matrices = dict()
+                if self.return_attention:
+                    attention_matrices = dict()
+                else:
+                    attention_matrices = None
                 attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
                 attended_out, attention_matrices = self.OutAttention(attended_state, attention_matrices)
                 out = self.linear(attended_out)
@@ -247,7 +250,10 @@ class AttentionDecoder(nn.Module):
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_decoder(x_tuple):
                 current, environment = x_tuple
-                attention_matrices = dict()
+                if self.return_attention:
+                    attention_matrices = dict()
+                else:
+                    attention_matrices = None
                 state = torch.cat([current, environment], dim=1) # (batch_size, 13 or 14, latent_dims=128)
                 attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
                 attended_out, attention_matrices = self.OutAttention(attended_state, attention_matrices)
@@ -259,7 +265,10 @@ class AttentionDecoder(nn.Module):
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
             def combi_decoder(x_tuple):
                 state, ts = x_tuple
-                attention_matrices = dict()
+                if self.return_attention:
+                    attention_matrices = dict()
+                else:
+                    attention_matrices = None
                 attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
                 attended_ts, attention_matrices = self.TSAttention(ts, attention_matrices)
                 out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 15 or 16, 32)
@@ -272,10 +281,13 @@ class AttentionDecoder(nn.Module):
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             def combi_decoder(x_tuple):
                 current, environment, ts = x_tuple
-                attention_matrices = dict()
-                attended_state, attention_matrices = self.StateAttention(current, attention_matrices)
-                state = torch.cat([environment, ts], dim=1)
-                attended_ts, attention_matrices = self.TSAttention(state, attention_matrices)
+                if self.return_attention:
+                    attention_matrices = dict()
+                else:
+                    attention_matrices = None
+                state = torch.cat([current, environment], dim=1)
+                attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
+                attended_ts, attention_matrices = self.TSAttention(ts, attention_matrices)
                 out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 16 or 17, 32)
                 attended_out, attention_matrices = self.OutAttention(out_seq, attention_matrices)
                 out = self.linear(attended_out)
