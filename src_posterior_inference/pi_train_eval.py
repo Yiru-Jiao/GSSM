@@ -48,7 +48,7 @@ def main(args, manual_seed, path_prepared):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     if args.stage is None:
-        exp_config = set_experiments(stage=[1,5])
+        exp_config = set_experiments(stage=[1,2,5])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -56,7 +56,7 @@ def main(args, manual_seed, path_prepared):
 
     datasets = [exp[0] for exp in exp_config]
     encoder_combinations = [exp[1] for exp in exp_config]
-    pretraining_flag = [exp[3] for exp in exp_config]
+    pretraining_flag = [exp[2] for exp in exp_config]
 
     os.makedirs(path_prepared + 'PosteriorInference/', exist_ok=True)
     if os.path.exists(path_prepared + 'PosteriorInference/evaluation.csv'):
