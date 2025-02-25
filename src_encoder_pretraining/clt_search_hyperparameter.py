@@ -89,101 +89,103 @@ def main(args):
 
     start_time = systime.time()
     # Load dataset
-    print('---- Loading data ----')
-    dataset = 'SafeBaseline'
-    # train_data, _ = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
-    train_data, _ = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles')
+    for dataset in ['highD','SafeBaseline',]:
+        print('---- Loading data ----')
+        if '_' in dataset:
+            train_data, _ = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
+        else:
+            train_data, _ = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles')
     
-    dist_metric = 'DTW'
-    sim_mat = None # to be computed per batch during training
-    
-    # Set result-saving directory
-    save_dir = f'{path_prepared}EncoderPretraining/spclt/{dataset}/'
-    os.makedirs(save_dir, exist_ok=True)
+        dist_metric = 'DTW'
+        sim_mat = None # to be computed per batch during training
+        
+        # Set result-saving directory
+        save_dir = f'{path_prepared}EncoderPretraining/spclt/{dataset}/'
+        os.makedirs(save_dir, exist_ok=True)
 
-    # Predefine default params and search spacef
-    default_params = {'tau_inst': [0],
-                      'tau_temp': [0],
-                      'temporal_hierarchy': [None],
-                      'bandwidth': [1.],
-                      'batch_size': [8],
-                      'weight_lr': [0.05]}
+        # Predefine default params and search spacef
+        default_params = {'tau_inst': [0],
+                          'tau_temp': [0],
+                          'temporal_hierarchy': [None],
+                          'bandwidth': [1.],
+                          'batch_size': [8],
+                          'weight_lr': [0.05]}
 
-    # Define the search space
-    search_space = {'tau_inst': [1, 3, 5, 10, 20], # used in softclt study
-                    'tau_temp': [0.5, 1., 1.5, 2., 2.5], # used in softclt study
-                    'temporal_hierarchy': [None, 'linear', 'exponential'],
-                    'bandwidth': [0.25, 1., 9., 25., 49.], # used in geometry regularizer only
-                    'batch_size': [8],
-                    'weight_lr': [0.005, 0.01, 0.05]}
-    print(f"--- batch_size search space: {search_space['batch_size']} ---")
+        # Define the search space
+        search_space = {'tau_inst': [1, 3, 5, 10, 20], # used in softclt study
+                        'tau_temp': [0.5, 1., 1.5, 2., 2.5], # used in softclt study
+                        'temporal_hierarchy': [None, 'linear', 'exponential'],
+                        'bandwidth': [0.25, 1., 9., 25., 49.], # used in geometry regularizer only
+                        'batch_size': [8],
+                        'weight_lr': [0.005, 0.01, 0.05]}
+        print(f"--- batch_size search space: {search_space['batch_size']} ---")
 
-    # Initialize the best_param_log
-    log_dir = os.path.join(save_dir, f'representation_hyperparameters.csv')
-    if os.path.exists(log_dir):
-        best_param_log = pd.read_csv(log_dir, index_col=0)
-        best_param_log = best_param_log.to_dict(orient='index')
-    else:
-        best_param_log = {}
+        # Initialize the best_param_log
+        log_dir = os.path.join(save_dir, f'representation_hyperparameters.csv')
+        if os.path.exists(log_dir):
+            best_param_log = pd.read_csv(log_dir, index_col=0)
+            best_param_log = best_param_log.to_dict(orient='index')
+        else:
+            best_param_log = {}
 
-    # Define the grid search arguments
-    grid_search_args = {'dataset': dataset,
-                        'dist_metric': dist_metric,
-                        'sim_mat': sim_mat,
-                        'train_data': train_data,
-                        'n_fold': args.n_fold,
-                        'n_jobs': args.n_jobs,
-                        'fit_config': {'device': device, 'regularizer': None}}
+        # Define the grid search arguments
+        grid_search_args = {'dataset': dataset,
+                            'dist_metric': dist_metric,
+                            'sim_mat': sim_mat,
+                            'train_data': train_data,
+                            'n_fold': args.n_fold,
+                            'n_jobs': args.n_jobs,
+                            'fit_config': {'device': device, 'regularizer': None}}
 
-    # Initialize the dict of parameters
-    params = default_params.copy()
+        # Initialize the dict of parameters
+        params = default_params.copy()
 
-    # SoftCLT (use soft labels, no regularizer)
-    grid_search_args['fit_config'] = {'device': device, 'regularizer': None}
-    
-    if 'SoftCLT_Phase1' in best_param_log:
-        params = use_best_params(best_param_log, 'SoftCLT_Phase1')
-        print(f'--- SoftCLT_Phase1 search already completed ---')
-    else:
-        params, best_score = search_best_params(['tau_temp', 'temporal_hierarchy'], params, search_space, grid_search_args)
-        best_param_log['SoftCLT_Phase1'] = params
-        save_best_params(best_param_log, log_dir)
-        print('--- SoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
+        # SoftCLT (use soft labels, no regularizer)
+        grid_search_args['fit_config'] = {'device': device, 'regularizer': None}
+        
+        if 'SoftCLT_Phase1' in best_param_log:
+            params = use_best_params(best_param_log, 'SoftCLT_Phase1')
+            print(f'--- SoftCLT_Phase1 search already completed ---')
+        else:
+            params, best_score = search_best_params(['tau_temp', 'temporal_hierarchy'], params, search_space, grid_search_args)
+            best_param_log['SoftCLT_Phase1'] = params
+            save_best_params(best_param_log, log_dir)
+            print('--- SoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
 
-    if 'SoftCLT_Phase2' in best_param_log:
-        params = use_best_params(best_param_log, 'SoftCLT_Phase2')
-        print(f'--- SoftCLT_Phase2 search already completed ---')
-    else:
-        params, best_score = search_best_params(['tau_inst', 'batch_size'], params, search_space, grid_search_args)
-        best_param_log['SoftCLT_Phase2'] = params
-        save_best_params(best_param_log, log_dir)
-        print('--- SoftCLT_Phase2 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
+        if 'SoftCLT_Phase2' in best_param_log:
+            params = use_best_params(best_param_log, 'SoftCLT_Phase2')
+            print(f'--- SoftCLT_Phase2 search already completed ---')
+        else:
+            params, best_score = search_best_params(['tau_inst', 'batch_size'], params, search_space, grid_search_args)
+            best_param_log['SoftCLT_Phase2'] = params
+            save_best_params(best_param_log, log_dir)
+            print('--- SoftCLT_Phase2 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
 
-    # TopoSoftCLT (use soft labels, topology regularizer)
-    grid_search_args['fit_config'] = {'device': device, 'regularizer': 'topology'}
-    
-    if 'TopoSoftCLT_Phase1' in best_param_log:
-        params = use_best_params(best_param_log, 'TopoSoftCLT_Phase1')
-        print(f'--- TopoSoftCLT_Phase1 search already completed ---')
-    else:
-        params, best_score = search_best_params(['weight_lr'], params, search_space, grid_search_args)
-        best_param_log['TopoSoftCLT_Phase1'] = params
-        save_best_params(best_param_log, log_dir)
-        print('--- TopoSoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
+        # TopoSoftCLT (use soft labels, topology regularizer)
+        grid_search_args['fit_config'] = {'device': device, 'regularizer': 'topology'}
+        
+        if 'TopoSoftCLT_Phase1' in best_param_log:
+            params = use_best_params(best_param_log, 'TopoSoftCLT_Phase1')
+            print(f'--- TopoSoftCLT_Phase1 search already completed ---')
+        else:
+            params, best_score = search_best_params(['weight_lr'], params, search_space, grid_search_args)
+            best_param_log['TopoSoftCLT_Phase1'] = params
+            save_best_params(best_param_log, log_dir)
+            print('--- TopoSoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
 
-    # GGeoSoftCLT (use soft labels, geometry regularizer)
-    grid_search_args['fit_config'] = {'device': device, 'regularizer': 'geometry'}
+        # GGeoSoftCLT (use soft labels, geometry regularizer)
+        grid_search_args['fit_config'] = {'device': device, 'regularizer': 'geometry'}
 
-    if 'GGeoSoftCLT_Phase1' in best_param_log:
-        params = use_best_params(best_param_log, 'GGeoSoftCLT_Phase1')
-        print(f'--- GGeoSoftCLT_Phase1 hyperparameter search already completed ---')
-    else:
-        params, best_score = search_best_params(['bandwidth', 'weight_lr'], params, search_space, grid_search_args)
-        best_param_log['GGeoSoftCLT_Phase1'] = params
-        save_best_params(best_param_log, log_dir)
-        print('--- GGeoSoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
+        if 'GGeoSoftCLT_Phase1' in best_param_log:
+            params = use_best_params(best_param_log, 'GGeoSoftCLT_Phase1')
+            print(f'--- GGeoSoftCLT_Phase1 hyperparameter search already completed ---')
+        else:
+            params, best_score = search_best_params(['bandwidth', 'weight_lr'], params, search_space, grid_search_args)
+            best_param_log['GGeoSoftCLT_Phase1'] = params
+            save_best_params(best_param_log, log_dir)
+            print('--- GGeoSoftCLT_Phase1 | time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - start_time)) + f' | best score: {best_score} ---')
 
-    print(f'--- {dataset} hyperparameter search completed, time elapsed : ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time()-start_time)) + ' ---')
+        print(f'--- {dataset} hyperparameter search completed, time elapsed : ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time()-start_time)) + ' ---')
         
     print('--- Time elapsed in total : ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time()-initial_time)) + ' ---')
     sys.exit(0)
