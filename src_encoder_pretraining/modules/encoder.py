@@ -7,7 +7,7 @@ from torch import nn
 
 
 class LSTMEncoder(nn.Module):
-    def __init__(self, input_dims=4, hidden_dims=3*128, num_layers=2, single_output=True):
+    def __init__(self, input_dims=4, hidden_dims=5*128, num_layers=2, single_output=True):
         super(LSTMEncoder, self).__init__()
         self.hidden_dims = hidden_dims
         self.num_layers = num_layers
@@ -23,7 +23,7 @@ class LSTMEncoder(nn.Module):
         output, (hidden, cell) = self.lstm(x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dims)
         if self.single_output:
             # Only return the hidden state of the last LSTM layer
-            return hidden[-1].view(x.size(0), 3, -1) # (batch_size, 3, hidden_dims//3)
+            return hidden[-1].view(x.size(0), 5, -1) # (batch_size, 5, hidden_dims//5)
         else:
             # Return all
             return output, (hidden, cell)

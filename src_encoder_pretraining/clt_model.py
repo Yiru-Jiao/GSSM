@@ -36,7 +36,7 @@ class spclt():
         self.regularizer_config = regularizer_config
                 
         self._net = encoder.LSTMEncoder(input_dims=input_dims,
-                                        hidden_dims=3*output_dims,
+                                        hidden_dims=5*output_dims,
                                         num_layers=2,
                                         single_output=True).to(self.device)
 

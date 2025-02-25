@@ -32,6 +32,8 @@ def topo_loss(model, x):
 def geo_loss(model, x, bandwidth):
     # encode using model
     latent = model.encode(x)
+    if latent.size(1) == 5: # need to reshape into (B, 20, -1) to map with the original time series
+        latent = latent.reshape(latent.size(0), 20, -1)
 
     if len(x.size()) == 2: # (B, N) -> (B, N, 1) for encoding current features
         x = x.unsqueeze(-1)
