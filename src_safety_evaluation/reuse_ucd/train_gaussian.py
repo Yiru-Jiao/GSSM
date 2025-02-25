@@ -46,7 +46,7 @@ def main(args, manual_seed):
     beta = 5
     initial_lr = 0.025
     batch_size = 1024
-    num_qepochs = 1000
+    num_qepochs = 500
     num_inducing_points = 100
 
     # Training
