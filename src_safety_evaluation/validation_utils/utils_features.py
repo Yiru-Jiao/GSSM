@@ -38,34 +38,19 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
         return data_ego, data_sur
 
 
-def get_scaler(datasets, path_prepared, feature='profiles'):
-    print(f'Getting scaler for {datasets} {feature}...')
-    if feature == 'profiles':
-        scaler_data = []
-        for dataset in datasets:
-            for split in ['train', 'val']:
-                scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/profiles_{dataset}_{split}.h5', key='profiles'))
-        scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler_data = scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values
-        scaler = StandardScaler().fit(scaler_data)
-    elif 'current' in feature:
-        if 'acc' in feature:
-            variables = ['l_ego','l_sur','w_ego','w_sur',
-                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-                         'vx_relative','vy_relative','v_relative2','v_relative','acc_ego']
-        else:
-            variables = ['l_ego','l_sur','w_ego','w_sur',
-                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-                         'vx_relative','vy_relative','v_relative2','v_relative']
+def get_scaler(datasets, path_prepared, feature='current'):
+    if 'current' in feature:
+        print(f'Getting scaler for {datasets} {feature}...')
+        scaler_variables = ['l_ego','l_sur','combined_width',
+                            'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v']
         scaler_data = []
         for dataset in datasets:
             for split in ['train', 'val']:
                 scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
         scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler_data = scaler_data[variables].values
-        scaler = StandardScaler().fit(scaler_data)
-    elif feature == 'environment':
-        print('No scaler is needed for environment features.')
+        scaler = StandardScaler().fit(scaler_data[scaler_variables].values)
+    elif feature in ['environment', 'profiles']:
+        print('No scaler is needed for environment or time series features.')
     return scaler
 
 
@@ -87,25 +72,21 @@ def segment_data(df, veh_dimensions):
         profiles['vy_sur'] = df_view_ego.iloc[idx_end-20:idx_end]['vy_sur'].values
         assert profiles.isna().sum().sum()==0 # no missing values
 
-        current_features = np.zeros(16)
+        current_features = np.zeros(13)
         vx_ego, vy_ego, vx_sur, vy_sur = df.iloc[idx_end][['vx_ego','vy_ego','vx_sur','vy_sur']].values
-
         current_features[0] = veh_dimensions['ego_length']
         current_features[1] = veh_dimensions['target_length']
-        current_features[2] = veh_dimensions['ego_width']
-        current_features[3] = veh_dimensions['target_width']
-        current_features[4] = df_view_ego.iloc[idx_end]['hx_sur']
-        current_features[5] = df_view_ego.iloc[idx_end]['hy_sur']
+        current_features[2] = (veh_dimensions['ego_width']+veh_dimensions['target_width'])/2
+        current_features[3] = df_view_ego.iloc[idx_end]['vy_ego']
+        current_features[4] = df_view_ego.iloc[idx_end]['vx_sur']
+        current_features[5] = df_view_ego.iloc[idx_end]['vy_sur']
         current_features[6] = vx_ego**2 + vy_ego**2
         current_features[7] = vx_sur**2 + vy_sur**2
-        current_features[8] = np.sqrt(current_features[6]) # ego speed
-        current_features[9] = np.sqrt(current_features[7]) # target speed
-        current_features[10] = vx_ego-vx_sur
-        current_features[11] = vy_ego-vy_sur
-        current_features[12] = current_features[10]**2 + current_features[11]**2 # squared relative speed
-        current_features[13] = np.sqrt(current_features[12]) * np.sign(current_features[8]-current_features[9]) # relative speed
-        current_features[14] = df.iloc[idx_end]['acc_ego']
-        current_features[15] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
+        current_features[8] = (vx_ego-vx_sur)**2 + (vy_ego-vy_sur)**2 # squared relative speed
+        current_features[9] = np.sqrt(current_features[8]) * np.sign(current_features[6]-current_features[7]) # relative speed
+        current_features[10] = coortrans.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
+        current_features[11] = df.iloc[idx_end]['acc_ego']
+        current_features[12] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
         spacing = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2)
 
         profiles_set.append(profiles.values)

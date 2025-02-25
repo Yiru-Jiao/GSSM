@@ -29,10 +29,10 @@ class model(nn.Module):
         super(model, self).__init__()
         if encoder_name == 'current':
             self.encoder = CurrentEncoder(input_dims=1, output_dims=128)
-            self.decoder = shared_decoder(input_dims=15*128, output_dims=15)
+            self.decoder = shared_decoder(input_dims=12*128, output_dims=12)
         elif encoder_name == 'current+acc':
             self.encoder = CurrentEncoder(input_dims=1, output_dims=128)
-            self.decoder = shared_decoder(input_dims=16*128, output_dims=16)
+            self.decoder = shared_decoder(input_dims=13*128, output_dims=13)
         elif encoder_name == 'environment':
             self.encoder = EnvEncoder(input_dims=27, output_dims=128)
             self.decoder = shared_decoder(input_dims=128, output_dims=27)
@@ -244,7 +244,7 @@ class autoencoder():
         
         if org_training:
             self.train()
-        return encoded_data # (n_samples, 15, 128) for current, (n_samples, 16, 128) for current+acc, (n_samples, 1, 128) for environment
+        return encoded_data # (n_samples, 12, 128) for current, (n_samples, 13, 128) for current+acc, (n_samples, 1, 128) for environment
 
 
     def save(self, fn):

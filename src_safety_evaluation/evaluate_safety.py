@@ -246,8 +246,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         # Define scaler and one-hot encoder for normalisation
         current_scaler = get_scaler(dataset, path_prepared, feature=encoder_selection[0])
-        if 'profiles' in encoder_selection:
-            profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
         if 'environment' in encoder_selection:
             environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
             one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
@@ -258,20 +256,21 @@ def main(args, events, manual_seed, path_prepared, path_result):
         states = []
         if encoder_selection[0]=='current':
             states.append(np.concatenate([
-                current_scaler.transform(current_features[:,:-2]),
-                current_features[:,[-1]]
+                current_scaler.transform(current_features[:,:10]), #'l_ego','l_sur','combined_width','vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v'
+                current_features[:,[-3]], # 'psi_sur'
+                current_features[:,[-1]], # 'rho'
             ], axis=1))
         if encoder_selection[0]=='current+acc':
             states.append(np.concatenate([
-                current_scaler.transform(current_features[:,:-1]),
-                current_features[:,[-1]]
+                current_scaler.transform(current_features[:,:10]), #'l_ego','l_sur','combined_width','vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v'
+                current_features[:,-3:], # 'psi_sur','acc_ego','rho'
             ], axis=1))
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
             environment_features = one_hot_encoder.transform(environment_features.values)
             states.append(environment_features)
         if 'profiles' in encoder_selection:
-            states.append(profiles_scaler.transform(profiles_features.reshape(-1, 4)).reshape(profiles_features.shape))
+            states.append(profiles_features)
 
         if len(states) == 1: # only current features
             states = [states[0], spacing_list]

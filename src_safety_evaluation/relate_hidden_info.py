@@ -97,7 +97,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         # Define scaler and one-hot encoder for normalisation
         # current_scaler = get_scaler(dataset, path_prepared, feature=encoder_selection[0])
-        # profiles_scaler = get_scaler(dataset, path_prepared, feature='profiles')
         if 'environment' in encoder_selection:
             environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
             one_hot_encoder = create_categorical_encoder(events, environment_feature_names)

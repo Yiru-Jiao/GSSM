@@ -53,44 +53,40 @@ def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
 
 
 def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
-    if feature == 'profiles':
+    if feature == 'profiles': # time series of acceleration and velocity do not need scaling
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles') for dataset in datasets])
-
-        scaler_data = pd.concat([train_data, val_data], ignore_index=True)
-        scaler = StandardScaler()
-        scaler.fit(scaler_data[['acc_ego','v_ego','vx_sur','vy_sur']].values)
-        train_X = scaler.transform(train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
-        val_X = scaler.transform(val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values).reshape(-1, 20, 4)
-
         train_X = train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 20, 4)
         val_X = val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 20, 4)
-
         assert train_X.ndim == 3 and val_X.ndim == 3
         
     elif 'current' in feature:
-        if 'acc' in feature:
-            variables = ['l_ego','l_sur','w_ego','w_sur',
-                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-                         'vx_relative','vy_relative','v_relative2','v_relative','acc_ego']
-        else:
-            variables = ['l_ego','l_sur','w_ego','w_sur',
-                         'hx_sur','hy_sur','v_ego2','v_sur2','v_ego','v_sur',
-                         'vx_relative','vy_relative','v_relative2','v_relative']
+        scaler_variables = ['l_ego','l_sur','combined_width',
+                            'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v']
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
         scaler = StandardScaler()
-        scaler.fit(scaler_data[variables])
-        train_X = np.concatenate([
-            scaler.transform(train_data[variables]),
-            train_data[['rho']].values
-        ], axis=1)
-        val_X = np.concatenate([
-            scaler.transform(val_data[variables]),
-            val_data[['rho']].values
-        ], axis=1)
+        scaler.fit(scaler_data[scaler_variables])
+        if 'acc' in feature:
+            train_X = np.concatenate([
+                scaler.transform(train_data[scaler_variables]),
+                train_data[['psi_sur','acc_ego','rho']].values
+            ], axis=1)
+            val_X = np.concatenate([
+                scaler.transform(val_data[scaler_variables]),
+                val_data[['psi_sur','acc_ego','rho']].values
+            ], axis=1)
+        else:
+            train_X = np.concatenate([
+                scaler.transform(train_data[scaler_variables]),
+                train_data[['psi_sur','rho']].values
+            ], axis=1)
+            val_X = np.concatenate([
+                scaler.transform(val_data[scaler_variables]),
+                val_data[['psi_sur','rho']].values
+            ], axis=1)
 
     elif feature == 'environment':
         train_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_train_AE.h5', key='features')

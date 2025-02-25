@@ -79,9 +79,9 @@ class CurrentEncoder(nn.Module):
             for param in self.parameters():
                 param.requires_grad = False
 
-    def forward(self, x): # x: (batch_size, 15 or 16)
-        features = x.unsqueeze(-1) #(batch_size, 15 or 16, 1)
-        out = self.feature_extractor(features) # (batch_size, 15 or 16, 128)
+    def forward(self, x): # x: (batch_size, 12 or 13)
+        features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
+        out = self.feature_extractor(features) # (batch_size, 12 or 13, 128)
         return out
 
 
@@ -181,11 +181,11 @@ class StackedAttention(nn.Module):
 
 class AttentionDecoder(nn.Module):
     '''
-    State (Current + Environment) self-attention: (batch_size, 15/16+1, latent_dims=128) -> (batch_size, 15/16+1, hidden_dims=64)
+    State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=128) -> (batch_size, 12/13+1, hidden_dims=64)
     TimeSeries self-attention: (batch_size, 20, latent_dims=128) -> (batch_size, 20, hidden_dims=64)
 
-    Output self-attention: (batch_size, 15~54, hidden_dims=64) -> (batch_size, 15~54, 1)    
-    Output with linear: (batch_size, 15~54, 1) -> (batch_size, 2)
+    Output self-attention: (batch_size, 12~34, hidden_dims=64) -> (batch_size, 12~34, 1)    
+    Output with linear: (batch_size, 12~34, 1) -> (batch_size, 2)
     '''
     def __init__(self, latent_dims=128, hidden_dims=64, encoder_selection=[], return_attention=False):
         super(AttentionDecoder, self).__init__()
@@ -197,9 +197,9 @@ class AttentionDecoder(nn.Module):
         # Determine the final sequence length
         self.final_seq_len = 0
         if 'current' in self.encoder_selection:
-            self.final_seq_len += 15
+            self.final_seq_len += 12
         if 'current+acc' in self.encoder_selection:
-            self.final_seq_len += 16
+            self.final_seq_len += 13
         if 'environment' in self.encoder_selection:
             self.final_seq_len += 1
         if 'profiles' in self.encoder_selection:
@@ -229,7 +229,7 @@ class AttentionDecoder(nn.Module):
     def define_combi_decoder(self,):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_decoder(x_tuple):
-                state = x_tuple[0] # (batch_size, 15 or 16, latent_dims=128)
+                state = x_tuple[0] # (batch_size, 12 or 13, latent_dims=128)
                 attention_matrices = dict()
                 attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
                 attended_out, attention_matrices = self.OutAttention(attended_state, attention_matrices)
@@ -242,7 +242,7 @@ class AttentionDecoder(nn.Module):
             def combi_decoder(x_tuple):
                 current, environment = x_tuple
                 attention_matrices = dict()
-                state = torch.cat([current, environment], dim=1) # (batch_size, 16 or 17, latent_dims=128)
+                state = torch.cat([current, environment], dim=1) # (batch_size, 13 or 14, latent_dims=128)
                 attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
                 attended_out, attention_matrices = self.OutAttention(attended_state, attention_matrices)
                 out = self.linear(attended_out)
@@ -256,7 +256,7 @@ class AttentionDecoder(nn.Module):
                 attention_matrices = dict()
                 attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
                 attended_ts, attention_matrices = self.TSAttention(ts, attention_matrices)
-                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 35 or 36, hidden_dims=64)
+                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 32 or 33, hidden_dims=64)
                 attended_out, attention_matrices = self.OutAttention(out_seq, attention_matrices)
                 out = self.linear(attended_out)
                 if self.return_attention:
@@ -270,7 +270,7 @@ class AttentionDecoder(nn.Module):
                 state = torch.cat([current, environment], dim=1)
                 attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
                 attended_ts, attention_matrices = self.TSAttention(ts, attention_matrices)
-                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 36 or 37, hidden_dims=64)
+                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 33 or 34, hidden_dims=64)
                 attended_out, attention_matrices = self.OutAttention(out_seq, attention_matrices)
                 out = self.linear(attended_out)
                 if self.return_attention:
@@ -281,7 +281,7 @@ class AttentionDecoder(nn.Module):
 
     def forward(self, x_tuple):
         '''
-        current: (batch_size, 15 or 16, latent_dims=128)
+        current: (batch_size, 12 or 13, latent_dims=128)
         environment: (batch_size, 1, latent_dims=128)
         ts: (batch_size, 20, latent_dims=128)
         '''
