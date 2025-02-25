@@ -73,7 +73,7 @@ def main(args):
     
     # Load dataset
     for dataset in ['highD','SafeBaseline',]:
-        print('---- Loading data ----')
+        print(f'---- Loading {dataset} data ----')
         if '_' in dataset:
             train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
         else:
