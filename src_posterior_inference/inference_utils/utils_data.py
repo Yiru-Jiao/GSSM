@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 def get_scaler(datasets, dataset_dir, feature):
-    print(f'Getting scaler for {feature}...')
+    print(f'Getting scaler for {datasets} {feature}...')
     if feature == 'profiles':
         scaler_data = []
         for dataset in datasets:

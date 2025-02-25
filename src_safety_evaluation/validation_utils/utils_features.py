@@ -39,7 +39,7 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
 
 
 def get_scaler(datasets, path_prepared, feature='profiles'):
-    print(f'Getting scaler for {feature}...')
+    print(f'Getting scaler for {datasets} {feature}...')
     if feature == 'profiles':
         scaler_data = []
         for dataset in datasets:
