@@ -207,18 +207,15 @@ class AttentionDecoder(nn.Module):
 
         # Define the attention blocks
         self.StateAttention = StackedAttention([
-            # (self.latent_dims, self.latent_dims),
             (self.latent_dims, self.hidden_dims),
-            (self.hidden_dims, self.hidden_dims),
+            (self.hidden_dims, self.hidden_dims//2),
         ], prefix='state')
         self.TSAttention = StackedAttention([
-            # (self.latent_dims, self.latent_dims),
             (self.latent_dims, self.hidden_dims),
-            (self.hidden_dims, self.hidden_dims),
+            (self.hidden_dims, self.hidden_dims//2),
         ], prefix='ts')
         self.OutAttention = StackedAttention([
-            # (self.hidden_dims, self.hidden_dims),
-            (self.hidden_dims, self.hidden_dims//4),
+            (self.hidden_dims//2, self.hidden_dims//4),
             (self.hidden_dims//4, 1),
         ], prefix='out')
 
