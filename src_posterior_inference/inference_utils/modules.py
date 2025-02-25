@@ -273,9 +273,9 @@ class AttentionDecoder(nn.Module):
             def combi_decoder(x_tuple):
                 current, environment, ts = x_tuple
                 attention_matrices = dict()
-                state = torch.cat([current, environment], dim=1)
-                attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
-                attended_ts, attention_matrices = self.TSAttention(ts, attention_matrices)
+                attended_state, attention_matrices = self.StateAttention(current, attention_matrices)
+                state = torch.cat([environment, ts], dim=1)
+                attended_ts, attention_matrices = self.TSAttention(state, attention_matrices)
                 out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 16 or 17, 32)
                 attended_out, attention_matrices = self.OutAttention(out_seq, attention_matrices)
                 out = self.linear(attended_out)
