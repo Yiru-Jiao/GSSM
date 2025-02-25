@@ -165,7 +165,7 @@ class train_val_test():
             lr=self.initial_lr, amsgrad=True)
 
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.4, patience=15, cooldown=50,
+            self.optimizer, mode='min', factor=0.4, patience=10, cooldown=30,
             threshold=1e-3, threshold_mode='rel', min_lr=self.initial_lr*0.6**15
         )
 
@@ -183,7 +183,8 @@ class train_val_test():
             loss_records[count_epoch] = train_loss.item()/batch
 
             val_loss = self.val_loop()
-            self.scheduler.step(val_loss)
+            if count_epoch > 50:
+                self.scheduler.step(val_loss)
             val_loss_records[count_epoch] = val_loss
 
             progress_bar.set_postfix({'lr=': self.optimizer.param_groups[0]['lr'], 
