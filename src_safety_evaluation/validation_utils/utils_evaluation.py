@@ -198,7 +198,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         records.loc[event_id, 'danger_recorded'] = True
         records.loc[event_id, 'danger_period'] = len(target_danger)/10
         target_danger = determine_conflicts(target_danger, indicator, threshold)
-        if np.any(target_danger['conflict']):
+        if target_danger['conflict'].sum()>5: # at least warning for 0.5 seconds
             records.loc[event_id, 'true warning'] = 1
         else:
             records.loc[event_id, 'true warning'] = 0
@@ -334,7 +334,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         else: # no warning before impact
             records.loc[event_id,'first_warning_timestamp'] = np.nan
 
-        # Calculate the warning period: the percentage of warned time moments within [danger_start, danger_end]
+        # Calculate the warning period: the percentage of warning time moments within [danger_start, danger_end]
         target_danger = target[(target['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                                (target['time']<=event_meta.loc[event_id, 'danger_end']/1000)]
         true_warning = target_danger[target_danger['conflict']]
