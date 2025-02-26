@@ -209,9 +209,6 @@ class AttentionDecoder(nn.Module):
             (self.latent_dims*4, self.latent_dims*4),
         ])
 
-        # Define the combi_decoder and output layers
-        self.combi_decoder = self.define_combi_decoder()
-
         # Define the output layers
         self.output_cnn = nn.Sequential( # (batch_size, latent_dims*4=256, final_seq_len)
             nn.BatchNorm1d(self.latent_dims*4),
