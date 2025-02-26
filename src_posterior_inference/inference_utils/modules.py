@@ -15,7 +15,7 @@ from src_encoder_pretraining.ssrl_utils.utils_general import load_tuned_hyperpar
 
 
 class TSEncoder(nn.Module):
-    def __init__(self, device, input_dims=4, output_dims=128):
+    def __init__(self, device, input_dims=4, output_dims=64):
         super(TSEncoder, self).__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
@@ -47,7 +47,7 @@ class TSEncoder(nn.Module):
         
     def forward(self, x):
         out = self.spclt_model.encode(x)
-        return out #(batch_size, 5, repr_dims=128)
+        return out #(batch_size, 5, repr_dims=64)
 
 
 class CurrentEncoder(nn.Module):
@@ -55,19 +55,18 @@ class CurrentEncoder(nn.Module):
     This encoder functions as encoding the token for each features,
     therefore the features are designed to **not interact** with each other.
     '''
-    def __init__(self, input_dims=1, output_dims=128):
+    def __init__(self, input_dims=1, output_dims=64):
         super(CurrentEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, output_dims//4),
-            nn.GELU(),
+            nn.Linear(input_dims+1, output_dims//4),
+            nn.ELU(),
             nn.Linear(output_dims//4, output_dims//2),
-            nn.GELU(),
+            nn.ELU(),
             nn.Linear(output_dims//2, output_dims),
-            nn.GELU(),
+            nn.ELU(),
             nn.Linear(output_dims, output_dims),
-            nn.GELU(),
+            nn.ELU(),
             nn.Linear(output_dims, output_dims),
-            nn.GELU(),
             nn.Dropout(0.1),
         )
 
@@ -85,7 +84,9 @@ class CurrentEncoder(nn.Module):
 
     def forward(self, x): # x: (batch_size, 12 or 13)
         features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
-        out = self.feature_extractor(features) # (batch_size, 12 or 13, 128)
+        noise = torch.randn_like(features, device=features.device) * 0.05
+        features = torch.cat([features, noise], dim=-1) # (batch_size, 12 or 13, 2)
+        out = self.feature_extractor(features) # (batch_size, 12 or 13, 64)
         return out
 
 
@@ -94,17 +95,16 @@ class EnvEncoder(nn.Module):
     This encoder needs to extract the environment features as one single token,
     therefore the features are designed to **interact** with each other.
     '''
-    def __init__(self, input_dims=27, output_dims=128):
+    def __init__(self, input_dims=27, output_dims=64):
         super(EnvEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims, output_dims//2),
-            nn.GELU(),
+            nn.ELU(),
             nn.Linear(output_dims//2, output_dims),
-            nn.GELU(),
+            nn.ELU(),
             nn.Linear(output_dims, output_dims),
-            nn.GELU(),
+            nn.ELU(),
             nn.Linear(output_dims, output_dims),
-            nn.GELU(),
             nn.Dropout(0.1),
         )
 
@@ -121,41 +121,25 @@ class EnvEncoder(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 27)
-        out = self.feature_extractor(x) # (batch_size, 128)
-        return  out.unsqueeze(1) # (batch_size, 1, 128)
+        out = self.feature_extractor(x) # (batch_size, 64)
+        return  out.unsqueeze(1) # (batch_size, 1, 64)
 
 
 class AttentionBlock(nn.Module):
-    def __init__(self, input_dims, output_dims):
+    def __init__(self, input_dims):
         super(AttentionBlock, self).__init__()
         self.linear_q = nn.Sequential(
-            nn.LayerNorm(input_dims),
             nn.Linear(input_dims, input_dims),
-            nn.GELU(),
-            nn.Linear(input_dims, output_dims),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.1),
         )
         self.linear_k = nn.Sequential(
-            nn.LayerNorm(input_dims),
             nn.Linear(input_dims, input_dims),
-            nn.GELU(),
-            nn.Linear(input_dims, output_dims),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.1),
         )
         self.linear_v = nn.Sequential(
-            nn.LayerNorm(input_dims),
             nn.Linear(input_dims, input_dims),
-            nn.GELU(),
-            nn.Linear(input_dims, output_dims),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.1),
         )
-        
+        self.dropout = nn.Dropout(0.1)
+        self.layer_norm = nn.LayerNorm(input_dims)
+
     def forward(self, x): # x: (batch_size, seq_len, input_dims)
         queries = self.linear_q(x)
         keys = self.linear_k(x)
@@ -163,40 +147,45 @@ class AttentionBlock(nn.Module):
 
         scores = torch.matmul(queries, keys.transpose(-2, -1)) / (values.size(-1) ** 0.5)
         attention = F.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
+        attention = self.dropout(attention)
         attended = torch.matmul(attention, values) # (batch_size, seq_len, output_dims)
-        
+
+        attended = self.layer_norm(attended + x)        
         return attended, attention
 
 
 class StackedAttention(nn.Module):
     def __init__(self, dims_list, prefix='block'):
         super(StackedAttention, self).__init__()
-        self.blocks = nn.ModuleList([
-            AttentionBlock(in_dim, out_dim) for in_dim, out_dim in dims_list
+        self.attention_blocks = nn.ModuleList([
+            AttentionBlock(in_dim) for in_dim, _ in dims_list
+        ])
+        self.projection_blocks = nn.ModuleList([
+            nn.Linear(in_dim, out_dim) if in_dim!=out_dim else nn.Identity() for in_dim, out_dim in dims_list
         ])
         self.prefix = prefix
 
     def forward(self, x, attention_matrices=None):
         out = x
-        for i, block in enumerate(self.blocks):
-            out, attention = block(out)
+        for i, (block, proj) in enumerate(zip(self.attention_blocks, self.projection_blocks)):
+            attended, attention = block(out)
+            out = proj(attended)
             if attention_matrices is not None:
-                attention_matrices[f"{self.prefix}_{i+1}"] = attention
+                attention_matrices[f"{self.prefix}_{i}"] = attention
         return out, attention_matrices
 
 
 class AttentionDecoder(nn.Module):
     '''
-    State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=128) -> (batch_size, 12/13+1, hidden_dims=64)
+    State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=64) -> (batch_size, 12/13+1, hidden_dims=64)
     TimeSeries self-attention: (batch_size, 5, latent_dims=128) -> (batch_size, 5, hidden_dims=64)
 
-    Output self-attention: (batch_size, 12~20, hidden_dims=64) -> (batch_size, 12~20, 1)    
-    Output with linear: (batch_size, 12~20, 1) -> (batch_size, 2)
+    Output self-attention: (batch_size, 12~19, hidden_dims=64) -> (batch_size, 12~19, 1)    
+    Output with linear: (batch_size, 12~19, 1) -> (batch_size, 2)
     '''
-    def __init__(self, latent_dims=128, hidden_dims=64, encoder_selection=[], return_attention=False):
+    def __init__(self, latent_dims=64, encoder_selection=[], return_attention=False):
         super(AttentionDecoder, self).__init__()
         self.latent_dims = latent_dims
-        self.hidden_dims = hidden_dims
         self.encoder_selection = encoder_selection
         self.return_attention = return_attention
         
@@ -212,102 +201,63 @@ class AttentionDecoder(nn.Module):
             self.final_seq_len += 5
 
         # Define the attention blocks
-        self.StateAttention = StackedAttention([
-            (self.latent_dims, self.hidden_dims),
-            (self.hidden_dims, self.hidden_dims//2),
-        ], prefix='state')
-        self.TSAttention = StackedAttention([
-            (self.latent_dims, self.hidden_dims),
-            (self.hidden_dims, self.hidden_dims//2),
-        ], prefix='ts')
-        self.OutAttention = StackedAttention([
-            (self.hidden_dims//2, self.hidden_dims//4),
-            (self.hidden_dims//4, 2),
-        ], prefix='out')
+        self.SelfAttention = StackedAttention([
+            (self.latent_dims, self.latent_dims),
+            (self.latent_dims, self.latent_dims),
+            (self.latent_dims, self.latent_dims*4),
+            (self.latent_dims*4, self.latent_dims*4),
+            (self.latent_dims*4, self.latent_dims*4),
+        ])
 
-        # Define the combi_decoder and final linear layer
+        # Define the combi_decoder and output layers
         self.combi_decoder = self.define_combi_decoder()
-        self.linear = nn.Sequential( # (batch_size, final_seq_len, 2)
-            nn.Flatten(1), # (batch_size, final_seq_len*2)
-            nn.Linear(self.final_seq_len*2, 2),
-        ) # (batch_size, 2)
 
-    def define_combi_decoder(self,):
-        if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
-            def combi_decoder(x_tuple):
-                state = x_tuple[0] # (batch_size, 12 or 13, latent_dims=128)
-                if self.return_attention:
-                    attention_matrices = dict()
-                else:
-                    attention_matrices = None
-                attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
-                attended_out, attention_matrices = self.OutAttention(attended_state, attention_matrices)
-                out = self.linear(attended_out)
-                if self.return_attention:
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                return out, (attended_out, attention_matrices)
-        elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
-            def combi_decoder(x_tuple):
-                current, environment = x_tuple
-                if self.return_attention:
-                    attention_matrices = dict()
-                else:
-                    attention_matrices = None
-                state = torch.cat([current, environment], dim=1) # (batch_size, 13 or 14, latent_dims=128)
-                attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
-                attended_out, attention_matrices = self.OutAttention(attended_state, attention_matrices)
-                out = self.linear(attended_out)
-                if self.return_attention:
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                return out, (attended_out, attention_matrices)
-        elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
-            def combi_decoder(x_tuple):
-                state, ts = x_tuple
-                if self.return_attention:
-                    attention_matrices = dict()
-                else:
-                    attention_matrices = None
-                attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
-                attended_ts, attention_matrices = self.TSAttention(ts, attention_matrices)
-                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 18 or 19, 32)
-                attended_out, attention_matrices = self.OutAttention(out_seq, attention_matrices)
-                out = self.linear(attended_out)
-                if self.return_attention:
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                return out, (attended_out, attention_matrices)
-        elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
-            def combi_decoder(x_tuple):
-                current, environment, ts = x_tuple
-                if self.return_attention:
-                    attention_matrices = dict()
-                else:
-                    attention_matrices = None
-                state = torch.cat([current, environment], dim=1)
-                attended_state, attention_matrices = self.StateAttention(state, attention_matrices)
-                attended_ts, attention_matrices = self.TSAttention(ts, attention_matrices)
-                out_seq = torch.cat([attended_state, attended_ts], dim=1) # (batch_size, 19 or 20, 32)
-                attended_out, attention_matrices = self.OutAttention(out_seq, attention_matrices)
-                out = self.linear(attended_out)
-                if self.return_attention:
-                    attention_matrices['linear_w'] = self.linear[1].weight
-                    attention_matrices['linear_b'] = self.linear[1].bias
-                return out, (attended_out, attention_matrices)
-        return combi_decoder
+        # Define the output layers
+        self.output_cnn = nn.Sequential( # (batch_size, latent_dims*4=256, final_seq_len)
+            nn.BatchNorm1d(self.latent_dims*4),
+            nn.Conv1d(self.latent_dims*4, self.latent_dims, kernel_size=3, padding=1),
+            nn.ELU(),
+            nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
+            nn.ELU(),
+            nn.Flatten(1), # (batch_size, 16*final_seq_len)
+            nn.Linear(16*self.final_seq_len, 128),
+            nn.ELU(),
+            nn.Linear(128, 32),
+            nn.ELU(),
+            nn.Dropout(0.1),
+        )            
+        self.output_mu = nn.Sequential(
+            nn.Linear(32, 1),
+            nn.Softplus(),
+        )
+        self.output_log_var = nn.Sequential(
+            nn.Linear(32, 1),
+        )
+
+    def combi_decoder(self, x_tuple):
+        if self.return_attention:
+            attention_matrices = dict()
+        else:
+            attention_matrices = None
+        state = torch.cat(x_tuple, dim=1) # (batch_size, final_seq_len, latent_dims=64)
+        attended_state, attention_matrices = self.SelfAttention(state, attention_matrices)
+        transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, final_seq_len)
+        out = self.output_cnn(transposed_state) # (batch_size, 32)
+        mu = self.output_mu(out)
+        log_var = self.output_log_var(out)
+        return (mu, log_var), (attended_state, attention_matrices)
 
     def forward(self, x_tuple):
         '''
-        current: (batch_size, 12 or 13, latent_dims=128)
-        environment: (batch_size, 1, latent_dims=128)
-        ts: (batch_size, 5, latent_dims=128)
+        current: (batch_size, 12 or 13, latent_dims=64)
+        environment: (batch_size, 1, latent_dims=64)
+        ts: (batch_size, 5, latent_dims=64)
         '''
         out, hidden_states = self.combi_decoder(x_tuple)
-        mu = out[:, 0].unsqueeze(-1)
-        sigma = F.softplus(out[:, 1].unsqueeze(-1)) + 1e-6 # add small value to avoid near-zero variance
+        mu = out[0].unsqueeze(-1)
+        log_var = out[1].unsqueeze(-1)
         if self.return_attention:
-            return mu, sigma, hidden_states
+            return mu, log_var, hidden_states
         else:
-            return mu, sigma
+            return mu, log_var
 
