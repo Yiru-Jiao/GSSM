@@ -117,6 +117,6 @@ class DataOrganiser(Dataset):
         if np.any(X_current['s']<=1e-6): # the spacing must be larger than 0
             warnings.warn('There are spacings smaller than or equal to 0.')
             X_current.loc[X_current['s']<=1e-6, 's'] = 1e-6
-        self.data.append(torch.from_numpy(X_current[['s']].values).float())
+        self.data.append(torch.from_numpy(np.log(X_current[['s']].values)).float()) # log-spacing
 
         return tuple(self.data)

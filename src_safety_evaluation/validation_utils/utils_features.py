@@ -62,14 +62,14 @@ def segment_data(df, veh_dimensions):
     df['vy_sur'] = df['v_sur']*df['hy_sur']
     df_view_ego = coortrans.transform_coor(df, 'ego')
     df_view_relative = coortrans.transform_coor(df, 'relative')
-    indices_end = np.arange(len(df)-1, 20, -1) # use 2-second history for every 0.1 second
+    indices_end = np.arange(len(df)-1, 25, -1) # use 2.5-second history for every 0.1 second
     profiles_set = []
     current_features_set = []
     spacing_set = []
     for idx_end in indices_end:
-        profiles = df.iloc[idx_end-20:idx_end][['acc_ego','v_ego']]
-        profiles['vx_sur'] = df_view_ego.iloc[idx_end-20:idx_end]['vx_sur'].values
-        profiles['vy_sur'] = df_view_ego.iloc[idx_end-20:idx_end]['vy_sur'].values
+        profiles = df.iloc[idx_end-25:idx_end][['acc_ego','v_ego']]
+        profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
+        profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values
         assert profiles.isna().sum().sum()==0 # no missing values
 
         current_features = np.zeros(13)
