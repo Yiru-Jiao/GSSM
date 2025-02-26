@@ -56,8 +56,8 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
     if feature == 'profiles': # time series of acceleration and velocity do not need scaling
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles') for dataset in datasets])
-        train_X = train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 20, 4)
-        val_X = val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 20, 4)
+        train_X = train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
+        val_X = val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
         assert train_X.ndim == 3 and val_X.ndim == 3
         
     elif 'current' in feature:
