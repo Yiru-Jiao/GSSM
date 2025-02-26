@@ -58,7 +58,7 @@ def main(args, manual_seed, path_result):
         event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
     else:
         event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
-    danger_start = np.maximum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
+    danger_start = np.minimum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
     danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
     event_meta['danger_start'] = danger_start
     event_meta['danger_end'] = danger_end
@@ -72,7 +72,8 @@ def main(args, manual_seed, path_result):
     event_id_list = np.concatenate(event_id_list)
     event_id_list = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
     event_data = event_data.merge(event_id_list, on=['event_id','target_id','time'], how='inner')
-        
+
+    # Organise features
     event_data['vx_ego'] = event_data['v_ego']*event_data['hx_ego']
     event_data['vy_ego'] = event_data['v_ego']*event_data['hy_ego']
     event_data['vx_sur'] = event_data['v_sur']*event_data['hx_sur']
@@ -86,21 +87,20 @@ def main(args, manual_seed, path_result):
         veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
     event_data[['length_ego','width_ego','length_sur','width_sur']] = veh_dimensions.loc[event_data['event_id'].values, ['ego_length','ego_width','target_length','target_width']].values
 
-    if os.path.exists(path_save + 'highD_UCD.h5'):
-        safety_evaluation = pd.read_hdf(path_save + 'highD_UCD.h5', key='data')
+    # Evaluation
+    if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
+        eval_efficiency = pd.read_csv(path_save + 'EvaluationEfficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
     else:
-        if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
-            eval_efficiency = pd.read_csv(path_save + 'EvaluationEfficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
-        else:
-            eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
-            eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
-        time_start = systime.time()
-        safety_evaluation = UCD(event_data, device)
-        time_end = systime.time()
-        safety_evaluation.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
-        eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, event_data['target_id'].nunique(), len(event_data)]
+        eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
+    time_start = systime.time()
+    safety_evaluation = UCD(event_data, device)
+    time_end = systime.time()
+    safety_evaluation.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
+    eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, event_data['target_id'].nunique(), len(event_data)]
+    eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
 
+    # Warning analysis
     ucd_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
     print('--- Analyzing ---')
     progress_bar = tqdm(ucd_thresholds, desc='UCD', ascii=True, dynamic_ncols=False, miniters=10)
