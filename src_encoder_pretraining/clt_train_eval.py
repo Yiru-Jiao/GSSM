@@ -33,7 +33,7 @@ def parse_args():
 
     # Set default parameters
     args.sliding_padding = 0
-    args.repr_dims = 128
+    args.repr_dims = 64
     args.dist_metric = 'DTW'
     args.tau_inst = 0
     args.tau_temp = 0
@@ -72,7 +72,7 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     # Load dataset
-    for dataset in ['highD','SafeBaseline',]:
+    for dataset in ['highD','SafeBaseline']:
         print(f'---- Loading {dataset} data ----')
         if '_' in dataset:
             train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
