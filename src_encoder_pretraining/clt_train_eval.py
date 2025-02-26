@@ -41,7 +41,7 @@ def parse_args():
     args.regularizer = None
     args.bandwidth = 1.
     args.iters = None
-    args.epochs = 50
+    args.epochs = 100
     args.batch_size = 8
     args.lr = 0.001
     args.weight_lr = 0.01
@@ -134,7 +134,7 @@ def main(args):
                 model_config['after_epoch_callback'] = save_checkpoint_callback(save_dir, 0, unit='epoch')
                 model = spclt(**model_config)
 
-                scheduler = 'constant'
+                scheduler = 'reduced'
                 print(f'--- {model_type} training with ReduceLROnPlateau scheduler ---')
                 soft_assignments = datautils.assign_soft_labels(train_sim_mat, args.tau_inst)
                 loss_log = model.fit(dataset, train_data, soft_assignments, args.epochs, args.iters, scheduler, verbose=verbose)
@@ -163,15 +163,8 @@ def main(args):
             local_dist_dens_results = evaluate(test_data, model, batch_size=128, local=True)
             global_dist_dens_results = evaluate(test_data, model, batch_size=128, local=False)
 
-            ## loss results
-            test_sim_mat = None
-            test_soft_assignments = datautils.assign_soft_labels(test_sim_mat, args.tau_inst)
-            loss_results = model.compute_loss(test_data, test_soft_assignments)
-            loss_results = {'cl_loss': loss_results[1],
-                            'sp_loss': loss_results[3] if args.regularizer is not None else np.nan}
-
             # Save evaluation results
-            key_values = {**loss_results, **local_dist_dens_results, **global_dist_dens_results}
+            key_values = {**local_dist_dens_results, **global_dist_dens_results}
             keys = list(key_values.keys())
             values = np.array(list(key_values.values())).astype(np.float32)
             eval_results = read_saved_results() # read saved results again to avoid overwriting
