@@ -13,8 +13,8 @@ from src_posterior_inference.inference_utils import modules
 
 
 def send_x_to_device(x, device):
-    if isinstance(x, list):
-        return [i.to(device) for i in x]
+    if isinstance(x, tuple):
+        return tuple([i.to(device) for i in x])
     else:
         return x.to(device)
 
@@ -26,7 +26,7 @@ class custom_dataset(Dataset):
             def get_length():
                 return len(self.X[0])
             def get_item(idx):
-                return [torch.from_numpy(x_i[idx]).float() for x_i in self.X]
+                return tuple([torch.from_numpy(x_i[idx]).float() for x_i in self.X])
         else:
             def get_length():
                 return len(self.X)
@@ -50,15 +50,15 @@ class UnifiedProximity(nn.Module):
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         if 'current' in encoder_selection or 'current+acc' in encoder_selection:
-            self.CurrentEncoder = modules.CurrentEncoder(input_dims=1, output_dims=128)
+            self.CurrentEncoder = modules.CurrentEncoder(input_dims=1, output_dims=64)
         else:
             Warning('Current encoder must be selected.')
         if 'environment' in encoder_selection:
-            self.EnvEncoder = modules.EnvEncoder(input_dims=27, output_dims=128)
+            self.EnvEncoder = modules.EnvEncoder(input_dims=27, output_dims=64)
         if 'profiles' in encoder_selection:
-            self.TSEncoder = modules.TSEncoder(device, input_dims=4, output_dims=128)
+            self.TSEncoder = modules.TSEncoder(device, input_dims=4, output_dims=64)
         self.AttentionDecoder = modules.AttentionDecoder(encoder_selection=self.encoder_selection,
-                                                           return_attention=return_attention)
+                                                         return_attention=return_attention)
         self.combi_encoder = self.define_combi_encoder()
 
     def select_best_model(self, pretraining_evaluation):
@@ -128,7 +128,7 @@ class UnifiedProximity(nn.Module):
     def forward(self, x):
         latent = self.combi_encoder(x)
         out = self.AttentionDecoder(latent)
-        return out # (mu, sigma) if return_attention=False; (mu, sigma, hidden_states) if return_attention=True
+        return out
 
     def encode(self, states, batch_size):
         contexts, _ = states
@@ -140,7 +140,7 @@ class UnifiedProximity(nn.Module):
                 latent = self.combi_encoder(send_x_to_device(x, self.device))
                 _, _, hidden_states = self.AttentionDecoder(latent)
                 hidden_representations.append(hidden_states[0])
-        hidden_representations = torch.cat(hidden_representations, dim=0) # (n_samples, n_compressed_features)
+        hidden_representations = torch.cat(hidden_representations, dim=0) # (n_samples, final_seq_len, hidden_dim)
         return hidden_representations.cpu().numpy()
 
 
@@ -149,7 +149,27 @@ class LogNormalNLL(nn.Module):
         super(LogNormalNLL, self).__init__()
 
     def forward(self, out, y):
-        mu, sigma = out
+        log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None))
+        mu, log_var = out
+        nll = log_clipped_y + 0.5*(log_var + (log_clipped_y-mu)**2/torch.exp(log_var))
+        loss = nll.mean()
+        return loss
+
+
+class SmoothLogNormalNLL(nn.Module):
+    def __init__(self, beta=10.):
+        super(SmoothLogNormalNLL, self).__init__()
+        self.beta = beta
+
+    def forward(self, out, y, inducing_out):
         log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None)) # use .clamp to avoid log(0)
-        loss = log_clipped_y + torch.log(sigma) + 0.5*((log_clipped_y-mu)/sigma)**2
-        return loss.mean()
+        
+        mu, log_var = out
+        log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None))
+        nll = log_clipped_y + 0.5*(log_var + (log_clipped_y-mu)**2/torch.exp(log_var))
+
+        mu_prime, log_var_prime = inducing_out
+        kl_divergence = 0.5*(log_var_prime-log_var + (torch.exp(log_var)+(mu-mu_prime)**2)/torch.exp(log_var_prime) - 1)
+        
+        loss = nll.mean() + self.beta*kl_divergence.mean()
+        return loss
