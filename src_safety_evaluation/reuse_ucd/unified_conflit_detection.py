@@ -298,7 +298,6 @@ def UCD(data, device):
     sigma_list = np.concatenate(sigma_list)
 
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu_list, sigma_list)+1e-6)
-    max_intensity = np.maximum(1., max_intensity)
 
     results = interaction_context[['event_id','target_id','time']].copy()
     results['proximity'] = proximity
