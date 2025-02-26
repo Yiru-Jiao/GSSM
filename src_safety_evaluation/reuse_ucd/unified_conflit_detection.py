@@ -47,7 +47,7 @@ class DataOrganiser(Dataset):
             print('There are spacings smaller than or equal to 0.')
             features.loc[features['s']<=1e-6, 's'] = 1e-6
         self.current_spacing = np.log(features[['s']]).copy()
-        features = []
+        del features
 
 
 # SVGP model: Sparse Variational Gaussian Process
@@ -160,12 +160,12 @@ class train_val_test():
 
         self.model.train()
         self.likelihood.train()
-        self.optimizer = torch.optim.Adam(
+        self.optimizer = torch.optim.AdamW(
             list(self.model.parameters()) + list(self.likelihood.parameters()),
             lr=self.initial_lr, amsgrad=True)
 
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.4, patience=10, cooldown=30,
+            self.optimizer, mode='min', factor=0.4, patience=10, cooldown=20,
             threshold=1e-3, threshold_mode='rel', min_lr=self.initial_lr*0.6**15
         )
 
@@ -183,7 +183,7 @@ class train_val_test():
             loss_records[count_epoch] = train_loss.item()/batch
 
             val_loss = self.val_loop()
-            if count_epoch > 50:
+            if count_epoch > 30:
                 self.scheduler.step(val_loss)
             val_loss_records[count_epoch] = val_loss
 
@@ -191,7 +191,7 @@ class train_val_test():
                                       'loss=': loss_records[count_epoch], 
                                       'val_loss=': val_loss}, refresh=False)
 
-            if (count_epoch>150) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<5e-4):
+            if (count_epoch>100) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<5e-4):
                 # early stopping if validation loss converges
                 print('Validation loss converges and training stops at Epoch '+str(count_epoch))
                 break
@@ -276,7 +276,7 @@ def UCD(data, device):
     features = ['length_ego','length_sur','combined_width',
                 'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
                 'psi_sur','rho']
-    interaction_context = interaction_context[features+['event_id','target_id','time']].sort_values(['target_id','time'])
+    interaction_context = interaction_context[['event_id','target_id','time']+features].sort_values(['target_id','time'])
     data_relative = data_relative.merge(interaction_context[['target_id','time']], on=['target_id','time']).sort_values(['target_id','time'])
     proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
 
@@ -287,7 +287,7 @@ def UCD(data, device):
     chunk_size = 1024
     mu_list, sigma_list = [], []
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        for chunk in tqdm(range(0, len(interaction_context), chunk_size), desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
+        for chunk in tqdm(range(len(interaction_context), chunk_size), desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
             chunk_data = interaction_context[features].values[chunk:chunk+chunk_size]
             f_dist = model(torch.Tensor(chunk_data).to(device))
             y_dist = likelihood(f_dist)
