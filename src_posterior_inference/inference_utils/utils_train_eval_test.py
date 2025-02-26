@@ -11,7 +11,7 @@ import pandas as pd
 from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from inference_utils.utils_data import DataOrganiser
-from model import UnifiedProximity, LogNormalNLL
+from model import UnifiedProximity, LogNormalNLL, SmoothLogNormalNLL
 from torch.utils.data import DataLoader
 
 
@@ -29,9 +29,9 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['SafeBaseline'], ['current'], False],
             [['INTERACTION'], ['current'], False],
             [['Argoverse'], ['current'], False],
-            # [['SafeBaseline'], ['current'], True],
-            # [['INTERACTION'], ['current'], True],
-            # [['Argoverse'], ['current'], True],
+            [['SafeBaseline'], ['current'], True],
+            [['INTERACTION'], ['current'], True],
+            [['Argoverse'], ['current'], True],
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
@@ -86,7 +86,6 @@ class train_val_test():
         self.pretrained_encoder = pretrained_encoder
         self.return_attention = return_attention
         self.define_model()
-        self.loss_func = LogNormalNLL()
 
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.return_attention)
@@ -103,6 +102,32 @@ class train_val_test():
             return tuple([i.to(self.device) for i in x])
         else:
             return x.to(self.device)
+        
+    def get_inducing_out(self, x, noise=0.05):
+        if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
+            inducing_points = x + noise*torch.randn_like(x, device=x.device)
+        elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
+            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x.device), x[1])
+        elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
+            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x.device),
+                               x[1] + noise*torch.randn_like(x[1], device=x.device))
+        elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
+            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x.device),
+                               x[1],
+                               x[2] + noise*torch.randn_like(x[2], device=x.device))
+        inducing_out = self.model(inducing_points)
+        return inducing_out
+
+    def compute_loss(self, x, y, current_epoch=0):
+        x = self.send_x_to_device(x)
+        y = y.to(self.device)
+        out = self.model(x)
+        if current_epoch < 30:
+            loss = self.loss_func(out, y)
+        else:
+            inducing_out = self.get_inducing_out(x)
+            loss = self.later_loss_func(out, y, inducing_out)
+        return loss
 
     def train_model(self, num_epochs=300, initial_lr=0.001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
@@ -110,7 +135,8 @@ class train_val_test():
 
         # Move model and loss function to device
         self.model = self.model.to(self.device)
-        self.loss_func = self.loss_func.to(self.device)
+        self.loss_func = LogNormalNLL().to(self.device)
+        self.later_loss_func = SmoothLogNormalNLL().to(self.device)
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
@@ -138,21 +164,19 @@ class train_val_test():
                 self.optimizer.zero_grad()
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        out = self.model(self.send_x_to_device(x))
-                        loss = self.loss_func(out, y.to(self.device))
+                        loss = self.compute_loss(x, y, epoch_n)
                         scaler.scale(loss).backward()
                         scaler.step(self.optimizer)
                         scaler.update()
                 else:
-                    out = self.model(self.send_x_to_device(x))
-                    loss = self.loss_func(out, y.to(self.device))
+                    loss = self.compute_loss(x, y, epoch_n)
                     loss.backward()
                     self.optimizer.step()
                 train_loss += loss
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
-            val_loss = self.val_loop()
-            if lr_schedule:
+            val_loss = self.val_loop(epoch_n)
+            if lr_schedule and epoch_n>=30: # Start learning rate scheduler after 30 epochs
                 self.scheduler.step(val_loss)
             val_loss_log[epoch_n] = val_loss
 
@@ -169,10 +193,10 @@ class train_val_test():
                 break
 
         progress_bar.close()
+        # Save model and loss records
+        torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
+        loss_log = loss_log[loss_log<np.inf]
         if lr_schedule:
-            # Save model and loss records
-            torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
-            loss_log = loss_log[loss_log<np.inf]
             val_loss_log = val_loss_log[val_loss_log<np.inf]
             loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     data={'train_loss': loss_log, 'val_loss': val_loss_log})
@@ -180,20 +204,21 @@ class train_val_test():
             self.val_loss_log = val_loss_log
         else:
             print('No learning rate scheduler has been used.')
+            loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
+                                    data={'train_loss': loss_log})
+            loss_log.to_csv(self.path_output+'loss_log.csv')
 
     # Validation loop
-    def val_loop(self,):
+    def val_loop(self, epoch_n):
         self.model.eval()
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        out = self.model(self.send_x_to_device(x))
-                        val_loss += self.loss_func(out, y.to(self.device))
+                        val_loss += self.compute_loss(x, y, epoch_n)
                 else:
-                    out = self.model(self.send_x_to_device(x))
-                    val_loss += self.loss_func(out, y.to(self.device))
+                    val_loss += self.compute_loss(x, y, epoch_n)
         self.model.train()
         return val_loss.item() / val_batch_iter
     
@@ -210,5 +235,5 @@ class train_val_test():
         final_model = glob.glob(self.path_save+'model_final*')[0]
         self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))        
         self.model = self.model.to(self.device)
-        self.loss_func = self.loss_func.to(self.device)
+        self.loss_func = LogNormalNLL.to(self.device)
         self.model.eval()
