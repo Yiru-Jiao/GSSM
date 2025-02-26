@@ -96,12 +96,12 @@ class ContextSegmenter(coortrans):
 
             df_view_ego = self.transform_coor(df, 'ego')
             df_view_relative = self.transform_coor(df, 'relative')
-            indices_end = np.arange(len(df)-1, 23, -10) # avoid the first 0.3 second due to likely unreliable data
+            indices_end = np.arange(len(df)-1, 25, -15)
             for idx_end in indices_end:
                 # sample 2-second scenes every 1 second
-                profiles = df.iloc[idx_end-20:idx_end][['acc_ego','v_ego']]
-                profiles['vx_sur'] = df_view_ego.iloc[idx_end-20:idx_end]['vx_sur'].values
-                profiles['vy_sur'] = df_view_ego.iloc[idx_end-20:idx_end]['vy_sur'].values
+                profiles = df.iloc[idx_end-25:idx_end][['acc_ego','v_ego']]
+                profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
+                profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values
 
                 # if there is no missing value in the profiles or df
                 if profiles.isna().sum().sum()==0 and df.iloc[idx_end].isna().sum()==0:
