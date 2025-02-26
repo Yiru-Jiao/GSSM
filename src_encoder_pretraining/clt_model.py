@@ -17,7 +17,7 @@ import src_encoder_pretraining.ssrl_utils.utils_data as datautils
 
 class spclt():
     def __init__(self,
-        input_dims=4, output_dims=128, hidden_dims=128, depth=4, mask_mode=None,
+        input_dims=4, output_dims=64,
         dist_metric='DTW', device='cpu', lr=0.001, weight_lr=0.05, batch_size=8,
         after_iter_callback=None, after_epoch_callback=None,
         regularizer_config={'reserve': None, 'topology': 0.0, 'geometry': 0.0},
@@ -86,9 +86,9 @@ class spclt():
             num_samples = train_data.shape[0]
             n_iters = num_samples * 32 / self.batch_size
             if num_samples < 1000000:
-                n_iters = int(n_iters / 32)
+                n_iters = int(n_iters / 50)
             else:
-                n_iters = int(n_iters / 64)
+                n_iters = int(n_iters / 100)
             print(f'Number of iterations is set to {n_iters}.')
 
         # define a progress bar
