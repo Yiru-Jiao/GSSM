@@ -17,16 +17,18 @@ from torch.utils.data import DataLoader
 
 def set_experiments(stage=[1,2,3,4,5]):
     exp_config = []
-    if 1 in stage: # single dataset, current only
+    if 1 in stage: # pretraining encoder to maintain feature structure
         exp_config.extend([
             [['highD'], ['current'], False],
-            [['SafeBaseline'], ['current'], False],
-            [['INTERACTION'], ['current'], False],
-            [['Argoverse'], ['current'], False],
+            [['highD'], ['current'], True],
+            [['highD'], ['current','profiles'], False],
+            [['highD'], ['current','profiles'], True],
         ])
     if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
         exp_config.extend([
-            [['highD'], ['current'], True],
+            [['SafeBaseline'], ['current'], False],
+            [['INTERACTION'], ['current'], False],
+            [['Argoverse'], ['current'], False],
             # [['SafeBaseline'], ['current'], True],
             # [['INTERACTION'], ['current'], True],
             # [['Argoverse'], ['current'], True],
@@ -97,8 +99,8 @@ class train_val_test():
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
         
     def send_x_to_device(self, x):
-        if isinstance(x, list):
-            return [i.to(self.device) for i in x]
+        if isinstance(x, tuple):
+            return tuple([i.to(self.device) for i in x])
         else:
             return x.to(self.device)
 
@@ -119,7 +121,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=4, cooldown=2,
+                self.optimizer, mode='min', factor=0.6, patience=10, cooldown=20,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
@@ -162,7 +164,7 @@ class train_val_test():
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
-            if (epoch_n>25) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<5e-4):
+            if (epoch_n>100) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<5e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
