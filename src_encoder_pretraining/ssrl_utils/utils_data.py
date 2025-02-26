@@ -70,6 +70,8 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
         scaler = StandardScaler()
         scaler.fit(scaler_data[scaler_variables])
         if 'acc' in feature:
+            # train_X = train_data[scaler_variables+['psi_sur','acc_ego','rho']].values
+            # val_X = val_data[scaler_variables+['psi_sur','acc_ego','rho']].values
             train_X = np.concatenate([
                 scaler.transform(train_data[scaler_variables]),
                 train_data[['psi_sur','acc_ego','rho']].values
@@ -79,6 +81,8 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
                 val_data[['psi_sur','acc_ego','rho']].values
             ], axis=1)
         else:
+            # train_X = train_data[scaler_variables+['psi_sur','rho']].values
+            # val_X = val_data[scaler_variables+['psi_sur','rho']].values
             train_X = np.concatenate([
                 scaler.transform(train_data[scaler_variables]),
                 train_data[['psi_sur','rho']].values
