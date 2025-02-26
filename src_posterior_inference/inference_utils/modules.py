@@ -84,7 +84,7 @@ class CurrentEncoder(nn.Module):
 
     def forward(self, x): # x: (batch_size, 12 or 13)
         features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
-        noise = torch.randn_like(features, device=features.device) * 0.05
+        noise = torch.randn_like(features, device=features.device)
         features = torch.cat([features, noise], dim=-1) # (batch_size, 12 or 13, 2)
         out = self.feature_extractor(features) # (batch_size, 12 or 13, 64)
         return out
