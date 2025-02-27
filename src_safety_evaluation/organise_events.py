@@ -26,7 +26,6 @@ def main(meta_both, events):
     os.makedirs(path_save, exist_ok=True)
     for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
         event_meta = meta_both[meta_both['event_category']==event_cat].copy()
-        print(f'--- Organising data and meta for {event_cat} ---')
         os.makedirs(path_save + f'{event_cat}/', exist_ok=True)
         if os.path.exists(path_save + f'{event_cat}/event_data.h5'):
             print(f'--- {event_cat} already organised ---')
