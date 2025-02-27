@@ -30,7 +30,7 @@ class coortrans():
         return x, y
 
 
-    def transform_coor(self, pairs, view, surrounding=None):
+    def transform_coor(self, pairs, view, surrounding=None, verbose=False):
         '''
         Transform the coordinates of the pairs to the relative view or the view of a selected ego vehicle.
 
@@ -88,7 +88,8 @@ class coortrans():
                     pairs[f'{var}x_{obj}'] = pairs[f'{var}_{obj}']*pairs[f'hx_{obj}']
                     pairs[f'{var}y_{obj}'] = pairs[f'{var}_{obj}']*pairs[f'hy_{obj}']
                 else:
-                    print(f'No {var}x_{obj} or {var}y_{obj} in the DataFrame, thus they are not rotated.')
+                    if verbose:
+                        print(f'No {var}x_{obj} or {var}y_{obj} in the DataFrame, thus they are not rotated.')
 
         if surrounding is None:
             return pairs
