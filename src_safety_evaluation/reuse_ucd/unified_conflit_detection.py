@@ -299,7 +299,7 @@ def extreme_cdf(x, mu, sigma, n=10):
 
 
 def UCD(states, model, likelihood, device):
-    interaction_context, spacing_list, event_id_list = states
+    interaction_context, spacing_list = states
     data_loader = DataLoader(custom_dataset(interaction_context), batch_size=1024, shuffle=False)
 
     mu_list, sigma_list = [], []

@@ -71,7 +71,7 @@ def main(args, manual_seed, path_result):
                'psi_sur','rho']
     '''
     interaction_context = current_features[:,list(range(11))+[-1]]
-    states = (interaction_context, spacing_list, event_id_list)
+    states = (interaction_context, spacing_list)
 
     # Load trained model
     model, likelihood = define_model(100, device)
