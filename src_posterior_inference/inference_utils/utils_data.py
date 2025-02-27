@@ -8,23 +8,6 @@ import numpy as np
 import pandas as pd
 import warnings
 from torch.utils.data import Dataset
-from sklearn.preprocessing import StandardScaler
-
-
-def get_scaler(datasets, dataset_dir, feature):
-    if 'current' in feature:
-        print(f'Getting scaler for {datasets} {feature}...')
-        scaler_variables = ['l_ego','l_sur','combined_width',
-                            'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v']
-        scaler_data = []
-        for dataset in datasets:
-            for split in ['train', 'val']:
-                scaler_data.append(pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
-        scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler = StandardScaler().fit(scaler_data[scaler_variables])
-    elif feature in ['environment', 'profiles']:
-        print('No scaler is needed for environment or time series features.')
-    return scaler
 
 
 class DataOrganiser(Dataset):
@@ -36,7 +19,6 @@ class DataOrganiser(Dataset):
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         self.path_prepared = path_prepared
-        self.current_scaler = get_scaler(dataset, path_prepared, encoder_selection[0])
         self.data = self.read_data()
         self.combine_features = self.define_combine_features()
 
@@ -72,18 +54,15 @@ class DataOrganiser(Dataset):
         X_current = pd.concat(X_current, ignore_index=True)
         X_current = X_current.sort_values('scene_id').reset_index(drop=True)
         self.scene_ids = X_current['scene_id'].values
-        scaler_variables = ['l_ego','l_sur','combined_width',
-                            'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v']
         if 'acc' in self.encoder_selection[0]:
-            self.data.append(torch.from_numpy(np.concatenate([
-                self.current_scaler.transform(X_current[scaler_variables]),
-                X_current[['psi_sur','acc_ego','rho']].values
-                ], axis=1)).float())
+            variables = ['l_ego','l_sur','combined_width',
+                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
+                         'psi_sur','acc_ego','rho']
         else:
-            self.data.append(torch.from_numpy(np.concatenate([
-                self.current_scaler.transform(X_current[scaler_variables]),
-                X_current[['psi_sur','rho']].values
-                ], axis=1)).float())
+            variables = ['l_ego','l_sur','combined_width',
+                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
+                         'psi_sur','rho']
+        self.data.append(torch.from_numpy(X_current[variables].values).float())
 
         if 'environment' in self.encoder_selection:
             X_environment = []
@@ -117,6 +96,6 @@ class DataOrganiser(Dataset):
         if np.any(X_current['s']<=1e-6): # the spacing must be larger than 0
             warnings.warn('There are spacings smaller than or equal to 0.')
             X_current.loc[X_current['s']<=1e-6, 's'] = 1e-6
-        self.data.append(torch.from_numpy(np.log(X_current[['s']].values)).float()) # log-spacing
+        self.data.append(torch.from_numpy(X_current['s'].values).float())
 
         return tuple(self.data)
