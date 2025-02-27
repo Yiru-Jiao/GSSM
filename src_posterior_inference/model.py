@@ -135,8 +135,8 @@ class UnifiedProximity(nn.Module):
         data_loader = DataLoader(custom_dataset(contexts), batch_size=batch_size, shuffle=False)
 
         hidden_representations = []
-        for x in data_loader:
-            with torch.no_grad():
+        with torch.no_grad():
+            for x in data_loader:
                 latent = self.combi_encoder(send_x_to_device(x, self.device))
                 _, _, hidden_states = self.AttentionDecoder(latent)
                 hidden_representations.append(hidden_states[0])
