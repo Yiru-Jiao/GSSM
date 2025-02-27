@@ -42,12 +42,12 @@ def main(path_prepared, path_processed):
         for data, suffix in zip([data_train, data_val], ['train', 'val']):
             print('Segmenting ' + dataset + ' ' + suffix + ' set...')
             segmenter = ContextSegmenter(data, initial_scene_id, dataset)
-            print(f'{suffix} current examples:', segmenter.current_features_set.iloc[:5], '\n', segmenter.current_features_set.iloc[-5:])
-            print(f'{suffix} profiles examples:', segmenter.profiles_set.iloc[:5], '\n', segmenter.profiles_set.iloc[-5:])
+            print(f'{suffix} current examples:', segmenter.current_features_set.iloc[:5], '\n', segmenter.current_features_set.describe())
+            print(f'{suffix} profiles examples:', segmenter.profiles_set.iloc[:5], '\n', segmenter.profiles_set.describe())
             segmenter.profiles_set.to_hdf(path_save + f'profiles_{dataset}_{suffix}.h5', key='profiles')
             segmenter.current_features_set.to_hdf(path_save + f'current_features_{dataset}_{suffix}.h5', key='features')
             if dataset=='SafeBaseline':
-                print(f'{suffix} environment features examples:', segmenter.environment_features_set.iloc[:5], '\n', segmenter.environment_features_set.iloc[-5:])
+                print(f'{suffix} environment features examples:', segmenter.environment_features_set.iloc[:5], '\n', segmenter.environment_features_set.describe())
                 segmenter.environment_features_set.to_hdf(path_save + f'environment_features_{dataset}_{suffix}.h5', key='features')
             initial_scene_id = segmenter.current_features_set['scene_id'].max() + 1
             print('----------- ' + dataset + ' ' + suffix + ' set segmented -----------')
