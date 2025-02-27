@@ -6,7 +6,6 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
@@ -36,28 +35,6 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
         return data_both
     else:
         return data_ego, data_sur
-
-
-def get_scaler(datasets, path_prepared, feature='current'):
-    if 'current' in feature:
-        print(f'Getting scaler for {datasets} {feature}...')
-        if 'acc' in feature:
-            scaler_variables = ['l_ego','l_sur','combined_width',
-                                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
-                                'psi_sur','acc_ego','rho']
-        else:
-            scaler_variables = ['l_ego','l_sur','combined_width',
-                                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
-                                'psi_sur','rho']
-        scaler_data = []
-        for dataset in datasets:
-            for split in ['train', 'val']:
-                scaler_data.append(pd.read_hdf(f'{path_prepared}Segments/{dataset}/current_features_{dataset}_{split}.h5', key='features'))
-        scaler_data = pd.concat(scaler_data, ignore_index=True)
-        scaler = StandardScaler(with_mean=False).fit(scaler_data[scaler_variables].values)
-    elif feature in ['environment', 'profiles']:
-        print('No scaler is needed for environment or time series features.')
-    return scaler
 
 
 def segment_data(df, veh_dimensions):
@@ -104,6 +81,11 @@ def segment_data(df, veh_dimensions):
 
 def get_context_representations(df, veh_dimensions):
     profiles_set, current_features_set, spacing_set, index_set = segment_data(df, veh_dimensions)
-    assert np.isnan(profiles_set).sum()==0
+    '''
+    profiles_set: [num_segments, 25, 4]
+    current_features_set: [num_segments, 13]
+    spacing_set: [num_segments]
+    index_set: [num_segments, 3]
+    '''
     return profiles_set, current_features_set, spacing_set, index_set
 
