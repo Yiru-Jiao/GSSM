@@ -149,9 +149,13 @@ class LogNormalNLL(nn.Module):
         super(LogNormalNLL, self).__init__()
 
     def forward(self, out, y):
-        log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None))
-        mu, log_var = out
-        nll = log_clipped_y + 0.5*(log_var + (log_clipped_y-mu)**2/torch.exp(log_var))
+        mu = out[0]
+        log_var = out[1]
+        log_y = torch.log(y)
+        # clamp log_y in [mu-3sigma, mu+3sigma] to avoid numerical instability
+        sigma3 = 3 * torch.exp(0.5*log_var)
+        clamped_log_y = torch.clamp(log_y, min=mu-sigma3, max=mu+sigma3)
+        nll = clamped_log_y + 0.5 * (log_var + (clamped_log_y-mu)**2 / torch.exp(log_var))
         loss = nll.mean()
         return loss
 
@@ -162,14 +166,13 @@ class SmoothLogNormalNLL(nn.Module):
         self.beta = beta
 
     def forward(self, out, y, inducing_out):
-        log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None)) # use .clamp to avoid log(0)
-        
-        mu, log_var = out
-        log_clipped_y = torch.log(torch.clamp(y, min=1e-6, max=None))
-        nll = log_clipped_y + 0.5*(log_var + (log_clipped_y-mu)**2/torch.exp(log_var))
+        mu = out[0]
+        log_var = out[1]
+        log_y = torch.log(y)
+        nll = log_y + 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
 
         mu_prime, log_var_prime = inducing_out
-        kl_divergence = 0.5*(log_var_prime-log_var + (torch.exp(log_var)+(mu-mu_prime)**2)/torch.exp(log_var_prime) - 1)
+        kl_divergence = 0.5 * (log_var_prime - log_var + (torch.exp(log_var)+(mu-mu_prime)**2) / torch.exp(log_var_prime) - 1)
         
         loss = nll.mean() + self.beta*kl_divergence.mean()
         return loss
