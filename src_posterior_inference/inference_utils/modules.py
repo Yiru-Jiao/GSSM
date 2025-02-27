@@ -7,7 +7,6 @@ import sys
 import glob
 import torch
 from torch import nn
-import torch.nn.functional as F
 import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.clt_model import spclt
@@ -148,7 +147,7 @@ class AttentionBlock(nn.Module):
         values = self.linear_v(x)
 
         scores = torch.matmul(queries, keys.transpose(-2, -1)) / (values.size(-1) ** 0.5)
-        attention = F.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
+        attention = torch.nn.functional.softmax(scores, dim=-1) # (batch_size, seq_len, seq_len)
         attention = self.dropout(attention)
         attended = torch.matmul(attention, values) # (batch_size, seq_len, output_dims)
 
