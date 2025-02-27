@@ -8,7 +8,7 @@ import pandas as pd
 
 class coortrans():
     def __init__(self):
-        pass
+        super().__init__()
 
 
     def rotate_coor(self, xyaxis, yyaxis, x2t, y2t):
@@ -40,6 +40,7 @@ class coortrans():
 
         Returns:
         - transformed pairs DataFrame
+        - transformed variables: 
         '''
         if 'timestamp' in pairs.columns:
             time_ref = 'timestamp'
@@ -78,6 +79,16 @@ class coortrans():
             x, y = self.rotate_coor(coor_ref['x_axis'], coor_ref['y_axis'], pairs[f'hx_{obj}'], pairs[f'hy_{obj}'])
             pairs[f'hx_{obj}'] = x
             pairs[f'hy_{obj}'] = y
+            for var in ['v', 'a']:
+                if f'{var}x_{obj}' in pairs.columns:
+                    x, y = self.rotate_coor(coor_ref['x_axis'], coor_ref['y_axis'], pairs[f'{var}x_{obj}'], pairs[f'{var}y_{obj}'])
+                    pairs[f'{var}x_{obj}'] = x
+                    pairs[f'{var}y_{obj}'] = y
+                elif f'{var}_{obj}' in pairs.columns:
+                    pairs[f'{var}x_{obj}'] = pairs[f'{var}_{obj}']*pairs[f'hx_{obj}']
+                    pairs[f'{var}y_{obj}'] = pairs[f'{var}_{obj}']*pairs[f'hy_{obj}']
+                else:
+                    print(f'No {var}x_{obj} or {var}y_{obj} in the DataFrame, thus they are not rotated.')
 
         if surrounding is None:
             return pairs
@@ -88,7 +99,12 @@ class coortrans():
             surrounding = surrounding.reset_index()
             x, y = self.rotate_coor(coor_ref['x_axis'], coor_ref['y_axis'], surrounding['x']-coor_ref['x_origin'], surrounding['y']-coor_ref['y_origin'])
             hx, hy = self.rotate_coor(coor_ref['x_axis'], coor_ref['y_axis'], surrounding['hx'], surrounding['hy'])
-            surrounding = surrounding.assign(x=x, y=y, hx=hx, hy=hy)
+            if 'vx' in surrounding.columns:
+                vx, vy = self.rotate_coor(coor_ref['x_axis'], coor_ref['y_axis'], surrounding['vx'], surrounding['vy'])
+                surrounding = surrounding.assign(x=x, y=y, hx=hx, hy=hy, vx=vx, vy=vy)
+            else:
+                surrounding = surrounding.assign(x=x, y=y, hx=hx, hy=hy)
+
             if 'timestamp' in surrounding.columns:
                 time_ref = 'timestamp'
             elif 'time' in surrounding.columns:
