@@ -81,6 +81,7 @@ def segment_data(df, veh_dimensions):
 
 def get_context_representations(df, veh_dimensions):
     profiles_set, current_features_set, spacing_set, index_set = segment_data(df, veh_dimensions)
+    spacing_set[spacing_set<1e-6] = 1e-6 # avoid zero spacing for numerical stability
     '''
     profiles_set: [num_segments, 25, 4]
     current_features_set: [num_segments, 13]
