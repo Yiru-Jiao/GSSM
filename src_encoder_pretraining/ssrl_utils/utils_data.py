@@ -61,36 +61,21 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
         assert train_X.ndim == 3 and val_X.ndim == 3
         
     elif 'current' in feature:
-        scaler_variables = ['l_ego','l_sur','combined_width',
-                            'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v']
+        if 'acc' in feature:
+            scaler_variables = ['l_ego','l_sur','combined_width',
+                                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
+                                'psi_sur','acc_ego','rho']
+        else:
+            scaler_variables = ['l_ego','l_sur','combined_width',
+                                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
+                                'psi_sur','rho']
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 
         scaler_data = pd.concat([train_data, val_data], ignore_index=True)
-        scaler = StandardScaler()
-        scaler.fit(scaler_data[scaler_variables])
-        if 'acc' in feature:
-            # train_X = train_data[scaler_variables+['psi_sur','acc_ego','rho']].values
-            # val_X = val_data[scaler_variables+['psi_sur','acc_ego','rho']].values
-            train_X = np.concatenate([
-                scaler.transform(train_data[scaler_variables]),
-                train_data[['psi_sur','acc_ego','rho']].values
-            ], axis=1)
-            val_X = np.concatenate([
-                scaler.transform(val_data[scaler_variables]),
-                val_data[['psi_sur','acc_ego','rho']].values
-            ], axis=1)
-        else:
-            # train_X = train_data[scaler_variables+['psi_sur','rho']].values
-            # val_X = val_data[scaler_variables+['psi_sur','rho']].values
-            train_X = np.concatenate([
-                scaler.transform(train_data[scaler_variables]),
-                train_data[['psi_sur','rho']].values
-            ], axis=1)
-            val_X = np.concatenate([
-                scaler.transform(val_data[scaler_variables]),
-                val_data[['psi_sur','rho']].values
-            ], axis=1)
+        scaler = StandardScaler(with_mean=False).fit(scaler_data[scaler_variables])
+        train_X = scaler.transform(train_data[scaler_variables])
+        val_X = scaler.transform(val_data[scaler_variables])
 
     elif feature == 'environment':
         train_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_train_AE.h5', key='features')
