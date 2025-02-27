@@ -65,9 +65,10 @@ class CurrentEncoder(nn.Module):
             nn.Linear(output_dims//2, output_dims),
             nn.ELU(),
             nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.2),
             nn.ELU(),
             nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
         )
 
     # Load a pretrained model
@@ -84,7 +85,7 @@ class CurrentEncoder(nn.Module):
 
     def forward(self, x): # x: (batch_size, 12 or 13)
         features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
-        noise = torch.randn_like(features, device=features.device)
+        noise = torch.zeros_like(features) # add reference to the features
         features = torch.cat([features, noise], dim=-1) # (batch_size, 12 or 13, 2)
         out = self.feature_extractor(features) # (batch_size, 12 or 13, 64)
         return out
@@ -103,9 +104,10 @@ class EnvEncoder(nn.Module):
             nn.Linear(output_dims//2, output_dims),
             nn.ELU(),
             nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.2),
             nn.ELU(),
             nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
         )
 
     # Load a pretrained model
@@ -150,8 +152,32 @@ class AttentionBlock(nn.Module):
         attention = self.dropout(attention)
         attended = torch.matmul(attention, values) # (batch_size, seq_len, output_dims)
 
-        attended = self.layer_norm(attended + x)        
+        attended = self.layer_norm(attended + x)
         return attended, attention
+    
+
+class FeedForwardBlock(nn.Module):
+    def __init__(self, input_dims, output_dims):
+        super(FeedForwardBlock, self).__init__()
+        self.input_dims = input_dims
+        self.output_dims = output_dims
+        self.mlp = nn.Sequential(
+            nn.Linear(input_dims, output_dims),
+            nn.ELU(),
+            nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.1),
+            nn.ELU(),
+        )
+        self.layer_norm = nn.LayerNorm(output_dims)
+
+    def forward(self, x): # x: (batch_size, seq_len, input_dims)
+        if self.input_dims == self.output_dims:
+            residual = x
+        else: # output_dims needs to be larger than and divisible by input_dims
+            residual = torch.repeat_interleave(x, self.output_dims//self.input_dims, dim=-1)
+        out = self.mlp(x)
+        out = self.layer_norm(out + residual)
+        return out
 
 
 class StackedAttention(nn.Module):
@@ -160,16 +186,16 @@ class StackedAttention(nn.Module):
         self.attention_blocks = nn.ModuleList([
             AttentionBlock(in_dim) for in_dim, _ in dims_list
         ])
-        self.projection_blocks = nn.ModuleList([
-            nn.Linear(in_dim, out_dim) if in_dim!=out_dim else nn.Identity() for in_dim, out_dim in dims_list
+        self.feedforward_blocks = nn.ModuleList([
+            FeedForwardBlock(in_dim, out_dim) for in_dim, out_dim in dims_list
         ])
         self.prefix = prefix
 
     def forward(self, x, attention_matrices=None):
         out = x
-        for i, (block, proj) in enumerate(zip(self.attention_blocks, self.projection_blocks)):
-            attended, attention = block(out)
-            out = proj(attended)
+        for i, (attn_block, ff_block) in enumerate(zip(self.attention_blocks, self.feedforward_blocks)):
+            attended, attention = attn_block(out)
+            out = ff_block(attended)
             if attention_matrices is not None:
                 attention_matrices[f"{self.prefix}_{i}"] = attention
         return out, attention_matrices
@@ -178,10 +204,10 @@ class StackedAttention(nn.Module):
 class AttentionDecoder(nn.Module):
     '''
     State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=64) -> (batch_size, 12/13+1, hidden_dims=64)
-    TimeSeries self-attention: (batch_size, 5, latent_dims=128) -> (batch_size, 5, hidden_dims=64)
+    TimeSeries self-attention: (batch_size, 5, latent_dims=64) -> (batch_size, 5, hidden_dims=256=64*4)
 
-    Output self-attention: (batch_size, 12~19, hidden_dims=64) -> (batch_size, 12~19, 1)    
-    Output with linear: (batch_size, 12~19, 1) -> (batch_size, 2)
+    Local interaction with CNN+MLP: (batch_size, 256, 12/13+1) -> (batch_size, 32)
+    Output with linear: (batch_size, 32, 1) -> (batch_size, 1)
     '''
     def __init__(self, latent_dims=64, encoder_selection=[], return_attention=False):
         super(AttentionDecoder, self).__init__()
@@ -211,25 +237,33 @@ class AttentionDecoder(nn.Module):
 
         # Define the output layers
         self.output_cnn = nn.Sequential( # (batch_size, latent_dims*4=256, final_seq_len)
-            nn.BatchNorm1d(self.latent_dims*4),
             nn.Conv1d(self.latent_dims*4, self.latent_dims, kernel_size=3, padding=1),
             nn.ELU(),
             nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
             nn.ELU(),
             nn.Flatten(1), # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
+            nn.Dropout(0.1),
             nn.ELU(),
             nn.Linear(128, 32),
-            nn.ELU(),
             nn.Dropout(0.1),
+            nn.ELU(),
         )            
         self.output_mu = nn.Sequential(
-            nn.Linear(32, 1),
+            nn.Linear(32, 8),
+            nn.ELU(),
+            nn.Linear(8, 1),
             nn.Softplus(),
         )
+        # Initialise the bias of mu to 5
+        self.output_mu[-2].bias.data.fill_(5)
         self.output_log_var = nn.Sequential(
-            nn.Linear(32, 1),
+            nn.Linear(32, 8),
+            nn.ELU(),
+            nn.Linear(8, 1),
         )
+        # Initialise the bias of log_var to 1
+        self.output_log_var[-1].bias.data.fill_(1)
 
     def combi_decoder(self, x_tuple):
         if self.return_attention:
@@ -251,10 +285,11 @@ class AttentionDecoder(nn.Module):
         ts: (batch_size, 5, latent_dims=64)
         '''
         out, hidden_states = self.combi_decoder(x_tuple)
-        mu = out[0].unsqueeze(-1)
-        log_var = out[1].unsqueeze(-1)
+        mu = out[0].squeeze() # [batch_size]
+        log_var = out[1].squeeze()
         if self.return_attention:
-            return mu, log_var, hidden_states
+            return mu, log_var, hidden_states # attended_state: [batch_size, final_seq_len, latent_dims=64]
+                                              # attention_matrices: {block_i: [batch_size, final_seq_len, final_seq_len]}
         else:
             return mu, log_var
 
