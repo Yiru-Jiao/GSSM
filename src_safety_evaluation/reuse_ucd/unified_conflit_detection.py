@@ -12,6 +12,7 @@ import pandas as pd
 from scipy.special import erf
 from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from src_posterior_inference.model import GaussianNLL, SmoothGaussianNLL
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
 
@@ -30,8 +31,7 @@ class DataOrganiser(Dataset):
         # idx is the index of items in the dataset
         int_ctxt = self.interaction_context.loc[self.idx_list[idx]].values
         int_ctxt = torch.from_numpy(int_ctxt).float()
-        cur_spac = self.current_spacing.loc[self.idx_list[idx]].values
-        cur_spac = torch.from_numpy(cur_spac).float()
+        cur_spac = self.current_spacing.loc[self.idx_list[idx]]
         return int_ctxt, cur_spac
 
     def read_data(self,):
@@ -46,7 +46,9 @@ class DataOrganiser(Dataset):
         if np.any(features['s']<=1e-6):
             print('There are spacings smaller than or equal to 0.')
             features.loc[features['s']<=1e-6, 's'] = 1e-6
-        self.current_spacing = np.log(features[['s']]).copy()
+        self.current_spacing = np.log(features['s']).copy()
+        # print data descriptions for inspection
+        print(features[variables+['s']].describe().to_string())
         del features
 
 
@@ -128,23 +130,12 @@ class train_val_test():
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
         return inducing_points.values
 
-
-    # Validation loop
-    def val_loop(self,):
-        self.model.eval()
-        self.likelihood.eval()
-
-        val_loss = torch.tensor(0., device=self.device, requires_grad=False)
-        with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            for count_batch, (interaction_context, current_spacing) in enumerate(self.val_dataloader, start=1):
-                output = self.model(interaction_context.to(self.device))
-                val_loss += -self.loss_func(output, current_spacing.squeeze().to(self.device))
-
-        self.model.train()
-        self.likelihood.train()
-
-        return val_loss.item()/count_batch
-
+    def get_inducing_out(self, x, noise=0.05):
+        inducing_points = x + noise*torch.randn_like(x, device=x.device)
+        f_dist = self.model(inducing_points)
+        y_dist = self.likelihood(f_dist)
+        mu, var = y_dist.mean, y_dist.variance
+        return mu, torch.log(var)
 
     def train_model(self, num_epochs=100, initial_lr=0.1):
         self.initial_lr = initial_lr
@@ -165,7 +156,7 @@ class train_val_test():
             lr=self.initial_lr, amsgrad=True)
 
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.4, patience=10, cooldown=20,
+            self.optimizer, mode='min', factor=0.4, patience=10, cooldown=10,
             threshold=1e-3, threshold_mode='rel', min_lr=self.initial_lr*0.6**15
         )
 
@@ -173,9 +164,13 @@ class train_val_test():
         for count_epoch in progress_bar:
             train_loss = torch.tensor(0., device=self.device, requires_grad=False)
             for batch, (interaction_context, current_spacing) in enumerate(self.train_dataloader, start=1):
+                '''
+                interaction_context: [batch_size, 12]
+                current_spacing: [batch_size]
+                '''
                 self.optimizer.zero_grad()
                 output = self.model(interaction_context.to(self.device))
-                loss = -self.loss_func(output, current_spacing.squeeze().to(self.device))
+                loss = -self.loss_func(output, current_spacing.to(self.device))
 
                 loss.backward()
                 self.optimizer.step()
@@ -183,7 +178,7 @@ class train_val_test():
             loss_records[count_epoch] = train_loss.item()/batch
 
             val_loss = self.val_loop()
-            if count_epoch > 30:
+            if count_epoch > 20:
                 self.scheduler.step(val_loss)
             val_loss_records[count_epoch] = val_loss
 
@@ -197,6 +192,33 @@ class train_val_test():
                 break
 
         progress_bar.close()
+
+        # Print inspection results
+        gau_nll = GaussianNLL()
+        smooth_gau_nll = SmoothGaussianNLL()
+        self.model.eval()
+        self.likelihood.eval()
+
+        mu_list, sigma_list = [], []
+        val_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            for count_batch, (interaction_context, current_spacing) in enumerate(self.val_dataloader, start=1):
+                f_dist = self.model(interaction_context.to(self.device))
+                y_dist = self.likelihood(f_dist)
+                mu, var = y_dist.mean, y_dist.variance # mu: [batch_size], var: [batch_size]
+                mu_list.append(mu.cpu().numpy())
+                sigma_list.append(var.sqrt().cpu().numpy())
+                val_gau += gau_nll((mu, torch.log(var)), current_spacing.to(self.device))
+                inducing_out = self.get_inducing_out(interaction_context.to(self.device))
+                val_smooth_gau += smooth_gau_nll((mu, torch.log(var)), current_spacing.to(self.device), inducing_out)
+
+        self.model.train()
+        self.likelihood.train()
+        mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
+        print(mu_sigma.describe().to_string())
+        print(f'Gaussian NLL: {val_gau.item()/count_batch}, Smooth Gaussian NLL: {val_smooth_gau.item()/count_batch}')
+        
         # Save loss records
         loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records[:count_epoch+1])+1)],
                                 data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[:count_epoch+1]})
@@ -204,6 +226,18 @@ class train_val_test():
         # Save model every epoch
         torch.save(self.model.state_dict(), self.path_output+f'model_{count_epoch+1}epoch.pth')
         torch.save(self.likelihood.state_dict(), self.path_output+f'likelihood_{count_epoch+1}epoch.pth')
+
+    def val_loop(self,):
+        self.model.eval()
+        self.likelihood.eval()
+        val_loss = torch.tensor(0., device=self.device, requires_grad=False)
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            for count_batch, (interaction_context, current_spacing) in enumerate(self.val_dataloader, start=1):
+                output = self.model(interaction_context.to(self.device))
+                val_loss += -self.loss_func(output, current_spacing.to(self.device))
+        self.model.train()
+        self.likelihood.train()
+        return val_loss.item()/count_batch
 
 
 def define_model(num_inducing_points, device):
@@ -254,18 +288,13 @@ def extreme_cdf(x, mu, sigma, n=10):
 
 
 def UCD(data, device):
-    # Mirror the coordinates as the model is trained on highD where the y-axis points downwards
-    data = data.rename(columns={'x_ego':'y_ego', 'y_ego':'x_ego', 'x_sur':'y_sur', 'y_sur':'x_sur',
-                                'vx_ego':'vy_ego', 'vy_ego':'vx_ego', 'vx_sur':'vy_sur', 'vy_sur':'vx_sur',
-                                'hx_ego':'hy_ego', 'hy_ego':'hx_ego', 'hx_sur':'hy_sur', 'hy_sur':'hx_sur'})
-
     ## Transform coordinates and formulate input data
     data['combined_width'] = (data['width_ego']+data['width_sur'])/2
     data['v_ego2'] = data['v_ego']**2
     data['v_sur2'] = data['v_sur']**2
     data['delta_v2'] = (data['vx_ego']-data['vx_sur'])**2 + (data['vy_ego']-data['vy_sur'])**2
     data['delta_v'] = np.sqrt(data['delta_v2']) * np.sign(data['v_ego2']-data['v_sur2'])
-    data_view_ego = coortrans.transform_coor(data, view='i')
+    data_view_ego = coortrans.transform_coor(data, view='ego')
     view_ego_features = ['hx_sur','hy_sur','vy_ego','vx_sur','vy_sur']
     data_view_ego = data_view_ego[['target_id','time']+view_ego_features]
     data_relative = coortrans.transform_coor(data, view='relative')
