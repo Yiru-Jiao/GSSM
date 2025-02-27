@@ -76,9 +76,9 @@ def main(meta_both, events):
             # Retrieve event narrative
             event_meta.loc[event_id, 'narrative'] = events.loc[event_id, 'finalNarrative']
 
-            # Annotate duration_enough: at least one target is recorded over 2.5 seconds
+            # Annotate duration_enough: at least one target is recorded over 5 seconds
             target_duration = df.groupby('target_id')['time'].count()
-            if target_duration.max()>=25:
+            if target_duration.max()>=50:
                 event_meta.loc[event_id, 'duration_enough'] = True
             else:
                 event_meta.loc[event_id, 'duration_enough'] = False
