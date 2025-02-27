@@ -42,14 +42,19 @@ def main(path_prepared, path_processed):
         for data, suffix in zip([data_train, data_val], ['train', 'val']):
             print('Segmenting ' + dataset + ' ' + suffix + ' set...')
             segmenter = ContextSegmenter(data, initial_scene_id, dataset)
+            print(f'{suffix} current examples:', segmenter.current_features_set.iloc[:5], '\n', segmenter.current_features_set.iloc[-5:])
+            print(f'{suffix} profiles examples:', segmenter.profiles_set.iloc[:5], '\n', segmenter.profiles_set.iloc[-5:])
             segmenter.profiles_set.to_hdf(path_save + f'profiles_{dataset}_{suffix}.h5', key='profiles')
             segmenter.current_features_set.to_hdf(path_save + f'current_features_{dataset}_{suffix}.h5', key='features')
             if dataset=='SafeBaseline':
+                print(f'{suffix} environment features examples:', segmenter.environment_features_set.iloc[:5], '\n', segmenter.environment_features_set.iloc[-5:])
                 segmenter.environment_features_set.to_hdf(path_save + f'environment_features_{dataset}_{suffix}.h5', key='features')
             initial_scene_id = segmenter.current_features_set['scene_id'].max() + 1
+            print('----------- ' + dataset + ' ' + suffix + ' set segmented -----------')
             print(f'Number of scenes: {initial_scene_id - segmenter.initial_scene_id}')
             print(f"Minimum dist.: {segmenter.current_features_set['s'].min():.2f}")
             print(f"Unique scene ids in current features set: {segmenter.current_features_set['scene_id'].nunique()}, should be the same as the profiles set: {segmenter.profiles_set['scene_id'].nunique()}")
+            print('--------------------------------------------------------------------')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
