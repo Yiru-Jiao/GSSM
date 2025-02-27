@@ -21,7 +21,6 @@ from datetime import datetime
 import torch.nn.functional as F
 from joblib import Parallel, delayed
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import ShuffleSplit
 
@@ -44,7 +43,6 @@ from tslearn.metrics import dtw, dtw_path
 from src_encoder_pretraining.clt_model import spclt
 from src_encoder_pretraining.modules.loss_utils import *
 from src_encoder_pretraining.ae_model import autoencoder
-from src_encoder_pretraining.modules.regularizers import *
 from src_encoder_pretraining.ssrl_utils.utils_eval import *
 from src_encoder_pretraining.modules import encoder, losses
 from src_encoder_pretraining.ssrl_utils.utils_general import *
