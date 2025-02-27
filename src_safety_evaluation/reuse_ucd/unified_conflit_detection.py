@@ -12,7 +12,7 @@ import pandas as pd
 from scipy.special import erf
 from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from src_posterior_inference.model import GaussianNLL, SmoothGaussianNLL
+from src_posterior_inference.model import LogNormalNLL, SmoothLogNormalNLL
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
 
@@ -122,9 +122,9 @@ class train_val_test():
                                         'vy_ego': np.random.uniform(0.,45.,num_inducing_points),
                                         'vx_sur': np.random.uniform(-45.,45.,num_inducing_points),
                                         'vy_sur': np.random.uniform(-45.,45.,num_inducing_points),
-                                        'v_ego2': np.random.uniform(0.,2000.,num_inducing_points),
-                                        'v_sur2': np.random.uniform(0.,2000.,num_inducing_points),
-                                        'delta_v2': np.random.uniform(0.,2000.,num_inducing_points),
+                                        'v_ego2': np.random.uniform(0.,3000.,num_inducing_points),
+                                        'v_sur2': np.random.uniform(0.,3000.,num_inducing_points),
+                                        'delta_v2': np.random.uniform(0.,3000.,num_inducing_points),
                                         'delta_v': np.random.uniform(-45.,45.,num_inducing_points),
                                         'psi_sur': np.random.uniform(-np.pi,np.pi,num_inducing_points),
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
@@ -186,7 +186,7 @@ class train_val_test():
                                       'loss=': loss_records[count_epoch], 
                                       'val_loss=': val_loss}, refresh=False)
 
-            if (count_epoch>100) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<5e-4):
+            if (count_epoch>60) and np.all(abs(np.diff(val_loss_records[count_epoch-3:count_epoch+1])/val_loss_records[count_epoch-3:count_epoch])<5e-4):
                 # early stopping if validation loss converges
                 print('Validation loss converges and training stops at Epoch '+str(count_epoch))
                 break
@@ -194,8 +194,8 @@ class train_val_test():
         progress_bar.close()
 
         # Print inspection results
-        gau_nll = GaussianNLL()
-        smooth_gau_nll = SmoothGaussianNLL()
+        lognorm_nll = LogNormalNLL()
+        smooth_lognorm_nll = SmoothLogNormalNLL()
         self.model.eval()
         self.likelihood.eval()
 
@@ -209,9 +209,9 @@ class train_val_test():
                 mu, var = y_dist.mean, y_dist.variance # mu: [batch_size], var: [batch_size]
                 mu_list.append(mu.cpu().numpy())
                 sigma_list.append(var.sqrt().cpu().numpy())
-                val_gau += gau_nll((mu, torch.log(var)), current_spacing.to(self.device))
+                val_gau += lognorm_nll((mu, torch.log(var)), current_spacing.to(self.device))
                 inducing_out = self.get_inducing_out(interaction_context.to(self.device))
-                val_smooth_gau += smooth_gau_nll((mu, torch.log(var)), current_spacing.to(self.device), inducing_out)
+                val_smooth_gau += smooth_lognorm_nll((mu, torch.log(var)), current_spacing.to(self.device), inducing_out)
 
         self.model.train()
         self.likelihood.train()
@@ -223,7 +223,7 @@ class train_val_test():
         loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records[:count_epoch+1])+1)],
                                 data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[:count_epoch+1]})
         loss_log.to_csv(self.path_output+'loss_log.csv')
-        # Save model every epoch
+        # Save model and likelihood
         torch.save(self.model.state_dict(), self.path_output+f'model_{count_epoch+1}epoch.pth')
         torch.save(self.likelihood.state_dict(), self.path_output+f'likelihood_{count_epoch+1}epoch.pth')
 
@@ -249,9 +249,9 @@ def define_model(num_inducing_points, device):
                                       np.random.uniform(0.,45.,(num_inducing_points,1)), # vy_ego
                                       np.random.uniform(-45.,45.,(num_inducing_points,1)), # vx_sur
                                       np.random.uniform(-45.,45.,(num_inducing_points,1)), # vy_sur
-                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_ego2
-                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_sur2
-                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # delta_v2
+                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # v_ego2
+                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # v_sur2
+                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # delta_v2
                                       np.random.uniform(-45.,45.,(num_inducing_points,1)), # delta_v
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1)), # psi_sur
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1))], # rho
@@ -279,6 +279,17 @@ def define_model(num_inducing_points, device):
     return model, likelihood
 
 
+class custom_dataset(Dataset):
+    def __init__(self, X):
+        self.X = X
+
+    def __len__(self): 
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        return torch.from_numpy(self.X[idx]).float()
+    
+
 def lognormal_cdf(x, mu, sigma):
     return 1/2+1/2*erf((np.log(x)-mu)/sigma/np.sqrt(2))
 
@@ -287,51 +298,23 @@ def extreme_cdf(x, mu, sigma, n=10):
     return (1-lognormal_cdf(x,mu,sigma))**n
 
 
-def UCD(data, device):
-    ## Transform coordinates and formulate input data
-    data['combined_width'] = (data['width_ego']+data['width_sur'])/2
-    data['v_ego2'] = data['v_ego']**2
-    data['v_sur2'] = data['v_sur']**2
-    data['delta_v2'] = (data['vx_ego']-data['vx_sur'])**2 + (data['vy_ego']-data['vy_sur'])**2
-    data['delta_v'] = np.sqrt(data['delta_v2']) * np.sign(data['v_ego2']-data['v_sur2'])
-    data_view_ego = coortrans.transform_coor(data, view='ego')
-    view_ego_features = ['hx_sur','hy_sur','vy_ego','vx_sur','vy_sur']
-    data_view_ego = data_view_ego[['target_id','time']+view_ego_features]
-    data_relative = coortrans.transform_coor(data, view='relative')
-    rho = coortrans.angle(1, 0, data_relative['x_sur'], data_relative['y_sur']).reset_index().rename(columns={0:'rho'})
-    rho[['target_id','time']] = data_relative[['target_id','time']]
-    interaction_context = data.drop(columns=view_ego_features).merge(data_view_ego, on=['target_id','time']).merge(rho, on=['target_id','time'])
-    interaction_context['psi_sur'] = coortrans.angle(0, 1, interaction_context['hx_sur'], interaction_context['hy_sur'])
-    features = ['length_ego','length_sur','combined_width',
-                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
-                'psi_sur','rho']
-    interaction_context = interaction_context[['event_id','target_id','time']+features].sort_values(['target_id','time'])
-    data_relative = data_relative.merge(interaction_context[['target_id','time']], on=['target_id','time']).sort_values(['target_id','time'])
-    proximity = np.sqrt(data_relative['x_sur']**2 + data_relative['y_sur']**2).values
+def UCD(states, model, likelihood, device):
+    interaction_context, spacing_list, event_id_list = states
+    data_loader = DataLoader(custom_dataset(interaction_context), batch_size=1024, shuffle=False)
 
-    ## Load trained model
-    model, likelihood = define_model(100, device)
-
-    ## Compute mu_list, sigma_list
-    chunk_size = 1024
     mu_list, sigma_list = [], []
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        for chunk in tqdm(range(len(interaction_context), chunk_size), desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
-            chunk_data = interaction_context[features].values[chunk:chunk+chunk_size]
-            f_dist = model(torch.Tensor(chunk_data).to(device))
+        for int_ctxt in tqdm(data_loader, desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
+            f_dist = model(int_ctxt.to(device))
             y_dist = likelihood(f_dist)
             mu, sigma = y_dist.mean.cpu().numpy(), y_dist.variance.sqrt().cpu().numpy()
             mu_list.append(mu)
             sigma_list.append(sigma)
-    mu_list = np.concatenate(mu_list)
-    sigma_list = np.concatenate(sigma_list)
+    mu = np.concatenate(mu_list)
+    sigma = np.concatenate(sigma_list)
 
-    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu_list, sigma_list)+1e-6)
+    # 0.5 means that the probability of conflict is larger than the probability of non-conflict
+    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu_list, sigma_list)+1e-6)
 
-    results = interaction_context[['event_id','target_id','time']].copy()
-    results['proximity'] = proximity
-    results['mu'] = mu_list
-    results['sigma'] = sigma_list
-    results['intensity'] = max_intensity
-    return results
+    return mu, sigma, max_intensity
 
