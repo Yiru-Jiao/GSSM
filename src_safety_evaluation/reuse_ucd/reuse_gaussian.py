@@ -93,6 +93,7 @@ def main(args, manual_seed, path_result):
     results['mu'] = mu
     results['sigma'] = sigma
     results['intensity'] = max_intensity
+    results = results.sort_values(['event_id','target_id','time']).reset_index(drop=True)
     results.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
 
     eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, results['target_id'].nunique(), len(results)]

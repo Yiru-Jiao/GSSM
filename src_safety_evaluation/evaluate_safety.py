@@ -233,6 +233,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['mu'] = mu
         results['sigma'] = sigma
         results['intensity'] = max_intensity
+        results = results.sort_values(['target_id','time']).reset_index(drop=True)
         results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
         eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, results['target_id'].nunique(), len(results)]
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
