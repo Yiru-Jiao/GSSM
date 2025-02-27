@@ -20,9 +20,9 @@ def set_experiments(stage=[1,2,3,4,5]):
     if 1 in stage: # pretraining encoder to maintain feature structure
         exp_config.extend([
             [['highD'], ['current'], False],
-            [['highD'], ['current'], True],
-            [['highD'], ['current','profiles'], False],
-            [['highD'], ['current','profiles'], True],
+            # [['highD'], ['current'], True],
+            # [['highD'], ['current','profiles'], False],
+            # [['highD'], ['current','profiles'], True],
         ])
     if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
         exp_config.extend([
@@ -122,7 +122,7 @@ class train_val_test():
         x = self.send_x_to_device(x)
         y = y.to(self.device)
         out = self.model(x)
-        if current_epoch < 30:
+        if current_epoch < 20:
             loss = self.loss_func(out, y)
         else:
             inducing_out = self.get_inducing_out(x)
@@ -147,7 +147,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=10, cooldown=20,
+                self.optimizer, mode='min', factor=0.6, patience=10, cooldown=10,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
@@ -161,6 +161,10 @@ class train_val_test():
         for epoch_n in progress_bar:
             train_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
             for train_batch_iter, (x, y) in enumerate(self.train_dataloader, start=1):
+                '''
+                x: tuple of features, each of shape [batch_size, feature_dims]
+                y: [batch_size]
+                '''
                 self.optimizer.zero_grad()
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
@@ -176,7 +180,7 @@ class train_val_test():
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop(epoch_n)
-            if lr_schedule and epoch_n>=30: # Start learning rate scheduler after 30 epochs
+            if lr_schedule and epoch_n>20: # Start learning rate scheduler after 30 epochs
                 self.scheduler.step(val_loss)
             val_loss_log[epoch_n] = val_loss
 
@@ -188,11 +192,39 @@ class train_val_test():
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
-            if (epoch_n>100) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<5e-4):
+            if (epoch_n>60) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<5e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
         progress_bar.close()
+
+        # Print inspection results
+        self.model.eval()
+
+        mu_list, sigma_list = [], []
+        val_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        with torch.no_grad():
+            for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
+                x = self.send_x_to_device(x)
+                y = y.to(self.device)
+                if 'profiles' in self.encoder_selection:
+                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
+                        out = self.model(x)
+                else:
+                    out = self.model(x)
+                mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
+                mu_list.append(mu.cpu().numpy())
+                sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
+                val_gau += self.loss_func(out, y)
+                inducing_out = self.get_inducing_out(x)
+                val_smooth_gau += self.later_loss_func(out, y, inducing_out)
+
+        self.model.train()
+        mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
+        print(mu_sigma.describe().to_string())
+        print(f'Gaussian NLL: {val_gau.item()/val_batch_iter}, Smooth Gaussian NLL: {val_smooth_gau.item()/val_batch_iter}')
+
         # Save model and loss records
         torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
         loss_log = loss_log[loss_log<np.inf]
@@ -235,5 +267,5 @@ class train_val_test():
         final_model = glob.glob(self.path_save+'model_final*')[0]
         self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))        
         self.model = self.model.to(self.device)
-        self.loss_func = LogNormalNLL.to(self.device)
+        self.loss_func = LogNormalNLL().to(self.device)
         self.model.eval()
