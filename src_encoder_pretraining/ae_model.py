@@ -12,7 +12,7 @@ import ssrl_utils.utils_data as datautils
 from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.modules import CurrentEncoder, EnvEncoder
-from src_encoder_pretraining.modules.regularizers import *
+from src_encoder_pretraining.modules.loss_utils import topo_loss, ggeo_loss
 
 
 class shared_decoder(nn.Module):
@@ -79,7 +79,7 @@ class autoencoder():
     def loss_func_ggeo(self, input, target): # used for current encoder
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
         loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
-        loss_ggeo = geo_loss(self, input, 0.25)
+        loss_ggeo = ggeo_loss(self, input, 0.25)
         loss_ggeo = 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_ggeo*(1-torch.exp(-loss_ggeo)) + 0.5 * self.loss_log_vars[1]
         return loss_ae + loss_ggeo
 

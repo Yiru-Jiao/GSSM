@@ -7,8 +7,26 @@ GGAE https://github.com/JungbinLim/GGAE-public
 All adaptations are marked with comments.
 '''
 
+import os
+import sys
 import torch
 import random
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from src_encoder_pretraining.modules.loss_utils import *
+
+
+def batch_minmax_norm(x1, x2=None, eps=1e-5):
+    if x2 is None:
+        x_min = torch.min(x1, dim=0, keepdim=True)
+        x_max = torch.max(x1, dim=0, keepdim=True)
+        normed_x1 = (x1 - x_min.values) / (x_max.values - x_min.values + eps)
+        return normed_x1
+    else:
+        x_min = torch.min(torch.min(x1, x2), dim=0, keepdim=True)
+        x_max = torch.max(torch.max(x1, x2), dim=0, keepdim=True)
+        normed_x1 = (x1 - x_min.values) / (x_max.values - x_min.values + eps)
+        normed_x2 = (x2 - x_min.values) / (x_max.values - x_min.values + eps)
+        return normed_x1, normed_x2
 
 
 #####################################
@@ -56,8 +74,8 @@ def mask_and_crop(encoder, x, temporal_unit=0):
     else:
         out1 = encoder(x)
         out2 = out1
-
-    return out1, out2
+    # normalise the outputs to have comparable distances in the contrastive loss
+    return batch_minmax_norm(out1, out2)
 
 
 def timelag_sigmoid(z1, sigma=1):
@@ -77,6 +95,31 @@ def timelag_sigmoid(z1, sigma=1):
 ###############################################################
 ## functions and classes for topology preserving regularizer ##
 ###############################################################
+
+def topo_loss(model, x):
+    # encode using model
+    latent = model.encode(x)
+
+    # normalise x and latent for comparable distances
+    x = batch_minmax_norm(x)
+    latent = batch_minmax_norm(latent)
+
+    # compute and normalize distances in the original sapce and latent space
+    x_distances = topo_euclidean_distance_matrix(x) # (B, N, N)
+    x_distances = x_distances / x_distances.max()
+    latent_distances = topo_euclidean_distance_matrix(latent) # (B, N, N)
+    latent_distances = latent_distances / latent_distances.max()
+
+    # compute topological signature distance
+    topo_sig = TopologicalSignatureDistance()
+    topo_error = topo_sig(x_distances, latent_distances)
+
+    # normalize topo_error according to batch_size
+    batch_size = x.size()[0]
+    topo_error = topo_error / float(batch_size)
+
+    return topo_error
+
 
 def topo_euclidean_distance_matrix(x, p=2):
     """
@@ -232,9 +275,31 @@ class TopologicalSignatureDistance(torch.nn.Module):
         return distance
 
 
-###############################################################
+#####################################################################
 ## functions and classes for graph geometry preserving regularizer ##
-###############################################################
+#####################################################################
+
+def ggeo_loss(model, x, bandwidth):
+    # encode using model
+    latent = model.encode(x)
+    if latent.size(1) == 5: # need to reshape into (B, 25(24->0), 16) to map with the original time series
+        latent = latent[:,::-1,:].reshape(latent.size(0), 25, -1)
+
+    # (B, N) -> (B, N, 1) when encoding current features
+    if len(x.size()) == 2:
+        x = x.unsqueeze(-1)
+
+    # normalise x and latent for comparable distances
+    x = batch_minmax_norm(x)
+    latent = batch_minmax_norm(latent)
+
+    # compute ggeo loss
+    L = get_laplacian(x, bandwidth=bandwidth)
+    H_tilde = get_JGinvJT(L, latent)
+    iso_loss = relaxed_distortion_measure_JGinvJT(H_tilde)
+
+    return iso_loss
+
 
 def get_laplacian(X, bandwidth=50): # bandwidth tuning should increase exponentially like bw**2
     """

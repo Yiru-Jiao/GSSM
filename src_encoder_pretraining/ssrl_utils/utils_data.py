@@ -7,7 +7,6 @@ import sys
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from sklearn.preprocessing import StandardScaler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_distance_matrix import *
 
@@ -53,29 +52,27 @@ def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
 
 
 def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
-    if feature == 'profiles': # time series of acceleration and velocity do not need scaling
+    if feature == 'profiles':
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles') for dataset in datasets])
         train_X = train_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
         val_X = val_data[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
         assert train_X.ndim == 3 and val_X.ndim == 3
-        
+
     elif 'current' in feature:
         if 'acc' in feature:
-            scaler_variables = ['l_ego','l_sur','combined_width',
-                                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
-                                'psi_sur','acc_ego','rho']
+            variables = ['l_ego','l_sur','combined_width',
+                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
+                         'psi_sur','acc_ego','rho']
         else:
-            scaler_variables = ['l_ego','l_sur','combined_width',
-                                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
-                                'psi_sur','rho']
+            variables = ['l_ego','l_sur','combined_width',
+                         'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
+                         'psi_sur','rho']
         train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
         val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
 
-        scaler_data = pd.concat([train_data, val_data], ignore_index=True)
-        scaler = StandardScaler(with_mean=False).fit(scaler_data[scaler_variables])
-        train_X = scaler.transform(train_data[scaler_variables])
-        val_X = scaler.transform(val_data[scaler_variables])
+        train_X = train_data[variables].values
+        val_X = val_data[variables].values
 
     elif feature == 'environment':
         train_data = pd.read_hdf(f'{dataset_dir}Segments/environment_features_train_AE.h5', key='features')

@@ -9,7 +9,7 @@ import os
 import sys
 import torch.nn.functional as F
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from src_encoder_pretraining.modules.regularizers import *
+from src_encoder_pretraining.modules.loss_utils import *
 
 
 def combined_loss(model, x, loss_config, regularizer_config):
@@ -32,9 +32,9 @@ def combined_loss(model, x, loss_config, regularizer_config):
             loss_components.append(loss_topo_regularizer)
             loss_components.append(model.loss_log_vars[1])
         elif regularizer_config['reserve'] == 'geometry':
-            loss_geo_regularizer = geo_loss(model, x, regularizer_config['bandwidth'])
-            loss += 0.5 * torch.exp(-model.loss_log_vars[1]) * loss_geo_regularizer*(1-torch.exp(-loss_geo_regularizer)) + 0.5 * model.loss_log_vars[1]
-            loss_components.append(loss_geo_regularizer)
+            loss_ggeo_regularizer = ggeo_loss(model, x, regularizer_config['bandwidth'])
+            loss += 0.5 * torch.exp(-model.loss_log_vars[1]) * loss_ggeo_regularizer*(1-torch.exp(-loss_ggeo_regularizer)) + 0.5 * model.loss_log_vars[1]
+            loss_components.append(loss_ggeo_regularizer)
             loss_components.append(model.loss_log_vars[1])
         else:
             raise ValueError('Undefined regularizer, should be either "topology", or "geometry"')    
