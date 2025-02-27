@@ -12,14 +12,13 @@ import pandas as pd
 import torch
 import argparse
 from sklearn.preprocessing import OneHotEncoder
-from validation_utils.utils_features import *
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
-from src_safety_evaluation.validation_utils.utils_evaluation import *
 from src_safety_evaluation.validation_utils.EmergencyIndex import get_EI
 from src_safety_evaluation.validation_utils.SSMsOnPlane import longitudinal_ssms, two_dimensional_ssms
+from src_safety_evaluation.validation_utils.utils_evaluation import set_veh_dimensions, define_model, SSSE
 
 
 def parse_args():
@@ -39,15 +38,6 @@ def create_categorical_encoder(events, environment_feature_names):
     data2fit = data2fit.loc[(data2fit!='Unknown').all(axis=1)]
     categorical_encoder.fit(data2fit.values)
     return categorical_encoder
-
-
-def set_veh_dimensions(event_meta, avg_width, avg_length):
-    veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
-    condition = event_meta[['target_width','target_length']].isna().any(axis=1)
-    veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
-    for var in ['ego_width','ego_length','target_width','target_length']:
-        veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
-    return veh_dimensions
 
 
 def evaluate(eval_func, model, eval_config, eval_efficiency, results, path_save):
@@ -78,76 +68,23 @@ def main(args, events, manual_seed, path_prepared, path_result):
     device = init_dl_program(args.gpu)
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
-    # Load/save event features
-    event_categories = sorted(os.listdir(path_result + 'EventData/'))
-    event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
-    avg_width = np.nanmean(event_meta['ego_width'].values)
-    avg_length = np.nanmean(event_meta['ego_length'].values)
-    for event_cat in event_categories:
-        if os.path.exists(path_result + f'EventData/{event_cat}/event_features.npz'):
-            print(f'Loading event features for {event_cat}.')
-        else:
-            print(f'Saving event features for {event_cat}.')
-            data = pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data')
-            event_meta = pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv').set_index('event_id')
-            assert np.all(np.isin(data['event_id'].unique(), event_meta.index.values))
-            veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
-            # Organise features for each event and target
-            profiles_features = []
-            current_features = []
-            spacing_list = []
-            event_id_list = []
-            target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
-            for target_id in tqdm(target_ids, desc='Target', position=0, dynamic_ncols=False, ascii=True, miniters=min(len(target_ids)//10, 150)):
-                df = data.loc(axis=0)[target_id, :]
-                if len(df)<25: # skip if the target was detected for less than 2.5 seconds
-                    continue
-                segmented_features = get_context_representations(df, veh_dimensions.loc[df['event_id'].values[0]])
-                profiles_features.append(segmented_features[0]) # will need normalisation when being used
-                current_features.append(segmented_features[1]) # will need normalisation when being used
-                spacing_list.append(segmented_features[2])
-                event_id_list.append(segmented_features[3])
-            profiles_features = np.concatenate(profiles_features, axis=0)
-            current_features = np.concatenate(current_features, axis=0)
-            spacing_list = np.concatenate(spacing_list, axis=0)
-            event_id_list = np.concatenate(event_id_list, axis=0)
-            assert profiles_features.shape[0] == len(spacing_list) and profiles_features.shape[1] == 20
-            # Save the features
-            np.savez(path_result + f'EventData/{event_cat}/event_features.npz', 
-                     profiles=profiles_features, 
-                     current=current_features, 
-                     spacing=spacing_list, 
-                     event_id=event_id_list)
-
-    # Read event features
     path_save = path_result + 'EventEvaluation/'
     os.makedirs(path_save, exist_ok=True)
 
+    # Read event information
+    event_categories = sorted(os.listdir(path_result + 'EventData/'))
     data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
     event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
+    avg_width = np.nanmean(event_meta['ego_width'].values)
+    avg_length = np.nanmean(event_meta['ego_length'].values)
     veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
     
-    profiles_features = []
-    current_features = []
-    spacing_list = []
-    event_id_list = []
-    for event_cat in event_categories:
-        event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
-        profiles_features.append(event_featurs['profiles'])
-        current_features.append(event_featurs['current'])
-        spacing_list.append(event_featurs['spacing'])
-        event_id_list.append(event_featurs['event_id'])
-    profiles_features = np.concatenate(profiles_features, axis=0)
-    current_features = np.concatenate(current_features, axis=0)
-    spacing_list = np.concatenate(spacing_list, axis=0)
-    event_id_list = np.concatenate(event_id_list, axis=0)
-
-    # Safety evaluation
     if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
         eval_efficiency = pd.read_csv(path_save + 'EvaluationEfficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
     else:
         eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
+
 
     # 1D SSMs adapted to 2D
     if os.path.exists(path_save + f'TTC_DRAC_MTTC_PSD.h5'):
@@ -189,6 +126,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','acc_i','s_box', 'TTC', 'DRAC', 'MTTC', 'PSD']]
         results.to_hdf(path_save + f'TTC_DRAC_MTTC_PSD.h5', key='data', mode='w')
 
+
     # 2D SSMs
     if os.path.exists(path_save + f'TAdv_TTC2D_ACT_EI.h5'):
         print(f'The events has been evaluated by TAdv, TTC2D, ACT, and EI.')
@@ -228,7 +166,23 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results = results[['event_id','target_id','time','TAdv','TTC2D','ACT','EI']]
         results.to_hdf(path_save + f'TAdv_TTC2D_ACT_EI.h5', key='data', mode='w')
 
+
     # SSSE models in this study
+    profiles_features = []
+    current_features = []
+    spacing_list = []
+    event_id_list = []
+    for event_cat in event_categories:
+        event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
+        profiles_features.append(event_featurs['profiles'])
+        current_features.append(event_featurs['current'])
+        spacing_list.append(event_featurs['spacing'])
+        event_id_list.append(event_featurs['event_id'])
+    profiles_features = np.concatenate(profiles_features, axis=0)
+    current_features = np.concatenate(current_features, axis=0)
+    spacing_list = np.concatenate(spacing_list, axis=0)
+    event_id_list = np.concatenate(event_id_list, axis=0)
+
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     for model_id in range(len(model_evaluation)):
         dataset_name = model_evaluation.iloc[model_id]['dataset']
@@ -244,8 +198,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             print(f'The events has been evaluated by {model_name}.')
             continue
 
-        # Define scaler and one-hot encoder for normalisation
-        current_scaler = get_scaler(dataset, path_prepared, feature=encoder_selection[0])
+        # Define one-hot encoder for environment features
         if 'environment' in encoder_selection:
             environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
             one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
@@ -255,16 +208,9 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if encoder_selection[0]=='current':
-            states.append(np.concatenate([
-                current_scaler.transform(current_features[:,:10]), #'l_ego','l_sur','combined_width','vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v'
-                current_features[:,[-3]], # 'psi_sur'
-                current_features[:,[-1]], # 'rho'
-            ], axis=1))
+            states.append(current_features[:,list(range(11))+[-1]])
         if encoder_selection[0]=='current+acc':
-            states.append(np.concatenate([
-                current_scaler.transform(current_features[:,:10]), #'l_ego','l_sur','combined_width','vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v'
-                current_features[:,-3:], # 'psi_sur','acc_ego','rho'
-            ], axis=1))
+            states.append(current_features)
         if 'environment' in encoder_selection:
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
             environment_features = one_hot_encoder.transform(environment_features.values)
