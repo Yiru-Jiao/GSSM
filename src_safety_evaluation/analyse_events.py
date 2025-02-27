@@ -9,8 +9,8 @@ import pandas as pd
 from tqdm import tqdm
 import time as systime
 from joblib import Parallel, delayed
-from validation_utils.utils_features import *
-from src_safety_evaluation.validation_utils.utils_evaluation import *
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluation, optimize_threshold, issue_warning, parallel_records, read_events
 
 
 def fill_na_warning(results):
@@ -21,7 +21,7 @@ def fill_na_warning(results):
     return results
 
 
-def main(path_result):
+def main(path_result, path_prepared):
     initial_time = systime.time()
     print('---- available cpus:', os.cpu_count(), '----')
 
@@ -29,12 +29,20 @@ def main(path_result):
     path_events = path_result + 'EventData/'
     path_results = path_result + 'EventEvaluation/'
     event_meta, event_data = read_events(path_events)
+    if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
+        event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
+    if 'danger_start' not in event_meta.columns:
+        danger_start = np.minimum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
+        danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
+        event_meta['danger_start'] = danger_start
+        event_meta['danger_end'] = danger_end
+        event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
 
     '''
     Analysis 1 - Conflict detection comparison
     For each event, it is applicable to compare conflict detection if safety or danger period is present
     - danger: the period when an (near)crash happens as manually annotated by SHRP2
-              * start: at most 4.5 seconds before impact_timestamp and after start_timestamp
+              * start: after start_timestamp or within 4.5 seconds before impact_timestamp
               * end: 0.5 second after impact_timestamp and before end_timestamp
     - safety: the beginning in an event before start_timestamp with no hard braking
               * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
@@ -44,11 +52,6 @@ def main(path_result):
     as the conflicting target, and the safe period is determined specifically
     Then the comparison of ROC curves is between different indicators under various thresholds
     '''
-    danger_start = np.maximum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
-    danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
-    event_meta['danger_start'] = danger_start
-    event_meta['danger_end'] = danger_end
-    event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
     
     # 1D and 2D SSMs
     for indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI']:
@@ -123,13 +126,6 @@ def main(path_result):
         existing_models = existing_results['model'].unique()
     else:
         existing_models = []
-    if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
-        event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
-    if 'danger_start' not in event_meta.columns:
-        danger_start = np.maximum(event_meta['impact_timestamp'].values-4500, event_meta['start_timestamp'].values)
-        danger_end = np.minimum(event_meta['impact_timestamp'].values+500, event_meta['end_timestamp'].values)
-        event_meta['danger_start'] = danger_start
-        event_meta['danger_end'] = danger_end
 
     if 'conflict' not in event_meta.columns:
         for event_id in tqdm(event_meta.index.values, desc='Severity', ascii=True, dynamic_ncols=False, miniters=714):
@@ -262,5 +258,6 @@ if __name__ == '__main__':
 
     path_result = './ResultData/'
     os.makedirs(path_result + 'Analyses/', exist_ok=True)
+    path_prepared = './PreparedData/'
 
-    main(path_result)
+    main(path_result, path_prepared)
