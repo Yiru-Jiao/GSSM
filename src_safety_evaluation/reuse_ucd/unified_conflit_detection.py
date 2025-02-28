@@ -122,9 +122,9 @@ class train_val_test():
                                         'vy_ego': np.random.uniform(0.,45.,num_inducing_points),
                                         'vx_sur': np.random.uniform(-45.,45.,num_inducing_points),
                                         'vy_sur': np.random.uniform(-45.,45.,num_inducing_points),
-                                        'v_ego2': np.random.uniform(0.,3000.,num_inducing_points),
-                                        'v_sur2': np.random.uniform(0.,3000.,num_inducing_points),
-                                        'delta_v2': np.random.uniform(0.,3000.,num_inducing_points),
+                                        'v_ego2': np.random.uniform(0.,2000.,num_inducing_points),
+                                        'v_sur2': np.random.uniform(0.,2000.,num_inducing_points),
+                                        'delta_v2': np.random.uniform(0.,2000.,num_inducing_points),
                                         'delta_v': np.random.uniform(-45.,45.,num_inducing_points),
                                         'psi_sur': np.random.uniform(-np.pi,np.pi,num_inducing_points),
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
@@ -249,9 +249,9 @@ def define_model(num_inducing_points, device):
                                       np.random.uniform(0.,45.,(num_inducing_points,1)), # vy_ego
                                       np.random.uniform(-45.,45.,(num_inducing_points,1)), # vx_sur
                                       np.random.uniform(-45.,45.,(num_inducing_points,1)), # vy_sur
-                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # v_ego2
-                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # v_sur2
-                                      np.random.uniform(0.,3000.,(num_inducing_points,1)), # delta_v2
+                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_ego2
+                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # v_sur2
+                                      np.random.uniform(0.,2000.,(num_inducing_points,1)), # delta_v2
                                       np.random.uniform(-45.,45.,(num_inducing_points,1)), # delta_v
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1)), # psi_sur
                                       np.random.uniform(-np.pi,np.pi,(num_inducing_points,1))], # rho
