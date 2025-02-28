@@ -209,9 +209,9 @@ class train_val_test():
                 mu, var = y_dist.mean, y_dist.variance # mu: [batch_size], var: [batch_size]
                 mu_list.append(mu.cpu().numpy())
                 sigma_list.append(var.sqrt().cpu().numpy())
-                val_gau += lognorm_nll((mu, torch.log(var)), current_spacing.to(self.device))
+                val_gau += lognorm_nll((mu, torch.log(var)), torch.exp(current_spacing.to(self.device)))
                 inducing_out = self.get_inducing_out(interaction_context.to(self.device))
-                val_smooth_gau += smooth_lognorm_nll((mu, torch.log(var)), current_spacing.to(self.device), inducing_out)
+                val_smooth_gau += smooth_lognorm_nll((mu, torch.log(var)), torch.exp(current_spacing.to(self.device)), inducing_out)
 
         self.model.train()
         self.likelihood.train()
