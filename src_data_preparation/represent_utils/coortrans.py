@@ -90,6 +90,7 @@ class coortrans():
                 else:
                     if verbose:
                         print(f'No {var}x_{obj} or {var}y_{obj} in the DataFrame, thus they are not rotated.')
+        pairs['vy_ego'] = abs(pairs['vy_ego']) # make sure the ego speed along y-axis is positive
 
         if surrounding is None:
             return pairs

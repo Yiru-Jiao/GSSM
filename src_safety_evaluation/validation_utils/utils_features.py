@@ -51,6 +51,7 @@ def segment_data(df, veh_dimensions):
     spacing_set = []
     for idx_end in indices_end:
         profiles = df.iloc[idx_end-25:idx_end][['acc_ego','v_ego']]
+        profiles['v_ego'] = abs(profiles['v_ego'])
         profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
         profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values
         assert profiles.isna().sum().sum()==0 # no missing values
