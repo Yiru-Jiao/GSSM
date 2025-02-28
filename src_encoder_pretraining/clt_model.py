@@ -37,8 +37,7 @@ class spclt():
                 
         self._net = encoder.LSTMEncoder(input_dims=input_dims,
                                         hidden_dims=5*output_dims,
-                                        num_layers=2,
-                                        single_output=True).to(self.device)
+                                        num_layers=2).to(self.device)
 
         self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device)
         self.net.update_parameters(self._net)
