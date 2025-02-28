@@ -21,7 +21,7 @@ def set_experiments(stage=[1,2,3,4,5]):
         exp_config.extend([
             [['highD'], ['current'], False],
             # [['highD'], ['current'], True],
-            # [['highD'], ['current','profiles'], False],
+            [['highD'], ['current','profiles'], False],
             # [['highD'], ['current','profiles'], True],
         ])
     if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
@@ -29,9 +29,9 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['SafeBaseline'], ['current'], False],
             [['INTERACTION'], ['current'], False],
             [['Argoverse'], ['current'], False],
-            [['SafeBaseline'], ['current'], True],
-            [['INTERACTION'], ['current'], True],
-            [['Argoverse'], ['current'], True],
+            # [['SafeBaseline'], ['current'], True],
+            # [['INTERACTION'], ['current'], True],
+            # [['Argoverse'], ['current'], True],
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
@@ -54,9 +54,9 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['SafeBaseline'], ['current+acc'], False],
             [['SafeBaseline'], ['current+acc', 'environment'], False],
             [['SafeBaseline'], ['current+acc','environment','profiles'], False],
-            [['SafeBaseline'], ['current+acc'], True],
-            [['SafeBaseline'], ['current+acc', 'environment'], True],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], True],
+            # [['SafeBaseline'], ['current+acc'], True],
+            # [['SafeBaseline'], ['current+acc', 'environment'], True],
+            # [['SafeBaseline'], ['current+acc','environment','profiles'], True],
         ])
     return exp_config
 
@@ -118,11 +118,11 @@ class train_val_test():
         inducing_out = self.model(inducing_points)
         return inducing_out
 
-    def compute_loss(self, x, y, current_epoch=0):
+    def compute_loss(self, x, y):
         x = self.send_x_to_device(x)
         y = y.to(self.device)
         out = self.model(x)
-        if current_epoch < 20:
+        if not self.lr_reduced:
             loss = self.loss_func(out, y)
         else:
             inducing_out = self.get_inducing_out(x)
@@ -132,6 +132,7 @@ class train_val_test():
     def train_model(self, num_epochs=300, initial_lr=0.001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
+        self.lr_reduced = False
 
         # Move model and loss function to device
         self.model = self.model.to(self.device)
@@ -180,8 +181,10 @@ class train_val_test():
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop(epoch_n)
-            if lr_schedule and epoch_n>20: # Start learning rate scheduler after 30 epochs
+            if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
                 self.scheduler.step(val_loss)
+                if self.optimizer.param_groups[0]['lr'] < self.initial_lr:
+                    self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
