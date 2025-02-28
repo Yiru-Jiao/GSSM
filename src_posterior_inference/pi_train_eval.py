@@ -69,7 +69,7 @@ def main(args, manual_seed, path_prepared):
         encoder_name = '_'.join(encoder_selection)
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
 
-        initial_lr = 0.0001 if pretrained_encoder else 0.00025
+        initial_lr = 0.00015 if pretrained_encoder else 0.00025
         batch_size = 256
         epochs = 500
         
