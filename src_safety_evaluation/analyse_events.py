@@ -17,7 +17,7 @@ def fill_na_warning(results):
     results['danger_recorded'] = results['danger_recorded'].fillna(False)
     results['safety_recorded'] = results['safety_recorded'].fillna(False)
     results[['danger_recorded', 'safety_recorded']] = results[['danger_recorded', 'safety_recorded']].astype(bool)
-    results[['safe_target_ids', 'indicator', 'model']] = results[['indicator', 'model']].astype(str)
+    results[['safe_target_ids', 'indicator', 'model']] = results[['safe_target_ids', 'indicator', 'model']].astype(str)
     return results
 
 
