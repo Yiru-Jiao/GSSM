@@ -21,9 +21,8 @@ class LSTMEncoder(nn.Module):
             c0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims).to(x.device)
             _, (sub_hidden, _) = lstm(sub_x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dims)
             if i==0:
-                hidden = sub_hidden[-1] # (batch_size, hidden_dims)
+                hidden = sub_hidden[-1].unsqueeze(1) # (batch_size, 1, hidden_dims)
             else:
-                hidden = torch.cat((hidden, sub_hidden[-1]), dim=0) # (5, batch_size, hidden_dims)
-        hidden = hidden.permute(1, 0, 2).contiguous()
+                hidden = torch.cat((hidden, sub_hidden[-1].unsqueeze(1)), dim=1) # (batch_size, [2, 3, 4, 5], hidden_dims)
         return hidden # (batch_size, 5, hidden_dims)
 
