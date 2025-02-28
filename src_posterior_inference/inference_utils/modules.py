@@ -254,15 +254,11 @@ class AttentionDecoder(nn.Module):
             nn.Linear(8, 1),
             nn.Softplus(),
         )
-        # Initialise the bias of mu to 5
-        self.output_mu[-2].bias.data.fill_(5)
         self.output_log_var = nn.Sequential(
             nn.Linear(32, 8),
             nn.ELU(),
             nn.Linear(8, 1),
         )
-        # Initialise the bias of log_var to 1
-        self.output_log_var[-1].bias.data.fill_(1)
 
     def combi_decoder(self, x_tuple):
         if self.return_attention:
