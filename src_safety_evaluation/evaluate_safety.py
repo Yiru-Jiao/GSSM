@@ -85,6 +85,21 @@ def main(args, events, manual_seed, path_prepared, path_result):
         eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
 
+    profiles_features = []
+    current_features = []
+    spacing_list = []
+    event_id_list = []
+    for event_cat in event_categories:
+        event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
+        profiles_features.append(event_featurs['profiles'])
+        current_features.append(event_featurs['current'])
+        spacing_list.append(event_featurs['spacing'])
+        event_id_list.append(event_featurs['event_id'])
+    profiles_features = np.concatenate(profiles_features, axis=0)
+    current_features = np.concatenate(current_features, axis=0)
+    spacing_list = np.concatenate(spacing_list, axis=0)
+    event_id_list = np.concatenate(event_id_list, axis=0)
+
 
     # 1D SSMs adapted to 2D
     if os.path.exists(path_save + f'TTC_DRAC_MTTC_PSD.h5'):
@@ -168,21 +183,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
 
     # SSSE models in this study
-    profiles_features = []
-    current_features = []
-    spacing_list = []
-    event_id_list = []
-    for event_cat in event_categories:
-        event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
-        profiles_features.append(event_featurs['profiles'])
-        current_features.append(event_featurs['current'])
-        spacing_list.append(event_featurs['spacing'])
-        event_id_list.append(event_featurs['event_id'])
-    profiles_features = np.concatenate(profiles_features, axis=0)
-    current_features = np.concatenate(current_features, axis=0)
-    spacing_list = np.concatenate(spacing_list, axis=0)
-    event_id_list = np.concatenate(event_id_list, axis=0)
-
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     for model_id in range(len(model_evaluation)):
         dataset_name = model_evaluation.iloc[model_id]['dataset']
