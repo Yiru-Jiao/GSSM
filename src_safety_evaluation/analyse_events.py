@@ -14,8 +14,8 @@ from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluat
 
 
 def fill_na_warning(results):
-    results['danger_recorded'] = results['danger_recorded'].fillna(False)
-    results['safety_recorded'] = results['safety_recorded'].fillna(False)
+    results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
+    results.loc[results['safety_recorded'].isna(), 'safety_recorded'] = False
     results[['danger_recorded', 'safety_recorded']] = results[['danger_recorded', 'safety_recorded']].astype(bool)
     results[['safe_target_ids', 'indicator', 'model']] = results[['safe_target_ids', 'indicator', 'model']].astype(str)
     return results
