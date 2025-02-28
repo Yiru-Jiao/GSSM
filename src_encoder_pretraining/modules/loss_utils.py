@@ -282,23 +282,29 @@ class TopologicalSignatureDistance(torch.nn.Module):
 def ggeo_loss(model, x, bandwidth):
     # encode using model
     latent = model.encode(x)
-    if latent.size(1) == 5: # need to reshape into (B, 25(24->0), 16) to map with the original time series
-        latent = latent[:,::-1,:].reshape(latent.size(0), 25, -1)
 
-    # (B, N) -> (B, N, 1) when encoding current features
-    if len(x.size()) == 2:
-        x = x.unsqueeze(-1)
+    if latent.size(1) == 5: # need to stack into (B, 25, 64) to map with the original time series
+        for i in range(5): # each dimension represents for the passed 0.5, 1, 1.5, 2, 2.5 seconds
+            sub_latent = batch_minmax_norm(torch.cat([latent[:,[i],:]]*(5*(i+1)), dim=1)) # (B, [5, 10, 15, 20, 25], 64)
+            sub_x = batch_minmax_norm(x[:, -(i+1)*5:, :]) # (B, [5, 10, 15, 20, 25], 4)
+            L = get_laplacian(sub_x, bandwidth=bandwidth)
+            H_tilde = get_JGinvJT(L, sub_latent)
+            sub_loss = relaxed_distortion_measure_JGinvJT(H_tilde)
+            if i == 0:
+                loss = sub_loss
+            else:
+                loss += sub_loss
+    elif len(x.size()) == 2: # when encoding current features
+        x = x.unsqueeze(-1) # (B, N) -> (B, N, 1)
+        # normalise x and latent for comparable distances
+        x = batch_minmax_norm(x)
+        latent = batch_minmax_norm(latent)
+        # compute ggeo loss
+        L = get_laplacian(x, bandwidth=bandwidth)
+        H_tilde = get_JGinvJT(L, latent)
+        loss = relaxed_distortion_measure_JGinvJT(H_tilde)
 
-    # normalise x and latent for comparable distances
-    x = batch_minmax_norm(x)
-    latent = batch_minmax_norm(latent)
-
-    # compute ggeo loss
-    L = get_laplacian(x, bandwidth=bandwidth)
-    H_tilde = get_JGinvJT(L, latent)
-    iso_loss = relaxed_distortion_measure_JGinvJT(H_tilde)
-
-    return iso_loss
+    return loss
 
 
 def get_laplacian(X, bandwidth=50): # bandwidth tuning should increase exponentially like bw**2
