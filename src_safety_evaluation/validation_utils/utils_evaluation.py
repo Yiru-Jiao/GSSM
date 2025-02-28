@@ -44,6 +44,15 @@ def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=Non
             return safety_evaluation
 
 
+def set_veh_dimensions(event_meta, avg_width, avg_length):
+    veh_dimensions = event_meta[['ego_width','ego_length','target_width','target_length']].copy()
+    condition = event_meta[['target_width','target_length']].isna().any(axis=1)
+    veh_dimensions.loc[condition, ['target_width','target_length']] = event_meta.loc[condition, ['other_width','other_length']].values
+    for var in ['ego_width','ego_length','target_width','target_length']:
+        veh_dimensions.loc[veh_dimensions[var].isna(), var] = avg_width if 'width' in var else avg_length
+    return veh_dimensions
+
+
 def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention=False):
     # Define the model
     pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention)
@@ -71,8 +80,8 @@ def extreme_cdf(x, mu, sigma, n=10):
 
 
 def send_x_to_device(x, device):
-    if isinstance(x, list):
-        return [i.to(device) for i in x]
+    if isinstance(x, tuple):
+        return tuple([i.to(device) for i in x])
     else:
         return x.to(device)
 
@@ -84,7 +93,7 @@ class custom_dataset(Dataset):
             def get_length():
                 return len(self.X[0])
             def get_item(idx):
-                return [torch.from_numpy(x_i[idx]).float() for x_i in self.X]
+                return tuple([torch.from_numpy(x_i[idx]).float() for x_i in self.X])
         else:
             def get_length():
                 return len(self.X)
@@ -101,24 +110,23 @@ class custom_dataset(Dataset):
     
 
 def SSSE(states, model, device):
-    contexts, proximity = states
+    contexts, spacing_list = states
     data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
 
     mu_list = []
     sigma_list = []
-    for x in data_loader:
-        with torch.no_grad():
+    with torch.no_grad():
+        for x in data_loader:
             out = model(send_x_to_device(x, device))
-            mu, sigma = out
-        mu_list.append(mu.squeeze().cpu().numpy())
-        sigma_list.append(sigma.squeeze().cpu().numpy())
+            mu, log_var = out
+            mu_list.append(mu.cpu().numpy()) # [n_samples]
+            sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
 
-    mu = np.concatenate(mu_list, axis=0)
-    sigma = np.concatenate(sigma_list, axis=0)
+    mu = np.concatenate(mu_list)
+    sigma = np.concatenate(sigma_list)
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
-    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(proximity, mu, sigma)+1e-6)
-    max_intensity = np.maximum(1., max_intensity)
+    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu_list, sigma_list)+1e-6)
 
     return mu, sigma, max_intensity
 
@@ -139,40 +147,31 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
     
     elif conflict_indicator=='SSSE':
         evaluation['probability'] = extreme_cdf(evaluation['proximity'].values, evaluation['mu'].values, evaluation['sigma'].values, threshold)
-        # 0.5 means that the probability of conflict is larger than the probability of non-conflict
-        evaluation.loc[evaluation['probability']>0.5, 'conflict'] = True
+        evaluation.loc[evaluation['intensity']>threshold, 'conflict'] = True
         return evaluation
 
 
 def determine_target(indicator, danger, before_danger):
-    if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-        if danger[indicator].isna().all() or before_danger[indicator].isna().all():
-            target_id = np.nan
-            median_before_danger = np.nan
-            median_danger = np.nan
-        else:
+    if indicator == 'SSSE':
+        indicator = 'intensity'
+    if danger[indicator].isna().all() or before_danger[indicator].isna().all():
+        target_id = np.nan
+        median_before_danger = np.nan
+        median_danger = np.nan
+    else:
+        if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             target_id = danger.loc[danger[indicator].idxmin(),'target_id']
-            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-            median_danger = danger[danger['target_id']==target_id][indicator].median()
-    elif indicator in ['DRAC', 'EI', 'SSSE']:
-        if indicator == 'SSSE':
-            indicator = 'intensity'
-        if danger[indicator].isna().all() or before_danger[indicator].isna().all():
-            target_id = np.nan
-            median_before_danger = np.nan
-            median_danger = np.nan
-        else:
+        elif indicator in ['DRAC', 'EI', 'intensity']:
             target_id = danger.loc[danger[indicator].idxmax(),'target_id']
-            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-            median_danger = danger[danger['target_id']==target_id][indicator].median()
+        median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
+        median_danger = danger[danger['target_id']==target_id][indicator].median()
     return target_id, median_before_danger, median_danger
 
 
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
-    safety_evaluation = safety_evaluation.sort_values(['target_id','time'])
+    safety_evaluation = safety_evaluation.sort_values(['target_id','time']).set_index('event_id')
     event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
     event_meta = event_meta[event_meta['duration_enough']]
-    safety_evaluation = safety_evaluation.set_index('event_id')
     event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end']].copy()
@@ -182,7 +181,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
         before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
-        if danger.groupby('target_id')['time'].count().max()<5:
+        if danger.groupby('target_id')['time'].count().max()<35: # a potential target should appear at least 3.5 seconds
             records.loc[event_id, 'danger_recorded'] = False
             continue
 
@@ -196,63 +195,70 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             continue
         target_danger = danger[danger['target_id']==target_id]
         records.loc[event_id, 'danger_recorded'] = True
-        records.loc[event_id, 'danger_period'] = len(target_danger)/10
         target_danger = determine_conflicts(target_danger, indicator, threshold)
-        if target_danger['conflict'].sum()>5: # at least warning for 0.5 seconds
-            records.loc[event_id, 'true warning'] = 1
+        if target_danger['conflict'].sum()>5: # at least warning for 0.5 second
+            records.loc[event_id, 'true_warning'] = 1
         else:
-            records.loc[event_id, 'true warning'] = 0
+            records.loc[event_id, 'true_warning'] = 0
 
         # Determine safety period for the conflicting target
         '''
-        the beginning in an event before start_timestamp with no hard braking
+        the beginning of a non-target vehicle in an event before start_timestamp with no hard braking
         * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
-        * start: first evaluatable timestamp in the event
-        * end: 0.5~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
+        * start: 1.5 seconds after the target is detected
+        * end: considering 5 seconds after start, at least 3 seconds before conflict start_timestamp
         '''
-        target = event[event['target_id']==target_id]
-        target_period = target[target['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)].copy()
-        if len(target_period)<5:
+        targets = event[event['target_id']!=target_id]
+        targets_period = targets[targets['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)]
+        if len(targets_period) <= 0:
             records.loc[event_id, 'safety_recorded'] = False
             continue
-        target_period = target_period.iloc[:50]
-        motion_states = ['acc_ego','v_ego','v_sur']
-        multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
-                                                 target_period['target_id'].values,
-                                                 target_period['time'].values], names=('event_id','target_id','time'))
-        target_period[motion_states] = event_data.loc[multi_index, motion_states].values
-        records.loc[event_id, 'avg_acc_ego'] = target_period['acc_ego'].mean()
-        records.loc[event_id, 'avg_v_ego'] = target_period['v_ego'].mean()
-        records.loc[event_id, 'avg_v_sur'] = target_period['v_sur'].mean()
-        no_hard_braking = (target_period['acc_ego'].min()>-1.5)
-
-        # Determine conflict and warning
-        if no_hard_braking:
-            records.loc[event_id, 'safety_recorded'] = True
-            records.loc[event_id, 'safety_period'] = len(target_period)/10
-            target_period = determine_conflicts(target_period, indicator, threshold)
-            if np.any(target_period['conflict']):
-                records.loc[event_id, 'false warning'] = 1
+        safety_recorded = False
+        target_ids = []
+        false_warnings = 0
+        for target_id in targets_period['target_id'].unique():
+            target_period = targets_period[targets_period['target_id']==target_id]
+            if len(target_period)<35:
+                continue
             else:
-                records.loc[event_id, 'false warning'] = 0
+                target_period = target_period.iloc[15:65]
+                motion_states = ['acc_ego','v_ego','v_sur']
+                multi_index = pd.MultiIndex.from_arrays([target_period.index.values,
+                                                         target_period['target_id'].values,
+                                                         target_period['time'].values], names=('event_id','target_id','time'))
+                target_period[motion_states] = event_data.loc[multi_index, motion_states].values
+                no_hard_braking = (target_period['acc_ego'].min()>-1.5)
+                if no_hard_braking:
+                    safety_recorded = True
+                    target_ids.append(target_id)
+                    target_period = determine_conflicts(target_period.copy(), indicator, threshold)
+                    if np.any(target_period['conflict']):
+                        false_warnings += 1
 
-        del event, target_period # release memory
+        if safety_recorded:
+            records.loc[event_id, 'safety_recorded'] = True
+            records.loc[event_id, 'false_warning'] = false_warnings
+            records.loc[event_id, 'true_non_warning'] = len(target_ids) - false_warnings
+            records.loc[event_id, 'safe_target_ids'] = ','.join([str(i) for i in target_ids])
+        else:
+            records.loc[event_id, 'safety_recorded'] = False
+
     records['threshold'] = threshold
     return records
 
 
 def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=False):
-    # if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-    #     warning.loc[warning['median_before_danger']<warning['median_danger'], 'danger_recorded'] = False
-    # elif conflict_indicator in ['DRAC', 'EI', 'SSSE']:
-    #     warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
+    if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+        warning.loc[warning['median_before_danger']<warning['median_danger'], 'danger_recorded'] = False
+    elif conflict_indicator in ['DRAC', 'EI', 'SSSE']:
+        warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
 
-    true_positives = warning[warning['danger_recorded']&(warning['true warning'].astype(bool))].groupby('threshold').size()
-    false_positives = warning[warning['safety_recorded']&(warning['false warning'].astype(bool))].groupby('threshold').size()
-    true_negatives = warning[warning['safety_recorded']&(~warning['false warning'].astype(bool))].groupby('threshold').size()
-    false_negatives = warning[warning['danger_recorded']&(~warning['true warning'].astype(bool))].groupby('threshold').size()
+    true_positives = warning[warning['danger_recorded']&(warning['true_warning']>0.5)].groupby('threshold').size()
+    false_positives = warning[warning['safety_recorded']].groupby('threshold')['false_warning'].sum()
+    true_negatives = warning[warning['safety_recorded']].groupby('threshold')['true_non_warning'].sum()
+    false_negatives = warning[warning['danger_recorded']&(warning['true_warning']<0.5)].groupby('threshold').size()
     statistics = pd.concat([true_positives, false_positives, true_negatives, false_negatives], axis=1, keys=['TP', 'FP', 'TN', 'FN'])
-    statistics = statistics.fillna(0).reset_index()
+    statistics = statistics.fillna(0).reset_index() # nan can be caused by empty combination of threshold and warning
 
     if curve_type=='ROC':
         statistics['true positive rate'] = statistics['TP']/(statistics['TP']+statistics['FN'])
@@ -291,9 +297,8 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
 
 
 def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
-    safety_evaluation = safety_evaluation.sort_values(['target_id','time'])
+    safety_evaluation = safety_evaluation.sort_values(['target_id','time']).set_index('event_id')
     event_meta = event_meta[event_meta['duration_enough']]
-    safety_evaluation = safety_evaluation.set_index('event_id')
     event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end', 'reaction_timestamp', 'impact_timestamp']].copy()
@@ -305,7 +310,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
         before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
-        if danger.groupby('target_id')['time'].count().max()<5:
+        if danger.groupby('target_id')['time'].count().max()<35:
             records.loc[event_id, 'danger_recorded'] = False
             continue
 
@@ -322,10 +327,9 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
             records.loc[event_id, 'danger_recorded'] = False
             continue
         target = event[event['target_id']==target_id]
-
-        # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
         target = determine_conflicts(target, indicator, optimal_threshold)
 
+        # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
         warning = target[target['time']<=event_meta.loc[event_id, 'impact_timestamp']/1000]['conflict'].astype(int).values
         warning_change = warning[1:] - warning[:-1] # 1: safe->unsafe, -1: unsafe->safe, 0: no change
         first_warning = np.where(warning_change>0.5)[0]
@@ -340,28 +344,27 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         true_warning = target_danger[target_danger['conflict']]
         records.loc[event_id, 'true_warning_period'] = len(true_warning) / len(target_danger)
 
-        del event # release memory
     return records
 
 
-def encode_get_attention(states, model, device):
-    contexts, proximity = states
-    data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
+# def encode_get_attention(states, model, device):
+#     contexts, spacing_list = states
+#     data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
 
-    mu_list = []
-    sigma_list = []
-    attention_list = []
-    for x in data_loader:
-        with torch.no_grad():
-            out = model(send_x_to_device(x, device))
-            mu, sigma, attention_matrices = out
-        mu_list.append(mu.squeeze().cpu().numpy())
-        sigma_list.append(sigma.squeeze().cpu().numpy())
-        attention_list.append({key: value.squeeze().cpu().numpy() for key, value in attention_matrices.items()})
+#     mu_list = []
+#     sigma_list = []
+#     attended_states = []
+#     attention_matrices = {}
+#     with torch.no_grad():
+#         for x in data_loader:
+#             out = model(send_x_to_device(x, device))
+#             mu, log_var, hidden_states = out
+#         mu_list.append(mu.cpu().numpy()) # (n_samples, 1)
+#         sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
+#         attended_states.append(hidden_states[0].cpu().numpy())
+#         attention_matrices = {key: value.cpu().numpy() for key, value in hidden_states[1].items()}
 
-    mu = np.concatenate(mu_list, axis=0)
-    sigma = np.concatenate(sigma_list, axis=0)
-    attention_matrices = {key: np.concatenate([attention[key] for attention in attention_list], axis=0) for key in attention_list[0].keys()}
+#     mu = np.concatenate(mu_list, axis=0)
+#     sigma = np.concatenate(sigma_list, axis=0)
 
-
-    return 
+#     return mu, sigma, attended_states, attention_matrices
