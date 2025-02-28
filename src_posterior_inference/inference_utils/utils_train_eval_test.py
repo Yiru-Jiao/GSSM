@@ -98,7 +98,7 @@ class train_val_test():
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
         
     def send_x_to_device(self, x):
-        if isinstance(x, tuple):
+        if isinstance(x, list):
             return tuple([i.to(self.device) for i in x])
         else:
             return x.to(self.device)
@@ -183,7 +183,7 @@ class train_val_test():
             val_loss = self.val_loop()
             if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
                 self.scheduler.step(val_loss)
-                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr:
+                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.6:
                     sys.stderr.write('\n Learning rate is reduced and the loss will involve KL divergence below.\n')
                     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss

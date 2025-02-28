@@ -13,7 +13,7 @@ from src_posterior_inference.inference_utils import modules
 
 
 def send_x_to_device(x, device):
-    if isinstance(x, tuple):
+    if isinstance(x, list):
         return tuple([i.to(device) for i in x])
     else:
         return x.to(device)

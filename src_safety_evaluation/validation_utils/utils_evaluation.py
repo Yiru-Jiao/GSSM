@@ -80,7 +80,7 @@ def extreme_cdf(x, mu, sigma, n=10):
 
 
 def send_x_to_device(x, device):
-    if isinstance(x, tuple):
+    if isinstance(x, list):
         return tuple([i.to(device) for i in x])
     else:
         return x.to(device)
