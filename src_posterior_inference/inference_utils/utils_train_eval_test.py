@@ -137,7 +137,6 @@ class train_val_test():
         # Move model and loss function to device
         self.model = self.model.to(self.device)
         self.loss_func = LogNormalNLL().to(self.device)
-        self.later_loss_func = SmoothLogNormalNLL().to(self.device)
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
@@ -186,6 +185,8 @@ class train_val_test():
                 if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.6:
                     sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
                     # re-define learning rate and its scheduler for new loss function
+                    beta = round(abs(loss_log[epoch_n]) * 5, 2)
+                    self.later_loss_func = SmoothLogNormalNLL(beta).to(self.device)
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                         self.optimizer, mode='min', factor=0.6, patience=10, cooldown=15,
