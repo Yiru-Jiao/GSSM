@@ -314,7 +314,7 @@ def UCD(states, model, likelihood, device):
     sigma = np.concatenate(sigma_list)
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
-    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu_list, sigma_list)+1e-6)
+    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu, sigma)+1e-6)
 
     return mu, sigma, max_intensity
 

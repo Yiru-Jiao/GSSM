@@ -62,9 +62,9 @@ def main(args, manual_seed, path_result):
         current_features.append(event_featurs['current'])
         spacing_list.append(event_featurs['spacing'])
         event_id_list.append(event_featurs['event_id'])
-    current_features = np.concatenate(current_features, axis=0)
-    spacing_list = np.concatenate(spacing_list, axis=0)
-    event_id_list = np.concatenate(event_id_list, axis=0)
+    current_features = np.concatenate(current_features, axis=0) # [num_moments, 13]
+    spacing_list = np.concatenate(spacing_list, axis=0) # [num_moments]
+    event_id_list = np.concatenate(event_id_list, axis=0) # [num_moments, 3]
     '''
     features: ['length_ego','length_sur','combined_width',
                'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
