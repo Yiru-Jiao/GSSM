@@ -161,7 +161,7 @@ class LogNormalNLL(nn.Module):
 
 
 class SmoothLogNormalNLL(nn.Module):
-    def __init__(self, beta=10.):
+    def __init__(self, beta=5.):
         super(SmoothLogNormalNLL, self).__init__()
         self.beta = beta
 
