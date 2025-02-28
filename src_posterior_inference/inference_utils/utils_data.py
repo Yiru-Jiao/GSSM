@@ -35,10 +35,10 @@ class DataOrganiser(Dataset):
                 return self.data[0][idx], self.data[-1][idx]
         elif len(self.encoder_selection)==2:
             def combine_features(idx):
-                return (self.data[0][idx], self.data[1][idx]), self.data[-1][idx]
+                return tuple([self.data[0][idx], self.data[1][idx]]), self.data[-1][idx]
         elif len(self.encoder_selection)==3:
             def combine_features(idx):
-                return (self.data[0][idx], self.data[1][idx], self.data[2][idx]), self.data[-1][idx]
+                return tuple([self.data[0][idx], self.data[1][idx], self.data[2][idx]]), self.data[-1][idx]
         return combine_features
 
     def read_data(self,):
