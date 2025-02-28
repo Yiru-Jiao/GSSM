@@ -48,7 +48,7 @@ def main(args, manual_seed, path_prepared):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     if args.stage is None:
-        exp_config = set_experiments(stage=[1])
+        exp_config = set_experiments(stage=[1, 2, 5])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -69,7 +69,7 @@ def main(args, manual_seed, path_prepared):
         encoder_name = '_'.join(encoder_selection)
         pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
 
-        initial_lr = 0.00025 if pretrained_encoder else 0.0005
+        initial_lr = 0.0001 if pretrained_encoder else 0.00025
         batch_size = 256
         epochs = 500
         
@@ -89,7 +89,7 @@ def main(args, manual_seed, path_prepared):
             val_loss = pd.read_csv(pipeline.path_output + 'val_loss_log.csv')
             val_loss = np.sort(val_loss['val_loss'].values[-5:])[1:4].mean()
         else:
-            pipeline.train_model(epochs, initial_lr, lr_schedule=True, verbose=1)
+            pipeline.train_model(epochs, initial_lr, lr_schedule=True, verbose=5)
             val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
         model_size = sum(p.numel() for p in pipeline.model.parameters())
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
