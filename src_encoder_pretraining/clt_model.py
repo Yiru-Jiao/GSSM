@@ -354,7 +354,63 @@ class spclt():
                 return np.concatenate((loss_log[:self.epoch_n], val_loss_log[:self.epoch_n]), axis=1)
             else:
                 return loss_log[:self.epoch_n]
-    
+
+
+    def compute_loss(self, val_data, soft_assignments, loss_config=None):
+        """
+        Computes the loss for the given validation data and soft assignments.
+        """
+        assert self._net is not None, 'please train or load a model first'
+        if isinstance(soft_assignments, np.ndarray):
+            assert soft_assignments.shape[0] == soft_assignments.shape[1]
+            assert val_data.shape[0] == soft_assignments.shape[0] if soft_assignments is not None else True
+
+        # create test dataset and dataloader
+        val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
+        val_loader = DataLoader(val_dataset, batch_size=min(128, len(val_dataset)), shuffle=False, drop_last=True)
+        del val_dataset
+
+        # define loss function
+        self.loss_func = losses.combined_loss
+        
+        if self.loss_config is None:
+            self.loss_config = {'temporal_unit': 0, 'tau_inst': 0}
+        else:
+            self.loss_config['temporal_unit'] = 0  ## The minimum unit to perform temporal contrast. 
+                                                   ## When training on a very long sequence, increasing this helps to reduce the cost of time and memory.
+        if loss_config is None:
+            loss_config = self.loss_config
+        else:
+            loss_config['temporal_unit'] = 0
+ 
+        org_training = self._net.training
+        self.eval()
+        with torch.no_grad():
+            val_loss = torch.tensor(0., device=self.device, requires_grad=False)
+            for val_batch_iter, (x, idx) in enumerate(val_loader):
+                if soft_assignments is None:
+                    soft_labels = None
+                elif isinstance(soft_assignments, str):
+                    batch_sim_mat = datautils.compute_sim_mat(x.numpy(), self.dist_metric)
+                    soft_labels = datautils.assign_soft_labels(batch_sim_mat, loss_config['tau_inst'])
+                    soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
+                    del batch_sim_mat
+                else:
+                    soft_labels = soft_assignments[idx][:,idx]
+                    soft_labels = torch.from_numpy(soft_labels).float().to(self.device)
+                val_loss_config = loss_config.copy()
+                val_loss_config['soft_labels'] = soft_labels
+
+                val_loss, val_loss_comp = self.loss_func(self, x.to(self.device),
+                                                         val_loss_config, 
+                                                         self.regularizer_config)
+                val_loss += val_loss_comp[0]
+                del val_loss_config
+            val_loss = val_loss.item() / (val_batch_iter+1)
+        if org_training:
+            self.train()
+        return val_loss
+
 
     def encode(self, data, batch_size=None):
         """
@@ -365,7 +421,7 @@ class spclt():
         self.net.eval()
 
         if batch_size is None:
-            batch_size = self.batch_size
+            batch_size = min(128, len(data))
 
         assert data.ndim == 3
         if isinstance(data, torch.Tensor):
