@@ -244,6 +244,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'safety_recorded'] = False
 
     records['threshold'] = threshold
+    records['safe_target_ids'] = records['safe_target_ids'].fillna('none')
     return records
 
 
