@@ -435,11 +435,9 @@ class spclt():
             for x, _ in dataloader:
                 x = x.to(self.device)
                 out = self.net(x) # (batch_size, seq_length, output_dim)
-                print('out:', out.shape)
                 output.append(out)
                 
             output = torch.cat(output, dim=0)
-            print('output:', output.shape)
             
         self.net.train(org_training)
         return output
