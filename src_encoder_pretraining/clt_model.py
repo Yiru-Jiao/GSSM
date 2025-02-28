@@ -36,7 +36,7 @@ class spclt():
         self.regularizer_config = regularizer_config
                 
         self._net = encoder.LSTMEncoder(input_dims=input_dims,
-                                        hidden_dims=5*output_dims,
+                                        hidden_dims=output_dims,
                                         num_layers=2).to(self.device)
 
         self.net = torch.optim.swa_utils.AveragedModel(self._net).to(self.device)
@@ -435,9 +435,11 @@ class spclt():
             for x, _ in dataloader:
                 x = x.to(self.device)
                 out = self.net(x) # (batch_size, seq_length, output_dim)
+                print('out:', out.shape)
                 output.append(out)
                 
             output = torch.cat(output, dim=0)
+            print('output:', output.shape)
             
         self.net.train(org_training)
         return output
