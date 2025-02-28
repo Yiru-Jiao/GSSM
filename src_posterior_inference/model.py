@@ -155,7 +155,7 @@ class LogNormalNLL(nn.Module):
         # clamp log_y in [mu-3sigma, mu+3sigma] to avoid numerical instability
         sigma3 = 3 * torch.exp(0.5*log_var)
         clamped_log_y = torch.clamp(log_y, min=mu-sigma3, max=mu+sigma3)
-        nll = clamped_log_y + 0.5 * (log_var + (clamped_log_y-mu)**2 / torch.exp(log_var))
+        nll = 0.5 * (log_var + (clamped_log_y-mu)**2 / torch.exp(log_var))
         loss = nll.mean()
         return loss
 
@@ -169,7 +169,7 @@ class SmoothLogNormalNLL(nn.Module):
         mu = out[0]
         log_var = out[1]
         log_y = torch.log(y)
-        nll = log_y + 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
+        nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
 
         mu_prime, log_var_prime = inducing_out
         kl_divergence = 0.5 * (log_var_prime - log_var + (torch.exp(log_var)+(mu-mu_prime)**2) / torch.exp(log_var_prime) - 1)
