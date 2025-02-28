@@ -38,7 +38,7 @@ def parallel_dtw(i, X_tr, N):
     return dist_row
 
 
-def get_DTW(X_tr, multivariate=False):
+def get_DTW(X_tr, multivariate=False, verbose=False):
     N = len(X_tr)
     dist_mat = np.zeros((N,N))
     if multivariate:
@@ -52,11 +52,13 @@ def get_DTW(X_tr, multivariate=False):
                 dist_mat[i,j] = dist
                 dist_mat[j,i] = dist
     else:
-        progress_bar = tqdm(range(N), desc=desc, ascii=True, miniters=int(N/10))
+        if verbose:
+            progress_bar = tqdm(range(N), desc=desc, ascii=True, miniters=int(N/10))
+        else:
+            progress_bar = range(N)
         dist_rows = Parallel(n_jobs=-1)(delayed(parallel_dtw)(i, X_tr, N) for i in progress_bar)
         dist_mat_upper = np.array(dist_rows)
         dist_mat = dist_mat_upper + dist_mat_upper.T
-        progress_bar.close()
         
     return dist_mat
 
