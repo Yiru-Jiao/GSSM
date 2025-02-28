@@ -17,21 +17,21 @@ from torch.utils.data import DataLoader
 
 def set_experiments(stage=[1,2,3,4,5]):
     exp_config = []
-    if 1 in stage: # pretraining encoder to maintain feature structure
+    if 1 in stage: # single dataset, current only, no encoder pretraining
         exp_config.extend([
             [['highD'], ['current'], False],
-            # [['highD'], ['current'], True],
-            [['highD'], ['current','profiles'], False],
-            # [['highD'], ['current','profiles'], True],
-        ])
-    if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
-        exp_config.extend([
             [['SafeBaseline'], ['current'], False],
             [['INTERACTION'], ['current'], False],
             [['Argoverse'], ['current'], False],
-            # [['SafeBaseline'], ['current'], True],
-            # [['INTERACTION'], ['current'], True],
-            # [['Argoverse'], ['current'], True],
+            [['highD'], ['current','profiles'], False],
+        ])
+    if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
+        exp_config.extend([
+            [['highD'], ['current'], True],
+            [['SafeBaseline'], ['current'], True],
+            [['INTERACTION'], ['current'], True],
+            [['Argoverse'], ['current'], True],
+            # [['highD'], ['current','profiles'], True],
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
@@ -184,7 +184,13 @@ class train_val_test():
             if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
                 self.scheduler.step(val_loss)
                 if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.6:
-                    sys.stderr.write('\n Learning rate is reduced and the loss will involve KL divergence below.\n')
+                    sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
+                    # re-define learning rate and its scheduler for new loss function
+                    self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
+                    self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                        self.optimizer, mode='min', factor=0.6, patience=10, cooldown=15,
+                        threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
+                    )
                     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
