@@ -12,11 +12,11 @@ import pandas as pd
 import torch
 import argparse
 sys.path.append('./')
-from unified_conflit_detection import UCD, define_model
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
+from src_safety_evaluation.validation_utils.utils_evaluation import parallel_records
+from src_safety_evaluation.reuse_ucd.unified_conflit_detection import UCD, define_model
 from joblib import Parallel, delayed
-from src_safety_evaluation.validation_utils.utils_evaluation import *
 
 
 def parse_args():
