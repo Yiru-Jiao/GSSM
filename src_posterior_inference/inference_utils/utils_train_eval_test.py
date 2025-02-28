@@ -169,21 +169,22 @@ class train_val_test():
                 self.optimizer.zero_grad()
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        loss = self.compute_loss(x, y, epoch_n)
+                        loss = self.compute_loss(x, y)
                         scaler.scale(loss).backward()
                         scaler.step(self.optimizer)
                         scaler.update()
                 else:
-                    loss = self.compute_loss(x, y, epoch_n)
+                    loss = self.compute_loss(x, y)
                     loss.backward()
                     self.optimizer.step()
                 train_loss += loss
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
-            val_loss = self.val_loop(epoch_n)
+            val_loss = self.val_loop()
             if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
                 self.scheduler.step(val_loss)
-                if self.optimizer.param_groups[0]['lr'] < self.initial_lr:
+                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr:
+                    sys.stderr.write('Learning rate is reduced and the loss will involve KL divergence.\n')
                     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
@@ -244,16 +245,16 @@ class train_val_test():
             loss_log.to_csv(self.path_output+'loss_log.csv')
 
     # Validation loop
-    def val_loop(self, epoch_n):
+    def val_loop(self):
         self.model.eval()
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        val_loss += self.compute_loss(x, y, epoch_n)
+                        val_loss += self.compute_loss(x, y)
                 else:
-                    val_loss += self.compute_loss(x, y, epoch_n)
+                    val_loss += self.compute_loss(x, y)
         self.model.train()
         return val_loss.item() / val_batch_iter
     
