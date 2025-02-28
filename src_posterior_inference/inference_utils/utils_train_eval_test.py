@@ -184,7 +184,7 @@ class train_val_test():
             if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
                 self.scheduler.step(val_loss)
                 if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr:
-                    sys.stderr.write('Learning rate is reduced and the loss will involve KL divergence.\n')
+                    sys.stderr.write('\n Learning rate is reduced and the loss will involve KL divergence below.\n')
                     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
