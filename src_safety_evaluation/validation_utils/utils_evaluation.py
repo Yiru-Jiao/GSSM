@@ -234,12 +234,14 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
                     target_period = determine_conflicts(target_period.copy(), indicator, threshold)
                     if np.any(target_period['conflict']):
                         false_warnings += 1
+        true_non_warnings = len(target_ids) - false_warnings
 
         if safety_recorded:
             records.loc[event_id, 'safety_recorded'] = True
-            records.loc[event_id, 'false_warning'] = false_warnings
-            records.loc[event_id, 'true_non_warning'] = len(target_ids) - false_warnings
             records.loc[event_id, 'safe_target_ids'] = ','.join([str(i) for i in target_ids])
+            records.loc[event_id, 'num_false_warning'] = false_warnings
+            records.loc[event_id, 'num_true_non_warning'] = true_non_warnings
+            records.loc[event_id, 'false_warning'] = 1 if false_warnings>0 else 0
         else:
             records.loc[event_id, 'safety_recorded'] = False
             records.loc[event_id, 'safe_target_ids'] = 'none'
@@ -256,8 +258,8 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
 
     true_positives = warning[warning['danger_recorded']&(warning['true_warning']>0.5)].groupby('threshold').size()
-    false_positives = warning[warning['safety_recorded']].groupby('threshold')['false_warning'].sum()
-    true_negatives = warning[warning['safety_recorded']].groupby('threshold')['true_non_warning'].sum()
+    false_positives = warning[warning['safety_recorded']&(warning['false_warning']>0.5)].groupby('threshold').size()
+    true_negatives = warning[warning['safety_recorded']&(warning['false_warning']<0.5)].groupby('threshold').size()
     false_negatives = warning[warning['danger_recorded']&(warning['true_warning']<0.5)].groupby('threshold').size()
     statistics = pd.concat([true_positives, false_positives, true_negatives, false_negatives], axis=1, keys=['TP', 'FP', 'TN', 'FN'])
     statistics = statistics.fillna(0).reset_index() # nan can be caused by empty combination of threshold and warning
