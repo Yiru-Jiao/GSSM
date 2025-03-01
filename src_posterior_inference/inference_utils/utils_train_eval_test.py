@@ -20,16 +20,15 @@ def set_experiments(stage=[1,2,3,4,5]):
     if 1 in stage: # single dataset, current only, no encoder pretraining
         exp_config.extend([
             [['highD'], ['current'], False],
-            [['SafeBaseline'], ['current'], False],
             [['INTERACTION'], ['current'], False],
+            [['SafeBaseline'], ['current'], False],
             [['Argoverse'], ['current'], False],
-            [['highD'], ['current','profiles'], False],
         ])
     if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
         exp_config.extend([
             [['highD'], ['current'], True],
-            [['SafeBaseline'], ['current'], True],
             [['INTERACTION'], ['current'], True],
+            [['SafeBaseline'], ['current'], True],
             [['Argoverse'], ['current'], True],
             # [['highD'], ['current','profiles'], True],
         ])
@@ -45,12 +44,19 @@ def set_experiments(stage=[1,2,3,4,5]):
     if 4 in stage: # single dataset, encoder pretrained with all datasets
         exp_config.extend([
             [['highD'], ['current'], True],
-            [['SafeBaseline'], ['current'], True],
             [['INTERACTION'], ['current'], True],
+            [['SafeBaseline'], ['current'], True],
             [['Argoverse'], ['current'], True],
         ])
-    if 5 in stage: # on SafeBaseline, add extra features
+    if 5 in stage: # add extra features
         exp_config.extend([
+            [['Argoverse'], ['current','profiles'], False],
+            [['Argoverse'], ['current+acc','profiles'], False],
+            [['INTERACTION'], ['current','profiles'], False],
+            [['INTERACTION'], ['current+acc','profiles'], False],
+            [['highD'], ['current','profiles'], False],
+            [['highD'], ['current+acc','profiles'], False],
+            [['SafeBaseline'], ['current+acc', 'environment'], True],
             [['SafeBaseline'], ['current+acc'], False],
             [['SafeBaseline'], ['current+acc', 'environment'], False],
             [['SafeBaseline'], ['current+acc','environment','profiles'], False],
@@ -107,14 +113,14 @@ class train_val_test():
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             inducing_points = x + noise*torch.randn_like(x, device=x.device)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
-            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x.device), x[1])
+            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x[0].device), x[1])
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
-            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x.device),
-                               x[1] + noise*torch.randn_like(x[1], device=x.device))
+            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x[0].device),
+                               x[1] + noise*torch.randn_like(x[1], device=x[1].device))
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
-            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x.device),
+            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x[0].device),
                                x[1],
-                               x[2] + noise*torch.randn_like(x[2], device=x.device))
+                               x[2] + noise*torch.randn_like(x[2], device=x[2].device))
         inducing_out = self.model(inducing_points)
         return inducing_out
 
