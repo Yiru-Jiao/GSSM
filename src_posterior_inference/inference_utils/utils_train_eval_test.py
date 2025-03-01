@@ -244,9 +244,9 @@ class train_val_test():
 
         # Save model and loss records
         torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
-        loss_log = loss_log[loss_log<np.inf]
+        loss_log = loss_log[:epoch_n+1]
         if lr_schedule:
-            val_loss_log = val_loss_log[val_loss_log<np.inf]
+            val_loss_log = val_loss_log[:epoch_n+1]
             loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     data={'train_loss': loss_log, 'val_loss': val_loss_log})
             loss_log.to_csv(self.path_output+'loss_log.csv')
