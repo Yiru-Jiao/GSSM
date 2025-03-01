@@ -34,28 +34,28 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
-            [['Argoverse', 'INTERACTION'], ['current'], False],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], False],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], False],
-            [['Argoverse', 'INTERACTION'], ['current'], True],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], True],
-            [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], True],
+            # [['Argoverse', 'INTERACTION'], ['current'], False],
+            # [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], False],
+            # [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], False],
+            # [['Argoverse', 'INTERACTION'], ['current'], True],
+            # [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], True],
+            # [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], True],
         ])
-    if 4 in stage: # single dataset, encoder pretrained with all datasets
+    if 4 in stage: # single/multiple dataset, encoder pretrained with all datasets?
         exp_config.extend([
-            [['highD'], ['current'], True],
-            [['INTERACTION'], ['current'], True],
-            [['SafeBaseline'], ['current'], True],
-            [['Argoverse'], ['current'], True],
+            # [['highD'], ['current'], True],
+            # [['INTERACTION'], ['current'], True],
+            # [['SafeBaseline'], ['current'], True],
+            # [['Argoverse'], ['current'], True],
         ])
     if 5 in stage: # add extra features
         exp_config.extend([
-            [['Argoverse'], ['current','profiles'], False],
-            [['Argoverse'], ['current+acc','profiles'], False],
-            [['INTERACTION'], ['current','profiles'], False],
-            [['INTERACTION'], ['current+acc','profiles'], False],
-            [['highD'], ['current','profiles'], False],
-            [['highD'], ['current+acc','profiles'], False],
+            # [['Argoverse'], ['current','profiles'], False],
+            # [['Argoverse'], ['current+acc','profiles'], False],
+            # [['INTERACTION'], ['current','profiles'], False],
+            # [['INTERACTION'], ['current+acc','profiles'], False],
+            # [['highD'], ['current','profiles'], False],
+            # [['highD'], ['current+acc','profiles'], False],
             [['SafeBaseline'], ['current+acc', 'environment'], True],
             [['SafeBaseline'], ['current+acc'], False],
             [['SafeBaseline'], ['current+acc', 'environment'], False],
@@ -188,7 +188,8 @@ class train_val_test():
             val_loss = self.val_loop()
             if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
                 self.scheduler.step(val_loss)
-                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.6:
+                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.5:
+                    # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
                     sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
                     # re-define learning rate and its scheduler for new loss function
                     beta = round(abs(loss_log[epoch_n]) * 5, 2)
