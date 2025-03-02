@@ -190,7 +190,12 @@ def main(args, events, manual_seed, path_prepared, path_result):
         encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
         encoder_selection = encoder_name.split('_')
         pretraining = model_evaluation.iloc[model_id]['pretraining']
-        pretrained_encoder = True if pretraining=='pretrained' else False
+        if pretraining=='not_pretrained':
+            pretrained_encoder = False
+        elif pretraining=='pretrained':
+            pretrained_encoder = True
+        elif pretraining=='pretrained_all':
+            pretrained_encoder = 'all'
         model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         print(f'--- Evaluating {model_name} ---')
 

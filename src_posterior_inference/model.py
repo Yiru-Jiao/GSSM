@@ -92,7 +92,7 @@ class UnifiedProximity(nn.Module):
             best_model = self.select_best_model(pretraining_evaluation)
             self.EnvEncoder.load(best_model['bslr'], self.device, path_prepared, continue_training)
         if 'profiles' in self.encoder_selection:
-            path_prepared = path_prepared + 'EncoderPretraining/spclt/SafeBaseline/'
+            path_prepared = path_prepared + f'EncoderPretraining/spclt/{dataset_name}/'
             pretraining_evaluation = pd.read_csv(path_prepared + 'evaluation.csv')
             best_model = self.select_best_model(pretraining_evaluation)
             self.TSEncoder.load(best_model['model'], self.device, path_prepared, continue_training)
