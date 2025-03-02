@@ -43,16 +43,15 @@ class Multi_Evaluation:
                                  'mean_continuity':0.}
             assert self.latent.shape[1]==5, 'Local evaluation is only applied to time series encoding and the sequence length should have been set 5.'
 
-            sample_indices = np.arange(0, self.data.shape[0], 10)
-            sample_count = 0
+            num_samples = self.data.shape[0]
             dist_mat_measure = {'local_distmat_rmse': 0}
             for i in tqdm(range(5), desc='Local evaluation', ascii=True):
                 # each dimension represents for the passed 0.5, 1, 1.5, 2, 2.5 seconds
                 # latent need to stack into (B, 5x, 64) to map with the original time series
                 sub_l = np.concatenate([self.latent[:,[i],:]]*(5*(i+1)), axis=1) # (B, [5, 10, 15, 20, 25], 64)
-                sub_x = self.data[:, -(i+1)*5:, :] # (B, [5, 10, 15, 20, 25], 4)
+                sub_x = self.data[:, -(i+1)*5:, :].copy() # (B, [5, 10, 15, 20, 25], 4)
                 N = sub_x.shape[1]
-                for sample_index in sample_indices:
+                for sample_index in range(num_samples):
                     data = sub_x[sample_index].reshape(N, -1)
                     latent = sub_l[sample_index].reshape(N, -1)
                     dist_mat_X = get_EUC(data)
@@ -72,13 +71,9 @@ class Multi_Evaluation:
                     mean_dep_measures = {'mean_'+key: np.nanmean(values) for key, values in dep_measures.items()}
                     for key, value in mean_dep_measures.items():
                         dep_measures_list[key] += value
-
-                    sample_count += 1
-                    if sample_count >= 500:
-                        break
             
-            dist_mat_measure['local_distmat_rmse'] /= (sample_count*5)
-            dep_measures = {'local_'+key: value/sample_count for key, value in dep_measures_list.items()}
+            dist_mat_measure['local_distmat_rmse'] /= (num_samples*5)
+            dep_measures = {'local_'+key: value/num_samples/5 for key, value in dep_measures_list.items()}
             results = {**dist_mat_measure, **dep_measures}
         else:
             N = self.data.shape[0]

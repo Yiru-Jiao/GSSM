@@ -90,7 +90,6 @@ def main(args):
         def read_saved_results():
             eval_results = pd.read_csv(results_dir)
             eval_results = eval_results.set_index('model')
-            eval_results['model_used'] = eval_results['model_used'].astype(str)
             return eval_results
         
         model_list = ['softclt', 'topo-softclt', 'ggeo-softclt']
@@ -171,6 +170,7 @@ def main(args):
             eval_results = read_saved_results() # read saved results again to avoid overwriting
             eval_results.loc[model_type, keys] = values
             eval_results.loc[model_type, 'model_used'] = best_model
+            eval_results['model_used'] = eval_results['model_used'].astype(str)
 
             # Save evaluation results per dataset and model
             eval_results.to_csv(results_dir)
