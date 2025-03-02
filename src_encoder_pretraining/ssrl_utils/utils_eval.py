@@ -20,7 +20,7 @@ class Multi_Evaluation:
     def define_ks(self, dist_mat_X):
         if dist_mat_X.shape[0] < 30:
             # define k values for evaluation, linearly spaced
-            k_neighbours = np.arange(2, np.ceil(5/3)+1, 2)
+            k_neighbours = np.arange(2, np.ceil(5/3)+1, 2).astype(int)
         else:
             # define k values for evaluation, logarithmically spaced
             k_neighbours = np.unique(np.logspace(1, np.log(min(dist_mat_X.shape[0]/3,200))/np.log(5), num=10, base=5).astype(int))
