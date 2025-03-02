@@ -65,8 +65,13 @@ def main(args):
     verbose = 5 # update per n_epochs // (1+verbose*4) epoch
     if args.encoder_name == 'environment':
         datasets_list = [['SafeBaseline']]
+    elif args.encoder_name == 'current':
+        datasets_list = [['highD'], ['INTERACTION'], ['SafeBaseline'], ['Argoverse'],
+                         ['INTERACTION', 'highD'], ['INTERACTION', 'highD', 'Argoverse'],
+                         ['INTERACTION', 'highD', 'Argoverse', 'SafeBaseline']]
     else:
-        datasets_list = [['highD'], ['SafeBaseline'], ['INTERACTION'], ['Argoverse']]
+        datasets_list = [['SafeBaseline']]
+
     if args.reversed_list:
         datasets_list = datasets_list[::-1]
         bslr_list = bslr_list[::-1]

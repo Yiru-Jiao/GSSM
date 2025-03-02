@@ -89,7 +89,7 @@ def main(args):
 
     start_time = systime.time()
     # Load dataset
-    for dataset in ['highD','SafeBaseline',]:
+    for dataset in ['SafeBaseline','INTERACTION_highD_Argoverse_SafeBaseline']:
         print(f'---- Loading {dataset} data ----')
         if '_' in dataset:
             train_data, _ = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')

@@ -26,27 +26,23 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
         exp_config.extend([
-            [['highD'], ['current'], True],
-            [['INTERACTION'], ['current'], True],
-            [['SafeBaseline'], ['current'], True],
-            [['Argoverse'], ['current'], True],
-            # [['highD'], ['current','profiles'], True],
+            [['highD'], ['current'], 'single'],
+            [['INTERACTION'], ['current'], 'single'],
+            [['SafeBaseline'], ['current'], 'single'],
+            [['Argoverse'], ['current'], 'single'],
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
-            # [['Argoverse', 'INTERACTION'], ['current'], False],
-            # [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], False],
-            # [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], False],
-            # [['Argoverse', 'INTERACTION'], ['current'], True],
-            # [['Argoverse', 'INTERACTION', 'SafeBaseline'], ['current'], True],
-            # [['Argoverse', 'INTERACTION', 'SafeBaseline', 'highD'], ['current'], True],
+            [['INTERACTION','highD'], ['current'], False],
+            [['INTERACTION','highD','Argoverse'], ['current'], False],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current'], False],
         ])
-    if 4 in stage: # single/multiple dataset, encoder pretrained with all datasets?
+    if 4 in stage: # single/multiple dataset, encoder pretrained with all datasets
         exp_config.extend([
-            # [['highD'], ['current'], True],
-            # [['INTERACTION'], ['current'], True],
-            # [['SafeBaseline'], ['current'], True],
-            # [['Argoverse'], ['current'], True],
+            [['highD'], ['current'], 'all'],
+            [['INTERACTION'], ['current'], 'all'],
+            [['SafeBaseline'], ['current'], 'all'],
+            [['Argoverse'], ['current'], 'all'],
         ])
     if 5 in stage: # add extra features
         exp_config.extend([
@@ -56,9 +52,9 @@ def set_experiments(stage=[1,2,3,4,5]):
             # [['INTERACTION'], ['current+acc','profiles'], False],
             # [['highD'], ['current','profiles'], False],
             # [['highD'], ['current+acc','profiles'], False],
-            [['SafeBaseline'], ['current+acc'], False],
-            [['SafeBaseline'], ['current+acc', 'environment'], False],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], False],
+            [['SafeBaseline'], ['current+acc'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
             # [['SafeBaseline'], ['current+acc'], True],
             # [['SafeBaseline'], ['current+acc', 'environment'], True],
             # [['SafeBaseline'], ['current+acc','environment','profiles'], True],

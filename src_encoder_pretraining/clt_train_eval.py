@@ -72,7 +72,7 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     # Load dataset
-    for dataset in ['highD','SafeBaseline']:
+    for dataset in ['SafeBaseline', 'INTERACTION_highD_Argoverse_SafeBaseline']:
         print(f'---- Loading {dataset} data ----')
         if '_' in dataset:
             train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
@@ -90,6 +90,7 @@ def main(args):
         def read_saved_results():
             eval_results = pd.read_csv(results_dir)
             eval_results = eval_results.set_index('model')
+            eval_results['model_used'] = eval_results['model_used'].astype(str)
             return eval_results
         
         model_list = ['softclt', 'topo-softclt', 'ggeo-softclt']
