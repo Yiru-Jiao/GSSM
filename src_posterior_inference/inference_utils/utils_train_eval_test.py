@@ -26,16 +26,18 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 2 in stage: # single dataset, current only, encoder pretrained with single dataset
         exp_config.extend([
-            [['highD'], ['current'], 'single'],
-            [['INTERACTION'], ['current'], 'single'],
-            [['SafeBaseline'], ['current'], 'single'],
-            [['Argoverse'], ['current'], 'single'],
+            [['highD'], ['current'], True],
+            [['INTERACTION'], ['current'], True],
+            [['SafeBaseline'], ['current'], True],
+            [['Argoverse'], ['current'], True],
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
             [['INTERACTION','highD'], ['current'], False],
             [['INTERACTION','highD','Argoverse'], ['current'], False],
             [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current'], False],
+            [['INTERACTION','highD'], ['current'], True],
+            [['INTERACTION','highD','Argoverse'], ['current'], True],
         ])
     if 4 in stage: # single/multiple dataset, encoder pretrained with all datasets
         exp_config.extend([
@@ -43,6 +45,9 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['INTERACTION'], ['current'], 'all'],
             [['SafeBaseline'], ['current'], 'all'],
             [['Argoverse'], ['current'], 'all'],
+            [['INTERACTION','highD'], ['current'], 'all'],
+            [['INTERACTION','highD','Argoverse'], ['current'], 'all'],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current'], 'all'],
         ])
     if 5 in stage: # add extra features
         exp_config.extend([
@@ -78,10 +83,12 @@ class train_val_test():
         encoder_name = '_'.join(encoder_selection)
         self.encoder_name = encoder_name
         if not return_attention:
-            if pretrained_encoder:
-                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained/{encoder_name}/'
-            else:
+            if pretrained_encoder==False:
                 self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/not_pretrained/{encoder_name}/'
+            elif pretrained_encoder==True:
+                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained/{encoder_name}/'
+            elif pretrained_encoder=='all':
+                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained_all/{encoder_name}/'
             os.makedirs(self.path_output, exist_ok=True)
         self.encoder_selection = encoder_selection
         self.pretrained_encoder = pretrained_encoder
@@ -90,8 +97,11 @@ class train_val_test():
 
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.return_attention)
-        if self.pretrained_encoder:
+        if self.pretrained_encoder==True:
             self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=False)
+        elif self.pretrained_encoder=='all':
+            self.model.load_pretrained_encoders('INTERACTION_highD_Argoverse_SafeBaseline', 
+                                                self.path_prepared, continue_training=True)
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
@@ -187,11 +197,11 @@ class train_val_test():
                     # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
                     sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
                     # re-define learning rate and its scheduler for new loss function
-                    beta = round(abs(loss_log[epoch_n]) * 5, 2)
+                    beta = 5.
                     self.later_loss_func = SmoothLogNormalNLL(beta).to(self.device)
-                    self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
+                    self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=10, cooldown=15,
+                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=10,
                         threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                     )
                     self.lr_reduced = True
@@ -269,10 +279,12 @@ class train_val_test():
     
     def load_model(self, batch_size=None, initial_lr=None):
         if 'path_output' not in self.__dict__:
-            if self.pretrained_encoder:
-                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}/'
-            else:
+            if self.pretrained_encoder==False:
                 self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}/'
+            elif self.pretrained_encoder==True:
+                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}/'
+            elif self.pretrained_encoder=='all':
+                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained_all/{self.encoder_name}/'
         if batch_size is not None and initial_lr is not None:
             self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
         else:

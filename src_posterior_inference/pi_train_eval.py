@@ -48,7 +48,7 @@ def main(args, manual_seed, path_prepared):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     if args.stage is None:
-        exp_config = set_experiments(stage=[1, 2, 5])
+        exp_config = set_experiments(stage=[1, 3])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -67,9 +67,14 @@ def main(args, manual_seed, path_prepared):
     for dataset, encoder_selection, pretrained_encoder in zip(datasets, encoder_combinations, pretraining_flag):
         dataset_name = '_'.join(dataset)
         encoder_name = '_'.join(encoder_selection)
-        pretraining = 'pretrained' if pretrained_encoder else 'not_pretrained'
+        if pretrained_encoder==False:
+            pretraining = 'not_pretrained'
+        elif pretrained_encoder==True:
+            pretraining = 'pretrained'
+        elif pretrained_encoder=='all':
+            pretraining = 'pretrained_all'
 
-        initial_lr = 0.00015 if pretrained_encoder else 0.00025
+        initial_lr = 0.00025 if pretrained_encoder==False else 0.00015 
         batch_size = 256
         epochs = 500
         
