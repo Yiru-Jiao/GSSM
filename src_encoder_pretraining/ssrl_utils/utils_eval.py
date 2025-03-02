@@ -37,7 +37,7 @@ class Multi_Evaluation:
                                  'mean_dist_mrre':0., 
                                  'mean_trustworthiness':0, 
                                  'mean_continuity':0.}
-            assert self.data.shape[1]==5, 'Local evaluation is only applied to time series encoding and the sequence length should have been set 5.'
+            assert self.latent.shape[1]==5, 'Local evaluation is only applied to time series encoding and the sequence length should have been set 5.'
 
             sample_indices = np.arange(0, self.data.shape[0], 10)
             sample_count = 0
