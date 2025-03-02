@@ -56,7 +56,6 @@ def set_experiments(stage=[1,2,3,4,5]):
             # [['INTERACTION'], ['current+acc','profiles'], False],
             # [['highD'], ['current','profiles'], False],
             # [['highD'], ['current+acc','profiles'], False],
-            [['SafeBaseline'], ['current+acc', 'environment'], True],
             [['SafeBaseline'], ['current+acc'], False],
             [['SafeBaseline'], ['current+acc', 'environment'], False],
             [['SafeBaseline'], ['current+acc','environment','profiles'], False],
