@@ -69,8 +69,8 @@ def main(args):
         datasets_list = [['highD'], ['INTERACTION'], ['SafeBaseline'], ['Argoverse'],
                          ['INTERACTION', 'highD'], ['INTERACTION', 'highD', 'Argoverse'],
                          ['INTERACTION', 'highD', 'Argoverse', 'SafeBaseline']]
-    else:
-        datasets_list = [['SafeBaseline']]
+    elif args.encoder_name == 'current+acc':
+        datasets_list = [['INTERACTION', 'highD', 'Argoverse', 'SafeBaseline']]
 
     if args.reversed_list:
         datasets_list = datasets_list[::-1]
