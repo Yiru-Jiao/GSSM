@@ -184,7 +184,6 @@ class spclt():
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
         del train_dataset
-        train_iters = int(len(train_loader)*0.5) # use 50% of the total iterations per epoch
         if n_epochs is not None:
             if self.regularizer_config['reserve'] is None:
                 loss_log = np.zeros((n_epochs, 1)) * np.nan
@@ -211,9 +210,6 @@ class spclt():
             if loss_log is not None and self.regularizer_config['reserve'] is not None:
                 train_loss_comp = torch.zeros(4, device=self.device, requires_grad=False)
             for train_batch_iter, (x, idx) in enumerate(train_loader):
-                if n_epochs is not None and train_batch_iter >= train_iters:
-                    break # use 50% of the total iterations per epoch, after 10 epochs 99.90% of the data is used
-
                 if train_soft_assignments is None:
                     soft_labels = None
                 elif isinstance(train_soft_assignments, str):
