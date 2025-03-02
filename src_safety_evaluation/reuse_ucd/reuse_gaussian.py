@@ -111,7 +111,7 @@ def main(args, manual_seed, path_result):
     event_meta['danger_end'] = danger_end
     assert np.all(np.isin(event_data['event_id'].unique(), event_meta.index.values))
 
-    ucd_thresholds = np.unique(np.round(10**np.arange(0,4.2,0.035))).astype(int)
+    ucd_thresholds = np.unique(np.round(10**(np.arange(0,2.04,0.0112)**2))).astype(int)
     print('--- Analyzing ---')
     progress_bar = tqdm(ucd_thresholds, desc='UCD', ascii=True, dynamic_ncols=False, miniters=10)
     ucd_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, results, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)
