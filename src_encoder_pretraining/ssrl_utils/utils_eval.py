@@ -45,7 +45,7 @@ class Multi_Evaluation:
             for i in tqdm(range(5), desc='Local evaluation', ascii=True):
                 # each dimension represents for the passed 0.5, 1, 1.5, 2, 2.5 seconds
                 # latent need to stack into (B, 5x, 64) to map with the original time series
-                sub_l = torch.cat([self.latent[:,[i],:]]*(5*(i+1)), dim=1) # (B, [5, 10, 15, 20, 25], 64)
+                sub_l = np.concatenate([self.latent[:,[i],:]]*(5*(i+1)), axis=1) # (B, [5, 10, 15, 20, 25], 64)
                 sub_x = self.data[:, -(i+1)*5:, :] # (B, [5, 10, 15, 20, 25], 4)
                 N = sub_x.shape[1]
                 for sample_index in sample_indices:
