@@ -23,6 +23,8 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 ### Dependencies
 `pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib` ...
 
+**!! Rerun for the final round before submission !!**
+
 ### Bird's eye trajectory reconstruction
 `/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
 
