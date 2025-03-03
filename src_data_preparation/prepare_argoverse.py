@@ -18,11 +18,11 @@ def get_df(motion, time_seq, veh_type):
     df = pd.DataFrame(motion, columns=['x','y','vx','vy','ax','ay','psi'])
     df['time'] = time_seq
     df['v'] = np.sqrt(df['vx']**2 + df['vy']**2)
-    df['acc'] = np.sqrt(df['ax']**2 + df['ay']**2)
     df['hx'] = np.cos(df['psi'])
     df['hy'] = np.sin(df['psi'])
+    df['acc'] = df['ax']*df['hx'] + df['ay']*df['hy']
     df['veh_type'] = veh_type
-    return df[['time','x','y','v','vx','vy','acc','hx','hy','veh_type']]
+    return df[['time','x','y','v','vx','vy','hx','hy','acc','veh_type']]
 
 
 def read_scenario(filename, root, initial_target_id, return_map=False):

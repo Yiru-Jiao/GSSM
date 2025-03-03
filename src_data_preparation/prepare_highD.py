@@ -128,7 +128,7 @@ initial_lc_id = 0
 for loc_id in range(1,7):
     print('Extracting lane changes at location ' + str(loc_id) + '...')
     data = pd.read_hdf(path_processed+'highD_0'+str(loc_id)+'.h5', key='data')
-    data['acc'] = np.sqrt(data['ax']**2 + data['ay']**2)
+    data['acc'] = data['ax']*data['hx'] + data['ay']*data['hy']
     data = data.rename(columns={'speed':'v'})
     lce = LaneChangeExtractor(data, initial_lc_id)
     lane_change = lce.extract_lanechange()
@@ -137,6 +137,7 @@ for loc_id in range(1,7):
     # Mirror the coordinates as in highD the y-axis points downwards
     lane_change = lane_change.rename(columns={'x_ego':'y_ego', 'y_ego':'x_ego', 'x_sur':'y_sur', 'y_sur':'x_sur',
                                               'vx_ego':'vy_ego', 'vy_ego':'vx_ego', 'vx_sur':'vy_sur', 'vy_sur':'vx_sur',
+                                              'ax_ego':'ay_ego', 'ay_ego':'ax_ego', 'ax_sur':'ay_sur', 'ay_sur':'ax_sur',
                                               'hx_ego':'hy_ego', 'hy_ego':'hx_ego', 'hx_sur':'hy_sur', 'hy_sur':'hx_sur'})
     lane_change.to_hdf(path_processed+'lane_changing/lc_0'+str(loc_id)+'.h5', key='data')
 
