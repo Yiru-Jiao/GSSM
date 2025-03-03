@@ -197,7 +197,7 @@ def save_loss_log(loss_log, save_dir, regularizer=None):
     elif loss_log.shape[-1] == 7:
         if regularizer == 'topology':
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
-                                    columns=['train_loss', 'loss_scl', 'log_var_scl', 'loss_topo', 'val_loss', 'regularizer'])
+                                    columns=['train_loss', 'loss_scl', 'log_var_scl', 'loss_topo', 'log_var_topo', 'val_loss', 'regularizer'])
         elif regularizer == 'geometry':
             loss_log = pd.DataFrame(loss_log, index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     columns=['train_loss', 'loss_scl', 'log_var_scl', 'loss_ggeo', 'log_var_ggeo', 'val_loss', 'regularizer'])
