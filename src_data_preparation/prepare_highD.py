@@ -124,6 +124,7 @@ for locid in tqdm(metadata.locationId.unique(), desc='location'):
 
 
 # Extract lane changes
+os.makedirs(path_processed+'lane_changing/', exist_ok=True)
 initial_lc_id = 0
 for loc_id in range(1,7):
     print('Extracting lane changes at location ' + str(loc_id) + '...')
