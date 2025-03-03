@@ -9,7 +9,7 @@ import pandas as pd
 import zarr
 from tqdm import tqdm
 
-path_raw = './RawData/Argoverse2/'
+path_raw = './RawData/'
 path_processed = './ProcessedData/Argoverse/'
 os.makedirs(path_processed, exist_ok=True)
 
@@ -56,7 +56,7 @@ def read_scenario(filename, root, initial_target_id, return_map=False):
 
 # Set the root path for raw data
 # if you downloaded the data from 4TU, firstly unzip the data
-root = path_raw + 'data_3m/hv/'
+root = path_raw + 'Argoverse2/data_3m/hv/'
 
 print('Processing ...')
 # Get the list of files from the root directory

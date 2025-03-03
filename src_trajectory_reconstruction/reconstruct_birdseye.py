@@ -9,9 +9,8 @@ import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from reconstruction_utils.utils_ego_sur import *
 
-path_raw = './RawData/'
-path_raw_honda = './RawData/HondaDataSupport/'
-path_raw_das = './RawData/DriverAssistanceSystems/'
+path_raw_honda = './RawData/SHRP2/HondaDataSupport/'
+path_raw_das = './RawData/SHRP2/DriverAssistanceSystems/'
 path_processed = './ProcessedData/SHRP2/'
 
 

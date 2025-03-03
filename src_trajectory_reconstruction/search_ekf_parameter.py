@@ -14,9 +14,9 @@ from reconstruction_utils.utils_ego_sur import *
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import ShuffleSplit
 
-path_raw = './RawData/'
-path_raw_honda = './RawData/HondaDataSupport/'
-path_raw_das = './RawData/DriverAssistanceSystems/'
+path_raw = './RawData/SHRP2/'
+path_raw_honda = './RawData/SHRP2/HondaDataSupport/'
+path_raw_das = './RawData/SHRP2/DriverAssistanceSystems/'
 path_processed = './ProcessedData/SHRP2/'
 
 manual_seed = 131
