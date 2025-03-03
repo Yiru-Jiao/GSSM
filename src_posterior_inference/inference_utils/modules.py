@@ -252,7 +252,6 @@ class AttentionDecoder(nn.Module):
             nn.Linear(32, 8),
             nn.ELU(),
             nn.Linear(8, 1),
-            nn.Softplus(),
         )
         self.output_log_var = nn.Sequential(
             nn.Linear(32, 8),
