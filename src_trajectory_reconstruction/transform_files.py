@@ -37,5 +37,5 @@ for filename in tqdm(os.listdir(path_xlsx)):
         csv_file_path = os.path.join(path_csv, csv_filename)
         # Save the data to a CSV file
         excel_data.to_csv(csv_file_path, index=False)
-        print(f'Converted {filename} to {csv_filename}')
+        print(f'\n Converted {filename} to {csv_filename}')
 
