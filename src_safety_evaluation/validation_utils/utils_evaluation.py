@@ -266,7 +266,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
     true_negatives = warning[warning['safety_recorded']].groupby('threshold')['num_true_non_warning'].sum()
     false_negatives = warning[warning['danger_recorded']&(warning['true_warning']<0.5)].groupby('threshold').size()
     statistics = pd.concat([true_positives, false_positives, true_negatives, false_negatives], axis=1, keys=['TP', 'FP', 'TN', 'FN'])
-    statistics = statistics.fillna(0).reset_index() # nan can be caused by empty combination of threshold and warning
+    statistics = statistics.fillna(0).reset_index().sort_values('threshold') # nan can be caused by empty combination of threshold and warning
 
     if curve_type=='ROC':
         statistics['true positive rate'] = statistics['TP']/(statistics['TP']+statistics['FN'])
