@@ -123,10 +123,10 @@ class train_val_test():
         if len(x.size())==2:
             if x.size(1)==12:
                 # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, rho
-                noise_ranges = torch.tensor([6.5, 6.5, 2., 45., 45., 45., 2000., 2000., 2000., 45., np.pi, np.pi], requires_grad=False)
+                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi, np.pi], requires_grad=False)
             elif x.size(1)==13:
                 # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, acc_ego, rho
-                noise_ranges = torch.tensor([6.5, 6.5, 2., 45., 45., 45., 2000., 2000., 2000., 45., np.pi, 3.5, np.pi], requires_grad=False)
+                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi, 3.5, np.pi], requires_grad=False)
             noise = noise * noise_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             noised_x = x + noise
             noised_x.requires_grad = False
@@ -141,7 +141,7 @@ class train_val_test():
             abs_mask[:,[4,5]+list(range(9,x.size(1)))] = 1. # leave out vx_sur, vy_sur, delta_v, psi_sur, (acc_ego), rho
             noised_x = noised_x * abs_mask
         elif len(x.size())==3:
-            noise_ranges = torch.tensor([3.5, 45., 45., 45], requires_grad=False)
+            noise_ranges = torch.tensor([3.5, 15., 15., 15], requires_grad=False)
             noise = noise * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             noised_x = x + noise
             abs_mask = (noised_x>0).float() - (noised_x < 0).float()
@@ -164,7 +164,7 @@ class train_val_test():
         inducing_out = self.model(inducing_points)
         return inducing_out
 
-    def compute_loss(self, x, y):
+    def compute_loss(self, x, y, return_out=False):
         if not self.lr_reduced:
             x = self.send_x_to_device(x)
             y = y.to(self.device)
@@ -176,7 +176,10 @@ class train_val_test():
             y = y.to(self.device)
             out = self.model(x)
             loss = self.later_loss_func(out, y, inducing_out)
-        return loss
+        if return_out:
+            return loss, out
+        else:
+            return loss
 
     def train_model(self, num_epochs=300, initial_lr=0.001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
@@ -235,7 +238,7 @@ class train_val_test():
                     # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
                     sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
                     # re-define learning rate and its scheduler for new loss function
-                    beta = 5.
+                    beta = 5
                     self.later_loss_func = SmoothLogNormalNLL(beta).to(self.device)
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -267,19 +270,22 @@ class train_val_test():
         val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                x = self.send_x_to_device(x)
-                y = y.to(self.device)
                 if 'profiles' in self.encoder_selection:
                     with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        out = self.model(x)
+                        self.lr_reduced = False
+                        gau_loss, out = self.compute_loss(x, y, return_out=True)
+                        self.lr_reduced = True
+                        smooth_gau_loss = self.compute_loss(x, y)
                 else:
-                    out = self.model(x)
+                    self.lr_reduced = False
+                    gau_loss, out = self.compute_loss(x, y, return_out=True)
+                    self.lr_reduced = True
+                    smooth_gau_loss = self.compute_loss(x, y)
                 mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
                 mu_list.append(mu.cpu().numpy())
                 sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
-                val_gau += self.loss_func(out, y)
-                inducing_out = self.get_inducing_out(x)
-                val_smooth_gau += self.later_loss_func(out, y, inducing_out)
+                val_gau += gau_loss
+                val_smooth_gau += smooth_gau_loss
 
         self.model.train()
         mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
