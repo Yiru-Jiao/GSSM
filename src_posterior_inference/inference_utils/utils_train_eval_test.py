@@ -114,29 +114,67 @@ class train_val_test():
         else:
             return x.to(self.device)
         
-    def get_inducing_out(self, x, noise=0.05):
+    def generate_noised_x(self, x, noise=0.01):
+        '''
+        Generate noise based on the range of each feature, and add it to the original features.
+        Ensure the noised values of [l_ego, l_sur, combined_width, vy_ego, v_ego2, v_sur2, delta_v2]
+        in current features and [v_ego] in profiles features are positive.
+        '''
+        if len(x.size())==2:
+            if x.size(1)==12:
+                # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, rho
+                noise_ranges = torch.tensor([6.5, 6.5, 2., 45., 45., 45., 2000., 2000., 2000., 45., np.pi, np.pi], requires_grad=False)
+            elif x.size(1)==13:
+                # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, acc_ego, rho
+                noise_ranges = torch.tensor([6.5, 6.5, 2., 45., 45., 45., 2000., 2000., 2000., 45., np.pi, 3.5, np.pi], requires_grad=False)
+            noise = noise * noise_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            noised_x = x + noise
+            noised_x.requires_grad = False
+            # make sure the rad angles are within [-pi, pi]
+            if x.size(1)==12:
+                noised_x[:,[10,11]] = (noised_x[:,[10,11]] + np.pi) % (2 * np.pi) - np.pi
+            elif x.size(1)==13:
+                noised_x[:,[10,12]] = (noised_x[:,[10,12]] + np.pi) % (2 * np.pi) - np.pi
+            # make sure some features are positive
+            abs_mask = (noised_x>0).float() - (noised_x < 0).float()
+            abs_mask.requires_grad = False
+            abs_mask[:,[4,5]+list(range(9,x.size(1)))] = 1. # leave out vx_sur, vy_sur, delta_v, psi_sur, (acc_ego), rho
+            noised_x = noised_x * abs_mask
+        elif len(x.size())==3:
+            noise_ranges = torch.tensor([3.5, 45., 45., 45], requires_grad=False)
+            noise = noise * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            noised_x = x + noise
+            abs_mask = (noised_x>0).float() - (noised_x < 0).float()
+            abs_mask.requires_grad = False
+            abs_mask[:,:,[0,2,3]] = 1. # leave out acc_ego, vx_sur, vy_sur
+            noised_x = noised_x * abs_mask
+        noised_x.requires_grad = x.requires_grad
+        return noised_x
+
+    def get_inducing_out(self, x):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
-            inducing_points = x + noise*torch.randn_like(x, device=x.device)
+            inducing_points = self.generate_noised_x(x)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
-            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x[0].device), x[1])
+            inducing_points = [self.generate_noised_x(x[0]), x[1]]
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
-            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x[0].device),
-                               x[1] + noise*torch.randn_like(x[1], device=x[1].device))
+            inducing_points = [self.generate_noised_x(x[0]), self.generate_noised_x(x[1])]
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
-            inducing_points = (x[0] + noise*torch.randn_like(x[0], device=x[0].device),
-                               x[1],
-                               x[2] + noise*torch.randn_like(x[2], device=x[2].device))
+            inducing_points = [self.generate_noised_x(x[0]), x[1], self.generate_noised_x(x[2])]
+        inducing_points = self.send_x_to_device(inducing_points)
         inducing_out = self.model(inducing_points)
         return inducing_out
 
     def compute_loss(self, x, y):
-        x = self.send_x_to_device(x)
-        y = y.to(self.device)
-        out = self.model(x)
         if not self.lr_reduced:
+            x = self.send_x_to_device(x)
+            y = y.to(self.device)
+            out = self.model(x)
             loss = self.loss_func(out, y)
         else:
             inducing_out = self.get_inducing_out(x)
+            x = self.send_x_to_device(x)
+            y = y.to(self.device)
+            out = self.model(x)
             loss = self.later_loss_func(out, y, inducing_out)
         return loss
 
