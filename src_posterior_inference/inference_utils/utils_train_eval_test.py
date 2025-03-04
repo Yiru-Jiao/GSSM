@@ -57,12 +57,12 @@ def set_experiments(stage=[1,2,3,4,5]):
             # [['INTERACTION'], ['current+acc','profiles'], False],
             # [['highD'], ['current','profiles'], False],
             # [['highD'], ['current+acc','profiles'], False],
+            [['SafeBaseline'], ['current+acc'], True],
+            [['SafeBaseline'], ['current+acc', 'environment'], True],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], True],
             [['SafeBaseline'], ['current+acc'], 'all'],
             [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
             [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
-            # [['SafeBaseline'], ['current+acc'], True],
-            # [['SafeBaseline'], ['current+acc', 'environment'], True],
-            # [['SafeBaseline'], ['current+acc','environment','profiles'], True],
         ])
     return exp_config
 
@@ -289,6 +289,7 @@ class train_val_test():
 
         self.model.train()
         mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
+        mu_sigma['mode'] = np.exp(mu_sigma['mu'] - mu_sigma['sigma']**2)
         print(mu_sigma.describe().to_string())
         print(f'Gaussian NLL: {val_gau.item()/val_batch_iter}, Smooth Gaussian NLL: {val_smooth_gau.item()/val_batch_iter}')
 

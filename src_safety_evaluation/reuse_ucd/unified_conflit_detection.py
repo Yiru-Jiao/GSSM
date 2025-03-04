@@ -216,6 +216,7 @@ class train_val_test():
         self.model.train()
         self.likelihood.train()
         mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
+        mu_sigma['mode'] = np.exp(mu_sigma['mu']-mu_sigma['sigma']**2)
         print(mu_sigma.describe().to_string())
         print(f'Gaussian NLL: {val_gau.item()/count_batch}, Smooth Gaussian NLL: {val_smooth_gau.item()/count_batch}')
         
