@@ -57,8 +57,8 @@ def set_experiments(stage=[1,2,3,4,5]):
             # [['INTERACTION'], ['current+acc','profiles'], False],
             # [['highD'], ['current','profiles'], False],
             # [['highD'], ['current+acc','profiles'], False],
-            [['SafeBaseline'], ['current+acc'], True],
-            [['SafeBaseline'], ['current+acc', 'environment'], True],
+            # [['SafeBaseline'], ['current+acc'], True],
+            # [['SafeBaseline'], ['current+acc', 'environment'], True],
             [['SafeBaseline'], ['current+acc','environment','profiles'], True],
             [['SafeBaseline'], ['current+acc'], 'all'],
             [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
@@ -208,8 +208,6 @@ class train_val_test():
         else:
             progress_bar = range(num_epochs)
 
-        if 'profiles' in self.encoder_selection:
-            scaler = torch.amp.GradScaler()  # Initialize gradient scaler for mixed precision training
         for epoch_n in progress_bar:
             train_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
             for train_batch_iter, (x, y) in enumerate(self.train_dataloader, start=1):
@@ -218,16 +216,9 @@ class train_val_test():
                 y: [batch_size]
                 '''
                 self.optimizer.zero_grad()
-                if 'profiles' in self.encoder_selection:
-                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        loss = self.compute_loss(x, y)
-                        scaler.scale(loss).backward()
-                        scaler.step(self.optimizer)
-                        scaler.update()
-                else:
-                    loss = self.compute_loss(x, y)
-                    loss.backward()
-                    self.optimizer.step()
+                loss = self.compute_loss(x, y)
+                loss.backward()
+                self.optimizer.step()
                 train_loss += loss
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
@@ -238,7 +229,7 @@ class train_val_test():
                     # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
                     sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
                     # re-define learning rate and its scheduler for new loss function
-                    beta = 5
+                    beta = 10.
                     self.later_loss_func = SmoothLogNormalNLL(beta).to(self.device)
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -270,17 +261,10 @@ class train_val_test():
         val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                if 'profiles' in self.encoder_selection:
-                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        self.lr_reduced = False
-                        gau_loss, out = self.compute_loss(x, y, return_out=True)
-                        self.lr_reduced = True
-                        smooth_gau_loss = self.compute_loss(x, y)
-                else:
-                    self.lr_reduced = False
-                    gau_loss, out = self.compute_loss(x, y, return_out=True)
-                    self.lr_reduced = True
-                    smooth_gau_loss = self.compute_loss(x, y)
+                self.lr_reduced = False
+                gau_loss, out = self.compute_loss(x, y, return_out=True)
+                self.lr_reduced = True
+                smooth_gau_loss = self.compute_loss(x, y)
                 mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
                 mu_list.append(mu.cpu().numpy())
                 sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
@@ -314,11 +298,7 @@ class train_val_test():
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                if 'profiles' in self.encoder_selection:
-                    with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                        val_loss += self.compute_loss(x, y)
-                else:
-                    val_loss += self.compute_loss(x, y)
+                val_loss += self.compute_loss(x, y)
         self.model.train()
         return val_loss.item() / val_batch_iter
     

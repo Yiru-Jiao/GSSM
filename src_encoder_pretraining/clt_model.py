@@ -111,14 +111,14 @@ class spclt():
             def optimizer_zero_grad():
                 self.optimizer.zero_grad()
                 self.optimizer_weight.zero_grad()
-            def optimizer_step(scaler):
-                scaler.step(self.optimizer)
-                scaler.step(self.optimizer_weight)
+            def optimizer_step():
+                self.optimizer.step()
+                self.optimizer_weight.step()
         else:
             def optimizer_zero_grad():
                 self.optimizer.zero_grad()
-            def optimizer_step(scaler):
-                scaler.step(self.optimizer)
+            def optimizer_step():
+                self.optimizer.step()
 
         # exclude instances with all missing values
         isnanmat = np.isnan(train_data)
@@ -204,7 +204,6 @@ class spclt():
             self.loss_config['temporal_unit'] = 0  ## The minimum unit to perform temporal contrast. 
                                                    ## When training on a very long sequence, increasing this helps to reduce the cost of time and memory.
         continue_training = True
-        scaler = torch.amp.GradScaler()  # Initialize gradient scaler
         while continue_training:
             train_loss = torch.tensor(0., device=self.device, requires_grad=False)
             if loss_log is not None and self.regularizer_config['reserve'] is not None:
@@ -224,22 +223,19 @@ class spclt():
                 train_loss_config['soft_labels'] = soft_labels
 
                 optimizer_zero_grad()
-                with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                    loss, loss_comp = self.loss_func(self, x.to(self.device),
-                                                     train_loss_config, 
-                                                     self.regularizer_config)
+                loss, loss_comp = self.loss_func(self, x.to(self.device),
+                                                 train_loss_config, 
+                                                 self.regularizer_config)
+                loss.backward()
+                optimizer_step()
+                self.net.update_parameters(self._net)
 
-                scaler.scale(loss).backward()
-                optimizer_step(scaler)
-                scaler.update()
                 del train_loss_config # clear memory
 
                 train_loss += loss
                 if loss_log is not None and self.regularizer_config['reserve'] is not None:
                     for i in range(4):
                         train_loss_comp[i] += loss_comp[i]
-                
-                self.net.update_parameters(self._net)
 
                 # save model if callback every several iterations
                 if self.after_iter_callback is not None:
@@ -289,10 +285,9 @@ class spclt():
                         val_loss_config = self.loss_config.copy()
                         val_loss_config['soft_labels'] = soft_labels
 
-                        with torch.amp.autocast(device_type="cuda"):  # Enables Mixed Precision
-                            loss, _ = self.loss_func(self, x.to(self.device),
-                                                     val_loss_config,
-                                                     self.regularizer_config)
+                        loss, _ = self.loss_func(self, x.to(self.device),
+                                                 val_loss_config,
+                                                 self.regularizer_config)
                         val_loss += loss
                         del val_loss_config
                     val_loss = val_loss.item() / (val_batch_iter+1)
