@@ -1,5 +1,5 @@
 ## Data dictionary
-The file structure under this directory `ProcessedData/Event/` where `Event` can be `Crash`, `NearCrash`, etc., is as follows:
+The file structure under this directory `./ProcessedData/SHRP2/Event/` where `Event` can be `Crash`, `NearCrash`, etc., is as follows:
 - `./plots_ego_ekf.pdf` where the plots of trajectory reconstruction using Extended Kalman Filter are stored
 - `./Ego_birdseye.h5` where the reconstructed ego vehicle trajectory is stored
 - `./Surrounding_birdseye.h5` where the reconstructed surrounding vehicle trajectories are stored
