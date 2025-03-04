@@ -40,7 +40,7 @@ class TSEncoder(nn.Module):
         existing_models = glob.glob(f'{save_dir}/*_net.pth')
         best_model = 'model' + existing_models[0].split('model')[-1].split('_net')[0]
         self.spclt_model.load(f'{save_dir}/{best_model}')
-        print(f'Pretrained encoder for profiles loaded: {best_model}')
+        print(f'Pretrained encoder for profiles loaded: {model_selection}/{best_model}')
         if not continue_training:
             for param in self.spclt_model.net.parameters():
                 param.requires_grad = False
