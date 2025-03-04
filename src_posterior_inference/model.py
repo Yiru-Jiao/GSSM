@@ -145,37 +145,37 @@ class UnifiedProximity(nn.Module):
 
 
 class LogNormalNLL(nn.Module):
-    def __init__(self,):
+    def __init__(self, scale=10.):
         super(LogNormalNLL, self).__init__()
         '''
-        Adding log_2pi is important in this loss as otherwise the loss can go 
+        Scaling is important in this loss as otherwise the original loss value often goes 
         too close to zero where the gradient is too small for effective learning.
         '''
-        self.log_2pi = 1.8378770664093453
+        self.scale = scale
 
     def forward(self, out, y):
         mu = out[0]
         log_var = out[1]
         log_y = torch.log(y)
-        nll = 0.5 * (self.log_2pi + log_var + (log_y-mu)**2 / torch.exp(log_var))
+        nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
         loss = nll.mean()
-        return loss
+        return loss * self.scale
 
 
 class SmoothLogNormalNLL(nn.Module):
-    def __init__(self, beta=5.):
+    def __init__(self, beta=5., scale=10.):
         super(SmoothLogNormalNLL, self).__init__()
         self.beta = beta
-        self.log_2pi = 1.8378770664093453
+        self.scale = scale
 
     def forward(self, out, y, inducing_out):
         mu = out[0]
         log_var = out[1]
         log_y = torch.log(y)
-        nll = 0.5 * (self.log_2pi + log_var + (log_y-mu)**2 / torch.exp(log_var))
+        nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
 
         mu_prime, log_var_prime = inducing_out
         kl_divergence = 0.5 * (log_var_prime - log_var + (torch.exp(log_var)+(mu-mu_prime)**2) / torch.exp(log_var_prime) - 1)
         
         loss = nll.mean() + self.beta*kl_divergence.mean()
-        return loss
+        return loss * self.scale
