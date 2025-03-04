@@ -31,6 +31,7 @@ class TSEncoder(nn.Module):
             print(f'****** {tuned_params_dir} not found ******')
         self = load_tuned_hyperparameters(self, tuned_params, model_selection)
         self.repr_dims = self.output_dims
+        self.lr = 0.001 # this learning rate will not be used in posterior inference, but required for configuring spclt
         model_config = configure_model(self, self.input_dims, device)
         self.spclt_model = spclt(**model_config)
 
