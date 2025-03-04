@@ -229,5 +229,6 @@ condition2 = (meta_both['second'].isin(non_veh_list))&(meta_both['other_width']>
 condition = condition&(condition1|condition2)
 meta_both.loc[condition, ['target_width','target_length','other_width','other_length']] = meta_both.loc[condition, ['other_width','other_length','target_width','target_length']].values
 
+os.makedirs(path_processed, exist_ok=True)
 meta_both.to_csv(path_processed + 'metadata_birdseye.csv')
 
