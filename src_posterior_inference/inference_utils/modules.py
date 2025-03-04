@@ -209,12 +209,13 @@ class AttentionDecoder(nn.Module):
     Local interaction with CNN+MLP: (batch_size, 256, 12/13+1) -> (batch_size, 32)
     Output with linear: (batch_size, 32, 1) -> (batch_size, 1)
     '''
-    def __init__(self, latent_dims=64, encoder_selection=[], return_attention=False):
+    def __init__(self, latent_dims=64, encoder_selection=[], single_output=None, return_attention=False):
         super(AttentionDecoder, self).__init__()
         self.latent_dims = latent_dims
         self.encoder_selection = encoder_selection
+        self.single_output = single_output
         self.return_attention = return_attention
-        
+
         # Determine the final sequence length
         self.final_seq_len = 0
         if 'current' in self.encoder_selection:
@@ -241,6 +242,8 @@ class AttentionDecoder(nn.Module):
             nn.ELU(),
             nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
             nn.ELU(),
+        )            
+        self.output_mu = nn.Sequential(
             nn.Flatten(1), # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
             nn.Dropout(0.1),
@@ -248,14 +251,21 @@ class AttentionDecoder(nn.Module):
             nn.Linear(128, 32),
             nn.Dropout(0.1),
             nn.ELU(),
-        )            
-        self.output_mu = nn.Sequential(
             nn.Linear(32, 8),
+            nn.Dropout(0.1),
             nn.ELU(),
             nn.Linear(8, 1),
         )
         self.output_log_var = nn.Sequential(
+            nn.Flatten(1), # (batch_size, 16*final_seq_len)
+            nn.Linear(16*self.final_seq_len, 128),
+            nn.Dropout(0.1),
+            nn.ELU(),
+            nn.Linear(128, 32),
+            nn.Dropout(0.1),
+            nn.ELU(),
             nn.Linear(32, 8),
+            nn.Dropout(0.1),
             nn.ELU(),
             nn.Linear(8, 1),
         )
@@ -282,9 +292,13 @@ class AttentionDecoder(nn.Module):
         out, hidden_states = self.combi_decoder(x_tuple)
         mu = out[0].squeeze() # [batch_size]
         log_var = out[1].squeeze()
-        if self.return_attention:
-            return mu, log_var, hidden_states # attended_state: [batch_size, final_seq_len, latent_dims=64]
-                                              # attention_matrices: {block_i: [batch_size, final_seq_len, final_seq_len]}
-        else:
-            return mu, log_var
-
+        if self.single_output is None:
+            if self.return_attention:
+                return mu, log_var, hidden_states # attended_state: [batch_size, final_seq_len, latent_dims=64]
+                                                # attention_matrices: {block_i: [batch_size, final_seq_len, final_seq_len]}
+            else:
+                return mu, log_var
+        elif self.single_output == 'mu':
+            return mu
+        elif self.single_output == 'log_var':
+            return log_var

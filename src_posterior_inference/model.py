@@ -43,7 +43,7 @@ class custom_dataset(Dataset):
     
 
 class UnifiedProximity(nn.Module):
-    def __init__(self, device, encoder_selection='all', return_attention=False):
+    def __init__(self, device, encoder_selection='all', single_output=None, return_attention=False):
         super(UnifiedProximity, self).__init__()
         self.device = device
         if encoder_selection=='all':
@@ -58,6 +58,7 @@ class UnifiedProximity(nn.Module):
         if 'profiles' in encoder_selection:
             self.TSEncoder = modules.TSEncoder(device, input_dims=4, output_dims=64)
         self.AttentionDecoder = modules.AttentionDecoder(encoder_selection=self.encoder_selection,
+                                                         single_output=single_output,
                                                          return_attention=return_attention)
         self.combi_encoder = self.define_combi_encoder()
 

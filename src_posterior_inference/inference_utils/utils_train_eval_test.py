@@ -57,8 +57,8 @@ def set_experiments(stage=[1,2,3,4,5]):
             # [['INTERACTION'], ['current+acc','profiles'], False],
             # [['highD'], ['current','profiles'], False],
             # [['highD'], ['current+acc','profiles'], False],
-            # [['SafeBaseline'], ['current+acc'], True],
-            # [['SafeBaseline'], ['current+acc', 'environment'], True],
+            [['SafeBaseline'], ['current+acc'], True],
+            [['SafeBaseline'], ['current+acc', 'environment'], True],
             [['SafeBaseline'], ['current+acc','environment','profiles'], True],
             [['SafeBaseline'], ['current+acc'], 'all'],
             [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
@@ -71,6 +71,7 @@ class train_val_test():
     def __init__(self, device, path_prepared, dataset,
                  encoder_selection='all', 
                  pretrained_encoder=False,
+                 single_output=None,
                  return_attention=False):
         super(train_val_test, self).__init__()
         self.device = device
@@ -92,11 +93,12 @@ class train_val_test():
             os.makedirs(self.path_output, exist_ok=True)
         self.encoder_selection = encoder_selection
         self.pretrained_encoder = pretrained_encoder
+        self.single_output = single_output
         self.return_attention = return_attention
         self.define_model()
 
     def define_model(self,):
-        self.model = UnifiedProximity(self.device, self.encoder_selection, self.return_attention)
+        self.model = UnifiedProximity(self.device, self.encoder_selection, self.single_output, self.return_attention)
         if self.pretrained_encoder==True:
             self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=False)
         elif self.pretrained_encoder=='all':
