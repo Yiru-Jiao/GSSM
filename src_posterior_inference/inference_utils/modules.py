@@ -42,7 +42,7 @@ class TSEncoder(nn.Module):
         self.spclt_model.load(f'{save_dir}/{best_model}')
         print(f'Pretrained encoder for profiles loaded: {best_model}')
         if not continue_training:
-            for param in self.net.parameters():
+            for param in self.spclt_model.net.parameters():
                 param.requires_grad = False
         
     def forward(self, x):
