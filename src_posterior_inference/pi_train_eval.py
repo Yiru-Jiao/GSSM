@@ -48,7 +48,7 @@ def main(args, manual_seed, path_prepared):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     if args.stage is None:
-        exp_config = set_experiments(stage=[1, 3])
+        exp_config = set_experiments(stage=[1,2,3,4,5])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -88,10 +88,10 @@ def main(args, manual_seed, path_prepared):
             print(f"Start training {dataset_name}, {encoder_name}, {pretraining}")
         pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder)
         pipeline.create_dataloader(batch_size)
-        if os.path.exists(pipeline.path_output + f'val_loss_log.csv'):
+        if os.path.exists(pipeline.path_output + f'loss_log.csv'):
             print(f"Loading trained model: {dataset_name}, {encoder_name}, {pretraining}")
             pipeline.load_model()
-            val_loss = pd.read_csv(pipeline.path_output + 'val_loss_log.csv')
+            val_loss = pd.read_csv(pipeline.path_output + 'loss_log.csv')
             val_loss = np.sort(val_loss['val_loss'].values[-5:])[1:4].mean()
         else:
             pipeline.train_model(epochs, initial_lr, lr_schedule=True, verbose=5)
