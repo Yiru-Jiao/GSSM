@@ -15,7 +15,8 @@ path_processed = './ProcessedData/SHRP2/'
 
 
 # Set of Driving Assistance Systems
-if not os.path.exists(path_raw + 'Processed_MetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv'):
+os.makedirs(path_raw + 'CleanedMetaReferences/', exist_ok=True)
+if not os.path.exists(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv'):
     path_timeseries = path_raw_das + 'Videos_And_TimeSeriesData/'
     print('Scaning files in Videos_And_TimeSeriesData/ ...')
     filename_list = os.listdir(path_timeseries)
@@ -45,11 +46,11 @@ if not os.path.exists(path_raw + 'Processed_MetaReferences/metadata_timeseries_v
         else:
             id_count += 1
             summary_df.loc[id_count, columns] = values
-    summary_df.to_csv(path_raw + 'Processed_MetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv', index=False)
+    summary_df.to_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv', index=False)
 
 
 # Set of Honda Data Support
-if not os.path.exists(path_raw + 'Processed_MetaReferences/metadata_timeseries_video_HondaDataSupport.csv'):
+if not os.path.exists(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_HondaDataSupport.csv'):
     summary_df = pd.DataFrame([], columns=['event_id', 'time_series', 'video_front', 'video_rear', 'video_hands'])
     id_count = 0
 
@@ -83,7 +84,7 @@ if not os.path.exists(path_raw + 'Processed_MetaReferences/metadata_timeseries_v
             else:
                 id_count += 1
                 summary_df.loc[id_count, columns] = values
-    summary_df.to_csv(path_raw + 'Processed_MetaReferences/metadata_timeseries_video_HondaDataSupport.csv', index=False)
+    summary_df.to_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_HondaDataSupport.csv', index=False)
 
 
 # Define vehicle dimensions, the values are estimated by Microsoft Copilot
@@ -136,8 +137,8 @@ def define_vehicle_dimension():
 
 # Combine metadata from both Honda Data Support and Driving Assistance Systems
 print('Loading metadata...')
-meta_das = pd.read_csv(path_raw + 'Processed_MetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv') # 41,102 events
-meta_honda = pd.read_csv(path_raw + 'Processed_MetaReferences/metadata_timeseries_video_HondaDataSupport.csv') # 41,325 events
+meta_das = pd.read_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv') # 41,102 events
+meta_honda = pd.read_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_HondaDataSupport.csv') # 41,325 events
 
 meta_both = meta_das[['event_id','time_series']].merge(meta_honda[['event_id','time_series']], on='event_id', how='outer', suffixes=('_das','_honda'))
 meta_both['file_dir'] = path_raw_honda + 'Time Series Export/'
