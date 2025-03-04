@@ -177,6 +177,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
     records = event_meta[['danger_start', 'danger_end']].copy()
     for event_id in event_ids:
         event = safety_evaluation.loc[event_id].copy()
+        records.loc[event_id, 'safe_target_ids'] = 'none'
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
@@ -244,10 +245,8 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'false_warning'] = 1 if false_warnings>0 else 0
         else:
             records.loc[event_id, 'safety_recorded'] = False
-            records.loc[event_id, 'safe_target_ids'] = 'none'
 
     records['threshold'] = threshold
-    records['safe_target_ids'] = records['safe_target_ids'].fillna('none')
     return records
 
 
