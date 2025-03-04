@@ -53,9 +53,9 @@ def set_veh_dimensions(event_meta, avg_width, avg_length):
     return veh_dimensions
 
 
-def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention=False):
+def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output=None, return_attention=False):
     # Define the model
-    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention)
+    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output, return_attention)
     ## Load trained model
     pipeline.load_model()
     print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}')
@@ -286,23 +286,29 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
         statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
     optimal_rate = statistics['combined rate'].min()
-    optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate]
-    optimal_threshold = optimal_warning.iloc[0]
-    if return_stats:
-        optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
-        return statistics, optimal_warning, optimal_threshold
+    if np.isnan(optimal_rate):
+        if return_stats:
+            return statistics, None, None
+        else:
+            return np.nan
     else:
-        if curve_type=='ROC':
-            print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
-                 ' optimal threshold: ', optimal_threshold['threshold'], 
-                 ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
-                 ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
-        elif curve_type=='PRC':
-            print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
-                 ' optimal threshold: ', optimal_threshold['threshold'], 
-                 ' precision: ', round(optimal_threshold['precision']*100, 2),
-                 ' recall: ', round(optimal_threshold['recall']*100, 2))
-        return optimal_threshold['threshold']
+        optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate]
+        optimal_threshold = optimal_warning.iloc[0]
+        if return_stats:
+            optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
+            return statistics, optimal_warning, optimal_threshold
+        else:
+            if curve_type=='ROC':
+                print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
+                    ' optimal threshold: ', optimal_threshold['threshold'], 
+                    ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
+                    ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
+            elif curve_type=='PRC':
+                print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
+                    ' optimal threshold: ', optimal_threshold['threshold'], 
+                    ' precision: ', round(optimal_threshold['precision']*100, 2),
+                    ' recall: ', round(optimal_threshold['recall']*100, 2))
+            return optimal_threshold['threshold']
 
 
 def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
