@@ -177,13 +177,18 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
     records = event_meta[['danger_start', 'danger_end']].copy()
     for event_id in event_ids:
         event = safety_evaluation.loc[event_id].copy()
+        records.loc[event_id, 'danger_recorded'] = False
+        records.loc[event_id, 'true_warning'] = np.nan
+        records.loc[event_id, 'safety_recorded'] = False
         records.loc[event_id, 'safe_target_ids'] = 'none'
+        records.loc[event_id, 'num_false_warning'] = np.nan
+        records.loc[event_id, 'num_true_non_warning'] = np.nan
+        records.loc[event_id, 'false_warning'] = np.nan
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
         before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
         if danger.groupby('target_id')['time'].count().max()<35: # a potential target should appear at least 3.5 seconds
-            records.loc[event_id, 'danger_recorded'] = False
             continue
 
         # Determine the conflicting target and warning
@@ -192,7 +197,6 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         records.loc[event_id, 'median_before_danger'] = median_before_danger
         records.loc[event_id, 'median_danger'] = median_danger
         if np.isnan(target_id):
-            records.loc[event_id, 'danger_recorded'] = False
             continue
         target_danger = danger[danger['target_id']==target_id]
         records.loc[event_id, 'danger_recorded'] = True
@@ -243,8 +247,6 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             records.loc[event_id, 'num_false_warning'] = false_warnings
             records.loc[event_id, 'num_true_non_warning'] = true_non_warnings
             records.loc[event_id, 'false_warning'] = 1 if false_warnings>0 else 0
-        else:
-            records.loc[event_id, 'safety_recorded'] = False
 
     records['threshold'] = threshold
     return records
