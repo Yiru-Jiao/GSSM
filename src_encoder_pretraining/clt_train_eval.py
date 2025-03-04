@@ -28,8 +28,10 @@ def parse_args():
     parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
+    parser.add_argument('--reversed_list', type=int, default=0, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
     args.reproduction = bool(args.reproduction)
+    args.reversed_list = bool(args.reversed_list)
 
     # Set default parameters
     args.sliding_padding = 0
@@ -93,6 +95,8 @@ def main(args):
             return eval_results
         
         model_list = ['softclt', 'topo-softclt', 'ggeo-softclt']
+        if args.reversed_list:
+            model_list = model_list[::-1]
         if os.path.exists(results_dir):
             eval_results = read_saved_results()
         else:
