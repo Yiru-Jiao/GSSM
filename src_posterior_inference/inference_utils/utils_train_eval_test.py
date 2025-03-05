@@ -38,6 +38,7 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current'], False],
             [['INTERACTION','highD'], ['current'], True],
             [['INTERACTION','highD','Argoverse'], ['current'], True],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current'], True],
         ])
     if 4 in stage: # single/multiple dataset, encoder pretrained with all datasets
         exp_config.extend([
@@ -51,18 +52,26 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 5 in stage: # add extra features
         exp_config.extend([
-            # [['Argoverse'], ['current','profiles'], False],
-            # [['Argoverse'], ['current+acc','profiles'], False],
-            # [['INTERACTION'], ['current','profiles'], False],
-            # [['INTERACTION'], ['current+acc','profiles'], False],
-            # [['highD'], ['current','profiles'], False],
-            # [['highD'], ['current+acc','profiles'], False],
-            [['SafeBaseline'], ['current+acc'], True],
-            [['SafeBaseline'], ['current+acc', 'environment'], True],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], True],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current','profiles'], 'all'],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current+acc'], 'all'],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current+acc','profiles'], 'all'],
+            [['SafeBaseline'], ['current', 'environment'], 'all'],
+            [['SafeBaseline'], ['current', 'profiles'], 'all'],
+            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
             [['SafeBaseline'], ['current+acc'], 'all'],
             [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'profiles'], 'all'],
             [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current','profiles'], False],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current+acc'], False],
+            [['INTERACTION','highD','Argoverse','SafeBaseline'], ['current+acc','profiles'], False],
+            [['SafeBaseline'], ['current', 'environment'], False],
+            [['SafeBaseline'], ['current', 'profiles'], False],
+            [['SafeBaseline'], ['current','environment','profiles'], False],
+            [['SafeBaseline'], ['current+acc'], False],
+            [['SafeBaseline'], ['current+acc', 'environment'], False],
+            [['SafeBaseline'], ['current+acc', 'profiles'], False],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], False],
         ])
     return exp_config
 
@@ -231,7 +240,7 @@ class train_val_test():
                     # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
                     sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
                     # re-define learning rate and its scheduler for new loss function
-                    beta = 5.
+                    beta = 2.5
                     self.later_loss_func = SmoothLogNormalNLL(beta).to(self.device)
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
