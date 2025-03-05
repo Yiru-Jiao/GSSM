@@ -68,7 +68,7 @@ class trainer():
             if self.verbose<2:
                 progress_bar = data
             else:
-                progress_bar = tqdm(data, total=len(data), desc='Applying EKF', dynamic_ncols=False, ascii=True, miniters=len(data)//100)
+                progress_bar = tqdm(data, total=len(data), desc='EKF Ego', dynamic_ncols=False, ascii=True, miniters=len(data)//100)
             for sample in progress_bar:
                 df_ego, df_sur, ego_length = sample
                 ## reconstruct ego trajectory
@@ -88,7 +88,7 @@ class trainer():
             if self.verbose<2:
                 progress_bar = data
             else:
-                progress_bar = tqdm(data, total=len(data), desc='Applying EKF', dynamic_ncols=False, ascii=True, miniters=len(data)//100)
+                progress_bar = tqdm(data, total=len(data), desc='EKF Sur', dynamic_ncols=False, ascii=True, miniters=len(data)//100)
             for sample in progress_bar:
                 df_ego, df_sur, ego_length = sample
                 ## reconstruct ego trajectory
@@ -328,7 +328,25 @@ def main(args):
         sur_trained = False
 
     if ego_trained & sur_trained:
-        print('EKF parameters already trained.')
+        print('EKF parameters are already tuned.')
+        params = result.iloc[0].to_dict()
+        search_space_sur = {'sur_uncertainty_init': [params['sur_uncertainty_init']],
+                            'sur_uncertainty_pos': [params['sur_uncertainty_pos']],
+                            'sur_uncertainty_speed': [params['sur_uncertainty_speed']],
+                            'sur_max_acc': [params['sur_max_acc']],
+                            'sur_max_yaw_rate': [params['sur_max_yaw_rate']],
+                            'ego_uncertainty_init': [params['ego_uncertainty_init']],
+                            'ego_uncertainty_speed': [params['ego_uncertainty_speed']],
+                            'ego_uncertainty_omega': [params['ego_uncertainty_omega']],
+                            'ego_uncertainty_acc': [params['ego_uncertainty_acc']],
+                            'ego_max_jerk': [params['ego_max_jerk']],
+                            'ego_max_yaw_rate': [params['ego_max_yaw_rate']],
+                            'ego_max_acc': [params['ego_max_acc']],
+                            'ego_max_yaw_acc': [params['ego_max_yaw_acc']]}
+        _, score_ego = grid_search(search_space_sur, dataset, target_veh='ego', n_jobs=args.n_jobs, verbose=3)
+        _, score_sur = grid_search(search_space_sur, dataset, target_veh='sur', n_jobs=args.n_jobs, verbose=3)
+        print(f"Saved scores: ego {params['score_ego']:.4f}, sur {params['score_sur']:.4f}")
+        print(f"Verified scores: ego {score_ego:.4f}, sur {score_sur:.4f}")
         sys.exit(0)
 
     if not ego_trained:
