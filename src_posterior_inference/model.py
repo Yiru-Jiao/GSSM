@@ -102,26 +102,26 @@ class UnifiedProximity(nn.Module):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_encoder(x):
                 x_current = self.CurrentEncoder(x)
-                return (x_current,)
+                return x_current
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
                 x_current = self.CurrentEncoder(x_current)
                 x_environment = self.EnvEncoder(x_environment)
-                return (x_current, x_environment)
+                return torch.cat([x_current, x_environment], dim=1) # (batch_size, seq_len, latent_dims=64)                
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
             def combi_encoder(x):
                 x_current, x_ts = x
                 x_current = self.CurrentEncoder(x_current)
                 x_ts = self.TSEncoder(x_ts)
-                return (x_current, x_ts)
+                return torch.cat([x_current, x_ts], dim=1) # (batch_size, seq_len, latent_dims=64)
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
                 x_current = self.CurrentEncoder(x_current)
                 x_environment = self.EnvEncoder(x_environment)
                 x_ts = self.TSEncoder(x_ts)
-                return (x_current, x_environment, x_ts)
+                return torch.cat([x_current, x_environment, x_ts], dim=1) # (batch_size, seq_len, latent_dims=64)
         else:
             Warning('Invalid encoder selection.')
         return combi_encoder

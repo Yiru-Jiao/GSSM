@@ -270,31 +270,28 @@ class AttentionDecoder(nn.Module):
             nn.Linear(8, 1),
         )
 
-    def combi_decoder(self, x_tuple):
+    def forward(self, state):
+        '''
+        `state` can include
+        current: (batch_size, 12 or 13, latent_dims=64),
+        environment: (batch_size, 1, latent_dims=64),
+        ts: (batch_size, 5, latent_dims=64),
+        which are concatenated as (batch_size, 12~19, latent_dims=64)
+        '''
         if self.return_attention:
             attention_matrices = dict()
         else:
             attention_matrices = None
-        state = torch.cat(x_tuple, dim=1) # (batch_size, final_seq_len, latent_dims=64)
         attended_state, attention_matrices = self.SelfAttention(state, attention_matrices)
         transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, final_seq_len)
         out = self.output_cnn(transposed_state) # (batch_size, 32)
         mu = self.output_mu(out)
         log_var = self.output_log_var(out)
-        return (mu, log_var), (attended_state, attention_matrices)
-
-    def forward(self, x_tuple):
-        '''
-        current: (batch_size, 12 or 13, latent_dims=64)
-        environment: (batch_size, 1, latent_dims=64)
-        ts: (batch_size, 5, latent_dims=64)
-        '''
-        out, hidden_states = self.combi_decoder(x_tuple)
-        mu = out[0].squeeze() # [batch_size]
-        log_var = out[1].squeeze()
         if self.single_output is None:
+            mu = mu.squeeze() # [batch_size]
+            log_var = log_var.squeeze()
             if self.return_attention:
-                return mu, log_var, hidden_states # attended_state: [batch_size, final_seq_len, latent_dims=64]
+                return mu, log_var, (attended_state, attention_matrices) # attended_state: [batch_size, final_seq_len, latent_dims=64]
                                                 # attention_matrices: {block_i: [batch_size, final_seq_len, final_seq_len]}
             else:
                 return mu, log_var
