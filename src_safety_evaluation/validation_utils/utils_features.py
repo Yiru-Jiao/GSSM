@@ -54,7 +54,7 @@ def segment_data(df, veh_dimensions):
         profiles['v_ego'] = abs(profiles['v_ego'])
         profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
         profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values
-        assert profiles.isna().sum().sum()==0 # no missing values
+        assert profiles.isna().sum().sum()<=0 # no missing values
 
         current_features = np.zeros(13)
         vx_ego, vy_ego, vx_sur, vy_sur = df.iloc[idx_end][['vx_ego','vy_ego','vx_sur','vy_sur']].values
@@ -71,7 +71,9 @@ def segment_data(df, veh_dimensions):
         current_features[10] = coortrans.angle(0, 1, df_view_ego.iloc[idx_end]['hx_sur'], df_view_ego.iloc[idx_end]['hy_sur'])
         current_features[11] = df.iloc[idx_end]['acc_ego']
         current_features[12] = coortrans.angle(1, 0, df_view_relative.iloc[idx_end]['x_sur'], df_view_relative.iloc[idx_end]['y_sur'])
+        assert np.isnan(current_features).sum()<=0 # no missing values
         spacing = np.sqrt(df_view_relative.iloc[idx_end]['x_sur']**2 + df_view_relative.iloc[idx_end]['y_sur']**2)
+        assert np.isnan(spacing).sum()<=0 # no missing values
 
         profiles_set.append(profiles.values)
         current_features_set.append(current_features)

@@ -126,9 +126,10 @@ def topo_euclidean_distance_matrix(x, p=2):
     Computes the pairwise Euclidean distance matrix between the rows of a 2D tensor.
     """
     x_flat = x.view(x.size(0), -1)
-#    x_flat = torch.where(torch.isnan(x_flat), torch.tensor(0.0, device=x.device), x_flat)  # No in-place modification!
-    # in a more efficient way:
-    x_flat = x_flat * (~torch.isnan(x_flat)).float()
+#     # x_flat = torch.where(torch.isnan(x_flat), torch.tensor(0.0, device=x.device), x_flat)  # No in-place modification!
+#     # in a more efficient way:
+#     x_flat = x_flat * (~torch.isnan(x_flat)).float()
+#     This is not necessary in this project as the input data has been preprocessed to remove NaN values.
     distances = torch.norm(x_flat[:, None] - x_flat, dim=2, p=p)
     return distances
 
@@ -314,9 +315,10 @@ def get_laplacian(X, bandwidth=50): # bandwidth tuning should increase exponenti
     B, N, _ = X.shape
     c = 1/4
 
-#    X[torch.isnan(X)] = 0
-    # in a more efficient way:
-    X = X * (~torch.isnan(X)).float()
+#     # X[torch.isnan(X)] = 0
+#     # in a more efficient way:
+#     X = X * (~torch.isnan(X)).float()
+#     This is not necessary in this project as the input data has been preprocessed to remove NaN values.
     dist_XX = torch.cdist(X, X, p=2)
     K = torch.exp(-dist_XX**2 / bandwidth)
     d_i = K.sum(dim=1)

@@ -17,7 +17,8 @@ def set_nan_to_zero(a):
 
 
 def normalize_TS(TS):
-    TS = set_nan_to_zero(TS)
+#     This is not necessary for this project as the input data has been processed to have no NaN values
+#     TS = set_nan_to_zero(TS)
     if TS.ndim == 2: # univariate
         TS_max = TS.max(axis = 1).reshape(-1,1)
         TS_min = TS.min(axis = 1).reshape(-1,1)
