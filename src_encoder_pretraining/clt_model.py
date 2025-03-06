@@ -120,24 +120,17 @@ class spclt():
             def optimizer_step():
                 self.optimizer.step()
 
-        # exclude instances with all missing values
-        isnanmat = np.isnan(train_data)
-        while isnanmat.ndim > 1:
-            isnanmat = isnanmat.all(axis=-1)
-        reserved_idx = ~isnanmat
-
         # define training and validation data
         if scheduler == 'constant':
-            train_data = train_data[reserved_idx]            
             if soft_assignments is None:
                 train_soft_assignments = None
             elif isinstance(soft_assignments, str):
                 train_soft_assignments = 'compute'
             else:
-                train_soft_assignments = soft_assignments[reserved_idx][:,reserved_idx].copy()
-            del soft_assignments, reserved_idx
+                train_soft_assignments = soft_assignments.copy()
+            del soft_assignments
         elif scheduler == 'reduced':
-            train_val_data = train_data[reserved_idx]
+            train_val_data = train_data.copy()
             # randomly split the training data into training and validation sets
             val_indices = np.random.choice(len(train_val_data), int(len(train_val_data)*0.1), replace=False)
             train_indices = np.setdiff1d(np.arange(len(train_val_data)), val_indices)
@@ -147,14 +140,14 @@ class spclt():
             elif isinstance(soft_assignments, str):
                 train_soft_assignments, val_soft_assignments = 'compute', 'compute'
             else:
-                train_val_soft_assignments = soft_assignments[reserved_idx][:,reserved_idx]
+                train_val_soft_assignments = soft_assignments.copy()
                 train_soft_assignments = train_val_soft_assignments[train_indices][:,train_indices].copy()
                 val_soft_assignments = train_val_soft_assignments[val_indices][:,val_indices].copy()
                 del train_val_soft_assignments
-            del soft_assignments, reserved_idx, train_val_data, train_indices, val_indices
+            del soft_assignments, train_val_data, train_indices, val_indices
             val_dataset = datautils.custom_dataset(torch.from_numpy(val_data).float())
             val_loader = DataLoader(val_dataset, batch_size=min(self.batch_size, len(val_dataset)), shuffle=False, drop_last=True)
-            del val_dataset
+            del val_dataset, val_data
             
             if n_epochs is not None:
                 val_loss_log = np.zeros((n_epochs, 2)) * np.nan
@@ -183,7 +176,7 @@ class spclt():
         # create training dataset, dataloader, and loss log
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
-        del train_dataset
+        del train_dataset, train_data
         if n_epochs is not None:
             if self.regularizer_config['reserve'] is None:
                 loss_log = np.zeros((n_epochs, 1)) * np.nan

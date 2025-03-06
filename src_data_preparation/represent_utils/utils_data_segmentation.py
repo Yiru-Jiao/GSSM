@@ -106,7 +106,7 @@ class ContextSegmenter(coortrans):
                 indices_end = np.arange(len(df)-1, 25, -45)
 
             for idx_end in indices_end:
-                # sample 2-second scenes every 1 second
+                # sample 2.5-second scenes every 1 second
                 profiles = df.iloc[idx_end-25:idx_end][['acc_ego','v_ego']]
                 profiles['v_ego'] = abs(profiles['v_ego'])
                 profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
