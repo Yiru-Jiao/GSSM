@@ -18,7 +18,7 @@ from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
 from src_safety_evaluation.validation_utils.EmergencyIndex import get_EI
 from src_safety_evaluation.validation_utils.SSMsOnPlane import longitudinal_ssms, two_dimensional_ssms
-from src_safety_evaluation.validation_utils.utils_evaluation import set_veh_dimensions, define_model, SSSE
+from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions, define_model, SSSE
 
 
 def parse_args():
@@ -73,8 +73,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
     # Read event information
     event_categories = sorted(os.listdir(path_result + 'EventData/'))
-    data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
-    event_meta = pd.concat([pd.read_csv(path_result + f'EventData/{event_cat}/event_meta.csv') for event_cat in event_categories], ignore_index=True).set_index('event_id')
+    event_meta, data = read_events(path_result + 'EventData/')
     avg_width = np.nanmean(event_meta['ego_width'].values)
     avg_length = np.nanmean(event_meta['ego_length'].values)
     veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
@@ -213,7 +212,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
         states = []
         if encoder_selection[0]=='current':
-            states.append(current_features[:,list(range(11))+[-1]])
+            states.append(current_features[:,list(range(11))+[12]])
         if encoder_selection[0]=='current+acc':
             states.append(current_features)
         if 'environment' in encoder_selection:
