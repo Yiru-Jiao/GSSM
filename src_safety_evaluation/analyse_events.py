@@ -193,51 +193,7 @@ def main(path_result, path_prepared):
     print('Analysed models:', results['model'].unique())
 
     # '''
-    # Analysis 1 - Event severity
-    # For each event, there could be 1 conflict or 2 sequential conflicts, of which
-    # - danger_present: at least one target with long enough duration presents during [impact_timestamp-0.5 s, impact_timestamp+0.5 s]
-    # - ground truth: Crash(3)/NearCrash(2)/CrashRelevant(1)/Not applicable(0)
-    # - safety evaluation: average intensity in the period [impact_timestamp-0.5 s, impact_timestamp+0.5 s]
-    # '''
-    # if os.path.exists(path_result + 'Analyses/EventSeverity.h5'):
-    #     print('--- Analysis 1: Event severity completed ---')
-    # else:
-    #     ground_truth = event_meta[event_meta['duration_enough']]
-    #     results = []
-    #     for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
-    #         safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
-    #         safety_evaluation = safety_evaluation[safety_evaluation['event_id'].isin(ground_truth.index.values)]
-    #         safety_evaluation['impact_time'] = ground_truth.loc[safety_evaluation['event_id'].values, 'impact_timestamp'].values/1000
-    #         safety_evaluation['period_start'] = safety_evaluation['impact_time'] - 0.5
-    #         safety_evaluation['period_end'] = safety_evaluation['impact_time'] + 0.5
-    #         safety_evaluation = safety_evaluation[(safety_evaluation['time']>=safety_evaluation['period_start'])&
-    #                                             (safety_evaluation['time']<=safety_evaluation['period_end'])]
-    #         avg_intensity = safety_evaluation.groupby(['event_id','target_id'])['intensity'].mean().reset_index().set_index('event_id')
-    #         result = []
-    #         for event_id in tqdm(avg_intensity.index.unique(), desc=pretraining+'_'+encoder_name, ascii=True, dynamic_ncols=False):
-    #             if ground_truth.loc[event_id, 'severity_first'] >= ground_truth.loc[event_id, 'severity_second']:
-    #                 severity_higher = ground_truth.loc[event_id, 'severity_first']
-    #                 severity_lower = ground_truth.loc[event_id, 'severity_second']
-    #             else:
-    #                 severity_higher = ground_truth.loc[event_id, 'severity_second']
-    #                 severity_lower = ground_truth.loc[event_id, 'severity_first']
-    #             if severity_higher>0 or severity_lower>0:
-    #                 event_meta.loc[event_id, 'danger_present'] = True
-    #             sorted_intensity = avg_intensity.loc[[event_id]].sort_values('intensity', ascending=False)
-    #             intensity_higher = sorted_intensity.iloc[0]['intensity']
-    #             intensity_lower = sorted_intensity.iloc[1]['intensity'] if len(sorted_intensity)>1 else 0.
-    #             result.append([str(event_id)+'-higher', severity_higher, intensity_higher])
-    #             result.append([str(event_id)+'-lower', severity_lower, intensity_lower])
-    #         result = pd.DataFrame(result, columns=['event','given_severity','evaluated_intensity'])
-    #         result['model'] = pretraining + '_' + encoder_name
-    #         results.append(result)
-    #     results = pd.concat(results)
-    #     results.to_hdf(path_result + f'Analyses/EventSeverity.h5', key='results', mode='w')
-    #     event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
-    #     print('--- Analysis 1: Event severity completed ---')
-
-    # '''
-    # Save the identified target by different models under corresponding optimal thresholds    
+    # Save the identified target by the best models in each category under corresponding optimal thresholds    
     # '''
     # if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
     #     event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
