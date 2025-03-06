@@ -59,14 +59,14 @@ class CurrentEncoder(nn.Module):
         super(CurrentEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims+1, output_dims//4),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims//4, output_dims//2),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims//2, output_dims),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
         )
@@ -100,12 +100,12 @@ class EnvEncoder(nn.Module):
         super(EnvEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims, output_dims//2),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims//2, output_dims),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
         )
@@ -163,10 +163,10 @@ class FeedForwardBlock(nn.Module):
         self.output_dims = output_dims
         self.mlp = nn.Sequential(
             nn.Linear(input_dims, output_dims),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.1),
-            nn.ELU(),
+            nn.GELU(),
         )
         self.layer_norm = nn.LayerNorm(output_dims)
 
@@ -239,34 +239,34 @@ class AttentionDecoder(nn.Module):
         # Define the output layers
         self.output_cnn = nn.Sequential( # (batch_size, latent_dims*4=256, final_seq_len)
             nn.Conv1d(self.latent_dims*4, self.latent_dims, kernel_size=3, padding=1),
-            nn.ELU(),
+            nn.GELU(),
             nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
-            nn.ELU(),
+            nn.GELU(),
         )            
         self.output_mu = nn.Sequential(
             nn.Flatten(1), # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
             nn.Dropout(0.1),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(128, 32),
             nn.Dropout(0.1),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(32, 8),
             nn.Dropout(0.1),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(8, 1),
         )
         self.output_log_var = nn.Sequential(
             nn.Flatten(1), # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
             nn.Dropout(0.1),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(128, 32),
             nn.Dropout(0.1),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(32, 8),
             nn.Dropout(0.1),
-            nn.ELU(),
+            nn.GELU(),
             nn.Linear(8, 1),
         )
 
