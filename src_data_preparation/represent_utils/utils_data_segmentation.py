@@ -99,7 +99,7 @@ class ContextSegmenter(coortrans):
             if self.dataset=='highD':
                 indices_end = np.arange(len(df)-1, 25, -15)
             elif self.dataset=='INTERACTION':
-                indices_end = np.arange(len(df)-1, 25, -5)
+                indices_end = np.arange(len(df)-1, 25, -10)
             elif self.dataset=='SafeBaseline':
                 indices_end = np.arange(len(df)-1, 25, -20)
             elif self.dataset=='Argoverse':
