@@ -114,30 +114,30 @@ for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
             sample = pd.read_csv(meta_both.loc[event_id]['file_dir'] + meta_both.loc[event_id]['file2use'], on_bad_lines='warn')
         except:
             meta_both, data_save = act_before_continue(meta_both, event_id, 0, 0, 'file reading error', 
-                                                    data_save, separate_chunk, save_checkpoint, chunk_id)
+                                                       data_save, separate_chunk, save_checkpoint, chunk_id)
             continue
         
         ## check if ego speed is all nan
         if sample['vtti.speed_network'].isna().all():
             meta_both, data_save = act_before_continue(meta_both, event_id, 0, 0, 'all nan ego speed',
-                                                    data_save, separate_chunk, save_checkpoint, chunk_id)
+                                                       data_save, separate_chunk, save_checkpoint, chunk_id)
             continue
 
         if sample['vtti.accel_x'].isna().all() or sample['vtti.accel_y'].isna().all():
             meta_both, data_save = act_before_continue(meta_both, event_id, 0, 0, 'all nan acceleration',
-                                                    data_save, separate_chunk, save_checkpoint, chunk_id)
+                                                       data_save, separate_chunk, save_checkpoint, chunk_id)
             continue
 
         if sample['vtti.gyro_z'].isna().all():
             meta_both, data_save = act_before_continue(meta_both, event_id, 0, 0, 'all nan yaw rate',
-                                                    data_save, separate_chunk, save_checkpoint, chunk_id)
+                                                       data_save, separate_chunk, save_checkpoint, chunk_id)
             continue
 
         ## create dataframe (note: SHRP2 excluded rearward vehicles)
         df_ego, df_forward, target_id, reconnected_ids = create_dataframe(sample, event_id, target_id)
         if np.all(df_ego['speed_comp']<=1e-6):
             meta_both, data_save = act_before_continue(meta_both, event_id, 0, 0, 'all zero ego speed',
-                                                    data_save, separate_chunk, save_checkpoint, chunk_id)
+                                                       data_save, separate_chunk, save_checkpoint, chunk_id)
             continue
         
         ## check if some targets are reconnected
@@ -148,7 +148,7 @@ for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
         df_ego, valid_ego, pdf = process_ego(df_ego, event_id, pdf, ego_params)
         if not valid_ego:
             meta_both, data_save = act_before_continue(meta_both, event_id, 0, 0, 'start&end speed not available',
-                                                    data_save, separate_chunk, save_checkpoint, chunk_id)
+                                                       data_save, separate_chunk, save_checkpoint, chunk_id)
             continue
 
         ## reconstruct surrounding vehicle trajectory if there are useful surrounding vehicles
@@ -157,7 +157,7 @@ for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
             if np.isnan(ego_length):
                 df_sur = pd.DataFrame()
                 meta_both, data_save = act_before_continue(meta_both, event_id, 1, 0, 'no ego width or length',
-                                                    data_save, separate_chunk, save_checkpoint, chunk_id)
+                                                           data_save, separate_chunk, save_checkpoint, chunk_id)
             else:
                 df_forward = process_surrounding(df_ego, df_forward, ego_length, sur_params)
                 if len(df_forward)>0:
