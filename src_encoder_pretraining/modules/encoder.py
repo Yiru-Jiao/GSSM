@@ -11,10 +11,9 @@ class LSTMEncoder(nn.Module):
         super(LSTMEncoder, self).__init__()
         self.hidden_dims = hidden_dims
         self.num_layers = num_layers
-        self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims, num_layers, dropout=0.1, batch_first=True)]*5)
+        self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims, num_layers, batch_first=True)]*5)
         self.linear = nn.Sequential(
             nn.Linear(hidden_dims, hidden_dims),
-            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(hidden_dims, hidden_dims),
             nn.Dropout(0.2),

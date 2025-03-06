@@ -65,7 +65,6 @@ class CurrentEncoder(nn.Module):
             nn.Linear(output_dims//2, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
@@ -104,7 +103,6 @@ class EnvEncoder(nn.Module):
             nn.Linear(output_dims//2, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
@@ -242,14 +240,12 @@ class AttentionDecoder(nn.Module):
             nn.GELU(),
             nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
             nn.GELU(),
-        )            
+        )
         self.output_mu = nn.Sequential(
             nn.Flatten(1), # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
-            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(128, 32),
-            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(32, 8),
             nn.Dropout(0.1),
@@ -259,10 +255,8 @@ class AttentionDecoder(nn.Module):
         self.output_log_var = nn.Sequential(
             nn.Flatten(1), # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
-            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(128, 32),
-            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(32, 8),
             nn.Dropout(0.1),
