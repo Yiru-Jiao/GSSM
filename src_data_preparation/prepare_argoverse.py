@@ -91,4 +91,4 @@ for ego_vtype in ['hv', 'av']:
     data = data.drop(columns=['veh_type_ego','veh_type_sur'])
 
     # Saving the computed data to an HDF5 file
-    data.to_hdf(path_processed + 'argo_hv.h5', key='data', mode='w')
+    data.to_hdf(path_processed + f'argo_{ego_vtype}.h5', key='data', mode='w')
