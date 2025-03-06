@@ -14,7 +14,7 @@ def main(path_prepared, path_processed):
     initial_time = systime.time()
     print(f'Available cores for parallel processing: {multiprocessing.cpu_count()}')
 
-    for dataset in ['highD', 'INTERACTION', 'SafeBaseline', 'Argoverse']:
+    for dataset in ['highD', 'INTERACTION', 'SafeBaseline', 'ArgoverseHV', 'ArgoverseAV']:
         path_save = f'{path_prepared}{dataset}/'
         os.makedirs(path_save, exist_ok=True)
         if os.path.exists(path_save + f'profiles_{dataset}_val.h5'):
@@ -28,7 +28,8 @@ def main(path_prepared, path_processed):
         highD: 236,685 train scenes (min. dist. 1.36 m) + 57,939 val scenes (min. dist. 2.95 m)
         INTERACTION: train 207,236 scenes (min. dist. 2.92 m) + 50,820 val scenes (min. dist. 2.96 m)
         SafeBaseline: 219,016 train scenes (min. dist. 1.83 m) + 54,101 val scenes (min. dist. 2.34 m)
-        Argoverse: 244,444 train scenes (min. dist. 0.29 m) + 60,918 val scenes (min. dist. 0.22 m)
+        ArgoverseHV: 244,444 train scenes (min. dist. 0.29 m) + 60,918 val scenes (min. dist. 0.22 m)
+        ArgoverseAV: 244,444 train scenes (min. dist. 0.29 m) + 60,918 val scenes (min. dist. 0.22 m)
         '''
         event_ids = data_both['event_id'].unique()
         len_event_ids = len(event_ids)

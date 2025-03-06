@@ -45,8 +45,11 @@ def read_dataset(dataset, path_processed):
         data_both = pd.read_hdf(path_processed+'INTERACTION/paired_GL.h5', key='pairs')
         data_both['event_id'] = data_both['i']
         data_both['target_id'] = data_both['i'].astype(str) + '_' + data_both['j'].astype(str)
-    elif dataset=='Argoverse':
+    elif dataset=='ArgoverseHV':
         data_both = pd.read_hdf(path_processed+'Argoverse/argo_hv.h5', key='data')
+        data_both['event_id'] = data_both['log_id']
+    elif dataset=='ArgoverseAV':
+        data_both = pd.read_hdf(path_processed+'Argoverse/argo_av.h5', key='data')
         data_both['event_id'] = data_both['log_id']
     return data_both
 
@@ -96,13 +99,13 @@ class ContextSegmenter(coortrans):
 
             df_view_ego = self.transform_coor(df, 'ego')
             df_view_relative = self.transform_coor(df, 'relative')
-            if self.dataset=='highD':
+            if self.dataset=='highD' or self.dataset=='ArgoverseAV':
                 indices_end = np.arange(len(df)-1, 25, -15)
             elif self.dataset=='INTERACTION':
                 indices_end = np.arange(len(df)-1, 25, -10)
             elif self.dataset=='SafeBaseline':
                 indices_end = np.arange(len(df)-1, 25, -20)
-            elif self.dataset=='Argoverse':
+            elif self.dataset=='ArgoverseHV':
                 indices_end = np.arange(len(df)-1, 25, -45)
 
             for idx_end in indices_end:

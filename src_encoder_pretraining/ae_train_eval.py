@@ -66,11 +66,11 @@ def main(args):
     if args.encoder_name == 'environment':
         datasets_list = [['SafeBaseline']]
     elif args.encoder_name == 'current':
-        datasets_list = [['highD'], ['INTERACTION'], ['SafeBaseline'], ['Argoverse'],
-                         ['INTERACTION', 'highD'], ['INTERACTION', 'highD', 'Argoverse'],
-                         ['INTERACTION', 'highD', 'Argoverse', 'SafeBaseline']]
+        datasets_list = [['highD'], ['INTERACTION'], ['SafeBaseline'], ['ArgoverseHV'],
+                         ['INTERACTION', 'highD'], ['INTERACTION', 'highD', 'ArgoverseHV'],
+                         ['INTERACTION', 'highD', 'ArgoverseHV', 'SafeBaseline']]
     elif args.encoder_name == 'current+acc':
-        datasets_list = [['SafeBaseline'], ['INTERACTION', 'highD', 'Argoverse', 'SafeBaseline']]
+        datasets_list = [['SafeBaseline'], ['INTERACTION', 'highD', 'ArgoverseHV', 'SafeBaseline']]
 
     if args.reversed_list:
         datasets_list = datasets_list[::-1]
