@@ -56,7 +56,7 @@ def set_veh_dimensions(event_meta, avg_width, avg_length):
 def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output=None, return_attention=False):
     # Define the model
     pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output, return_attention)
-    ## Load trained model
+    # Load trained model
     pipeline.load_model()
     print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}')
     return pipeline.model
@@ -285,6 +285,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         else:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
         statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
+    statistics['combined rate'] = np.round(np.sqrt(statistics['combined rate']), 2)
     optimal_rate = statistics['combined rate'].min()
     if np.isnan(optimal_rate):
         if return_stats:
