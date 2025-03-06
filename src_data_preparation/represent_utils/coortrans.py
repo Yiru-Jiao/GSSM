@@ -56,10 +56,17 @@ class coortrans():
                 dict_rename.pop(time_ref, None)
             pairs = pairs.rename(columns=dict_rename)
 
+        # Make sure velocity components are in data
+        if not np.all(np.isin(['vx_ego', 'vy_ego', 'vx_sur', 'vy_sur'], pairs.columns)):
+            pairs['vx_ego'] = pairs['v_ego']*pairs['hx_ego']
+            pairs['vy_ego'] = pairs['v_ego']*pairs['hy_ego']
+            pairs['vx_sur'] = pairs['v_sur']*pairs['hx_sur']
+            pairs['vy_sur'] = pairs['v_sur']*pairs['hy_sur']
+
         # Determine transformation reference based on the view
         if view == 'relative':
-            coor_ref = pd.DataFrame({'x_axis': pairs['v_ego']*pairs['hx_ego']-pairs['v_sur']*pairs['hx_sur'],
-                                     'y_axis': pairs['v_ego']*pairs['hy_ego']-pairs['v_sur']*pairs['hy_sur'], 
+            coor_ref = pd.DataFrame({'x_axis': pairs['vx_ego'] - pairs['vx_sur'],
+                                     'y_axis': pairs['vy_ego'] - pairs['vy_sur'],
                                      'x_origin': pairs['x_ego'], 
                                      'y_origin': pairs['y_ego']}, index=pairs.index)
             condition = (coor_ref['x_axis']==0)&(coor_ref['y_axis']==0)
