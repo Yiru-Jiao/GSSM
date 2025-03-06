@@ -215,7 +215,7 @@ def main(args):
             else:
                 sample_number = 100
             event_ids = meta_both[(meta_both['event_category']==event_cat)&
-                                (~meta_both['file2use'].isna())].index.sort_values().values
+                                  (~meta_both['file2use'].isna())].index.sort_values().values
             
             progress_bar = tqdm(event_ids, desc=event_cat)
             for event_id in progress_bar:
