@@ -33,6 +33,7 @@ def read_scenario(filename, root, initial_target_id, return_map=False):
     motion = dt['motion'][:]
     veh_type = dt['category'][:]
 
+    # In the cases involving an AV, the AV is always the first object in the scenario
     t_ego = timestep[slices[0]:slices[1]]
     motion_ego = motion[slices[0]:slices[1]]
     df_ego = get_df(motion_ego, t_ego, veh_type[0])
@@ -56,34 +57,38 @@ def read_scenario(filename, root, initial_target_id, return_map=False):
 
 # Set the root path for raw data
 # if you downloaded the data from 4TU, firstly unzip the data
-root = path_raw + 'Argoverse2/data_3m/hv/'
+for ego_vtype in ['hv', 'av']:
+    root = path_raw + f'Argoverse2/data_3m/{ego_vtype}/'
+    if os.path.exists(path_processed + f'argo_{ego_vtype}.h5'):
+        print(f'Processing {ego_vtype} already done. Skipping...')
+        continue
 
-print('Processing ...')
-# Get the list of files from the root directory
-filenames = [name for name in os.listdir(root) if os.path.isdir(os.path.join(root, name))]
-data = []
-initial_target_id = -1
-for idx in tqdm(range(len(filenames))):
-    filename = filenames[idx]
-    df = read_scenario(filename, root, initial_target_id)
-    df['log_id'] = idx
-    initial_target_id = df['target_id'].max()
-    data.append(df)
+    print(f'Processing {ego_vtype}...')
+    # Get the list of files from the root directory
+    filenames = [name for name in os.listdir(root) if os.path.isdir(os.path.join(root, name))]
+    data = []
+    initial_target_id = -1
+    for idx in tqdm(range(len(filenames))):
+        filename = filenames[idx]
+        df = read_scenario(filename, root, initial_target_id)
+        df['log_id'] = idx
+        initial_target_id = df['target_id'].max()
+        data.append(df)
 
-data = pd.concat(data, ignore_index=True)
-data[['log_id', 'target_id']] = data[['log_id', 'target_id']].astype(int)
-# Set vehicle dimensions
-data['length_ego'] = 4.5
-data['width_ego'] = 1.75
-veh_types = [0, 1, 2, 3, 4] # 0: HV, 1: Pedestrian, 2: Motorcyclist, 3: Cyclist, 4: Bus
-widths = [1.75, 0.5, 0.8, 0.5, 2.55]
-lengths = [4.5, 0.5, 2.0, 1.5, 11.95]
-for veh_type, width, length in zip(veh_types, widths, lengths):
-    data.loc[data['veh_type_sur']==veh_type, 'length_sur'] = length
-    data.loc[data['veh_type_sur']==veh_type, 'width_sur'] = width
-data.loc[data['length_sur'].isna(), 'length_sur'] = 4.5
-data.loc[data['width_sur'].isna(), 'width_sur'] = 1.75
-data = data.drop(columns=['veh_type_ego','veh_type_sur'])
+    data = pd.concat(data, ignore_index=True)
+    data[['log_id', 'target_id']] = data[['log_id', 'target_id']].astype(int)
+    # Set vehicle dimensions
+    data['length_ego'] = 4.5
+    data['width_ego'] = 1.75
+    veh_types = [0, 1, 2, 3, 4, 10] # 0: HV, 1: Pedestrian, 2: Motorcyclist, 3: Cyclist, 4: Bus, 10: Automated Vehicle
+    widths = [1.75, 0.5, 0.8, 0.5, 2.55, 1.75]
+    lengths = [4.5, 0.5, 2.0, 1.5, 11.95, 4.5]
+    for veh_type, width, length in zip(veh_types, widths, lengths):
+        data.loc[data['veh_type_sur']==veh_type, 'length_sur'] = length
+        data.loc[data['veh_type_sur']==veh_type, 'width_sur'] = width
+    data.loc[data['length_sur'].isna(), 'length_sur'] = 4.5
+    data.loc[data['width_sur'].isna(), 'width_sur'] = 1.75
+    data = data.drop(columns=['veh_type_ego','veh_type_sur'])
 
-# Saving the computed data to an HDF5 file
-data.to_hdf(path_processed + 'argo_hv.h5', key='data', mode='w')
+    # Saving the computed data to an HDF5 file
+    data.to_hdf(path_processed + 'argo_hv.h5', key='data', mode='w')
