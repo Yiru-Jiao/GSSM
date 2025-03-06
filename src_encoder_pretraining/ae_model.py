@@ -15,9 +15,9 @@ from src_posterior_inference.inference_utils.modules import CurrentEncoder, EnvE
 from src_encoder_pretraining.modules.loss_utils import topo_loss, ggeo_loss
 
 
-class shared_decoder(nn.Module):
+class AEDecoder(nn.Module):
     def __init__(self, input_dims, output_dims):
-        super(shared_decoder, self).__init__()
+        super(AEDecoder, self).__init__()
         self.feature_extractor = nn.Linear(input_dims, output_dims)
 
     def forward(self, x):
@@ -29,13 +29,13 @@ class model(nn.Module):
         super(model, self).__init__()
         if encoder_name == 'current':
             self.encoder = CurrentEncoder(input_dims=1, output_dims=64)
-            self.decoder = shared_decoder(input_dims=12*64, output_dims=12)
+            self.decoder = AEDecoder(input_dims=12*64, output_dims=12)
         elif encoder_name == 'current+acc':
             self.encoder = CurrentEncoder(input_dims=1, output_dims=64)
-            self.decoder = shared_decoder(input_dims=13*64, output_dims=13)
+            self.decoder = AEDecoder(input_dims=13*64, output_dims=13)
         elif encoder_name == 'environment':
             self.encoder = EnvEncoder(input_dims=27, output_dims=64)
-            self.decoder = shared_decoder(input_dims=64, output_dims=27)
+            self.decoder = AEDecoder(input_dims=64, output_dims=27)
         else:
             ValueError("Undefined encoder name: should be among 'current', 'current+acc', 'environment'.")
 
@@ -57,7 +57,6 @@ class autoencoder():
         self.after_epoch_callback = after_epoch_callback
         self.encoder_name = encoder_name
 
-
     # define eval() and train() functions
     def eval(self,):
         self.net.eval()
@@ -67,14 +66,12 @@ class autoencoder():
         self.net.train()
         self.loss_log_vars.requires_grad = True
 
-
     def loss_func_topo(self, input, target): # used for environment encoder
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
         loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
         loss_topo = topo_loss(self, input)
         loss_topo = 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_topo*(1-torch.exp(-loss_topo)) + 0.5 * self.loss_log_vars[1]
         return loss_ae + loss_topo
-        
 
     def loss_func_ggeo(self, input, target): # used for current encoder
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
@@ -82,7 +79,6 @@ class autoencoder():
         loss_ggeo = ggeo_loss(self, input, 0.25)
         loss_ggeo = 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_ggeo*(1-torch.exp(-loss_ggeo)) + 0.5 * self.loss_log_vars[1]
         return loss_ae + loss_ggeo
-
 
     def fit(self, train_data, n_epochs=100, scheduler='constant', verbose=0):
         self.train()
