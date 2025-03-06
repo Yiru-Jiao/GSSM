@@ -11,7 +11,14 @@ class LSTMEncoder(nn.Module):
         super(LSTMEncoder, self).__init__()
         self.hidden_dims = hidden_dims
         self.num_layers = num_layers
-        self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims, num_layers=num_layers, batch_first=True)]*5)
+        self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims, num_layers, dropout=0.1, batch_first=True)]*5)
+        self.linear = nn.Sequential(
+            nn.Linear(hidden_dims, hidden_dims),
+            nn.Dropout(0.2),
+            nn.ELU(),
+            nn.Linear(hidden_dims, hidden_dims),
+            nn.Dropout(0.2),
+        )
 
     def forward(self, x): # x: (batch_size, 25, feature_dims=4)
         # in total 5 time blocks, each for the passed 0.5, 1, 1.5, 2, 2.5 seconds
@@ -24,5 +31,6 @@ class LSTMEncoder(nn.Module):
                 hidden = sub_hidden[-1].unsqueeze(1) # (batch_size, 1, hidden_dims)
             else:
                 hidden = torch.cat((hidden, sub_hidden[-1].unsqueeze(1)), dim=1) # (batch_size, [2, 3, 4, 5], hidden_dims)
-        return hidden # (batch_size, 5, hidden_dims)
-
+        out = self.linear(hidden) # (batch_size, 5, hidden_dims)
+        # nn.Linear() applies to the last dimension, therefore the 5 time blocks are still independently processed
+        return out
