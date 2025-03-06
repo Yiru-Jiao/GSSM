@@ -57,7 +57,7 @@ def read_scenario(filename, root, initial_target_id, return_map=False):
 
 # Set the root path for raw data
 # if you downloaded the data from 4TU, firstly unzip the data
-for ego_vtype in ['hv', 'av']:
+for ego_vtype in ['av','hv']:
     root = path_raw + f'Argoverse2/data_3m/{ego_vtype}/'
     if os.path.exists(path_processed + f'argo_{ego_vtype}.h5'):
         print(f'Processing {ego_vtype} already done. Skipping...')
