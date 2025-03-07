@@ -49,14 +49,14 @@ def main(args, manual_seed):
     num_inducing_points = 100
 
     # Training
-    existing_files = os.listdir('PreparedData/PosteriorInference/highD/ucd/')
+    existing_files = os.listdir('./PreparedData/PosteriorInference/highD/ucd/')
     existing_files = [file for file in existing_files if file.endswith('.pth')]
     if len(existing_files) > 0:
         print('Model already trained. Exiting...')
     else:
         pipeline = train_val_test(device, num_inducing_points, 
-                                  path_input='PreparedData/Segments/highD/',
-                                  path_output='PreparedData/PosteriorInference/highD/ucd/')
+                                  path_input='./PreparedData/Segments/highD/',
+                                  path_output='./PreparedData/PosteriorInference/highD/ucd/')
         pipeline.create_dataloader(batch_size, beta)
         print('Training...')
         pipeline.train_model(num_qepochs, initial_lr)
