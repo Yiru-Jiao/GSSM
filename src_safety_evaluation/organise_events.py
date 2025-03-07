@@ -16,6 +16,7 @@ manual_seed = 131
 path_processed = './ProcessedData/SHRP2/'
 path_prepared = './PreparedData/'
 path_result = './ResultData/'
+os.makedirs(path_result, exist_ok=True)
 
 
 def main(meta_both, events):

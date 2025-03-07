@@ -12,6 +12,7 @@ path_raw = './RawData/SHRP2/'
 path_raw_honda = './RawData/SHRP2/HondaDataSupport/'
 path_raw_das = './RawData/SHRP2/DriverAssistanceSystems/'
 path_processed = './ProcessedData/SHRP2/'
+os.makedirs(path_processed, exist_ok=True)
 
 
 # Set of Driving Assistance Systems
