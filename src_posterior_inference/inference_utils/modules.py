@@ -201,11 +201,11 @@ class StackedAttention(nn.Module):
 
 class AttentionDecoder(nn.Module):
     '''
-    State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=64) -> (batch_size, 12/13+1, hidden_dims=64)
+    State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=64) -> (batch_size, 12/13+1, hidden_dims=256=64*4)
     TimeSeries self-attention: (batch_size, 5, latent_dims=64) -> (batch_size, 5, hidden_dims=256=64*4)
 
-    Local interaction with CNN+MLP: (batch_size, 256, 12/13+1) -> (batch_size, 32)
-    Output with linear: (batch_size, 32, 1) -> (batch_size, 1)
+    Local interaction with CNN: (batch_size, 256, 12~19) -> (batch_size, 16, 12~19)
+    Output with MLP: (batch_size, 16*(12~19)) -> (batch_size, 1)
     '''
     def __init__(self, latent_dims=64, encoder_selection=[], single_output=None, return_attention=False):
         super(AttentionDecoder, self).__init__()
@@ -241,8 +241,7 @@ class AttentionDecoder(nn.Module):
             nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
             nn.GELU(),
         )
-        self.output_mu = nn.Sequential(
-            nn.Flatten(1), # (batch_size, 16*final_seq_len)
+        self.output_mu = nn.Sequential( # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
             nn.GELU(),
             nn.Linear(128, 32),
@@ -252,8 +251,7 @@ class AttentionDecoder(nn.Module):
             nn.GELU(),
             nn.Linear(8, 1),
         )
-        self.output_log_var = nn.Sequential(
-            nn.Flatten(1), # (batch_size, 16*final_seq_len)
+        self.output_log_var = nn.Sequential( # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
             nn.GELU(),
             nn.Linear(128, 32),
@@ -276,9 +274,10 @@ class AttentionDecoder(nn.Module):
             attention_matrices = dict()
         else:
             attention_matrices = None
-        attended_state, attention_matrices = self.SelfAttention(state, attention_matrices)
+        attended_state, attention_matrices = self.SelfAttention(state, attention_matrices) # (batch_size, final_seq_len, latent_dims*4=256)
         transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, final_seq_len)
-        out = self.output_cnn(transposed_state) # (batch_size, 32)
+        out = self.output_cnn(transposed_state) # (batch_size, 16, final_seq_len)
+        out = out.reshape(out.size(0), -1) # (batch_size, 16*final_seq_len)
         mu = self.output_mu(out)
         log_var = self.output_log_var(out)
         if self.single_output is None:
@@ -286,7 +285,7 @@ class AttentionDecoder(nn.Module):
             log_var = log_var.squeeze()
             if self.return_attention:
                 return mu, log_var, (attended_state, attention_matrices) # attended_state: [batch_size, final_seq_len, latent_dims=64]
-                                                # attention_matrices: {block_i: [batch_size, final_seq_len, final_seq_len]}
+                                                           # attention_matrices: {block_i: [batch_size, final_seq_len, final_seq_len]}
             else:
                 return mu, log_var
         elif self.single_output == 'mu':
