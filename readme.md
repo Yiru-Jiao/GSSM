@@ -33,13 +33,13 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 `src_data_preparation/segment_datasets.py`, `src_data_preparation/complete_environment_samples.py`
 
 ### Encoder pretraining
-`ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
+`src_encoder_pretraining/ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
 
 ### Posterior inference
-`src_posterior_inference/pi_search_bslr.py`, `src_posterior_inference/pi_train_eval.py`
+`src_posterior_inference/pi_train_eval.py`, `src_safety_evaluation/reuse_ucd/train_gaussian.py`
 
 ### Safety evaluation
-`src_safety_evaluation/organise_events.py`, `src_safety_evaluation/evaluate_safety.py`, `src_safety_evaluation/analyse_events.py`, `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`, 
+`src_safety_evaluation/organise_events.py`, `src_safety_evaluation/evaluate_safety.py`, `src_safety_evaluation/analyse_events.py`, `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`
 
 ## Copyright
 ### Citation
