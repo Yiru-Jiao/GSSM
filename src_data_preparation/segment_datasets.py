@@ -67,6 +67,7 @@ if __name__ == '__main__':
     manual_seed = 131
     np.random.seed(manual_seed)
 
+    os.makedirs('./PreparedData/Segments/', exist_ok=True)
     path_prepared = './PreparedData/Segments/'
     path_processed = './ProcessedData/'
     main(path_prepared, path_processed)
