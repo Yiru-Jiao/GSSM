@@ -1,4 +1,5 @@
 '''
+This script reuses the UCD model to train a SVGP model with the highD dataset.
 '''
 
 import os
@@ -22,7 +23,7 @@ def parse_args():
     return args
 
 
-def main(args, manual_seed):
+def main(args, manual_seed, model_path):
     initial_time = systime.time()
     print('Available cpus:', torch.get_num_threads(), 'available gpus:', torch.cuda.device_count())
     
@@ -49,14 +50,14 @@ def main(args, manual_seed):
     num_inducing_points = 100
 
     # Training
-    existing_files = os.listdir('./PreparedData/PosteriorInference/highD/ucd/')
+    existing_files = os.listdir(model_path)
     existing_files = [file for file in existing_files if file.endswith('.pth')]
     if len(existing_files) > 0:
         print('Model already trained. Exiting...')
     else:
         pipeline = train_val_test(device, num_inducing_points, 
-                                  path_input='./PreparedData/Segments/highD/',
-                                  path_output='./PreparedData/PosteriorInference/highD/ucd/')
+                                  path_input='PreparedData/Segments/highD/',
+                                  path_output=model_path)
         pipeline.create_dataloader(batch_size, beta)
         print('Training...')
         pipeline.train_model(num_qepochs, initial_lr)
@@ -70,5 +71,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     manual_seed = 131
-    
-    main(args, manual_seed)
+    model_path = 'PreparedData/PosteriorInference/highD/ucd/'
+    os.makedirs(model_path, exist_ok=True)
+
+    main(args, manual_seed, model_path)
