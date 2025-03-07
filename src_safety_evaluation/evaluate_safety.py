@@ -241,6 +241,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
         eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, results['target_id'].nunique(), len(results)]
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
+        results['mode'] = np.exp(results['mu'] - results['sigma']**2)
+        print(results[['mu','sigma','mode']].describe().to_string())
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)

@@ -275,7 +275,7 @@ class train_val_test():
         mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
         mu_sigma['mode'] = np.exp(mu_sigma['mu'] - mu_sigma['sigma']**2)
         print(mu_sigma.describe().to_string())
-        print(f'Gaussian NLL: {val_gau.item()/val_batch_iter}, Smooth Gaussian NLL: {val_smooth_gau.item()/val_batch_iter}')
+        print(f'LogNormal NLL: {val_gau.item()/val_batch_iter}, Smooth LogNormal NLL: {val_smooth_gau.item()/val_batch_iter}')
 
         # Save model and loss records
         torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')

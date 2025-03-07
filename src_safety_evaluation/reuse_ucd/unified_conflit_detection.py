@@ -219,7 +219,7 @@ class train_val_test():
         mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
         mu_sigma['mode'] = np.exp(mu_sigma['mu']-mu_sigma['sigma']**2)
         print(mu_sigma.describe().to_string())
-        print(f'Gaussian NLL: {val_gau.item()/count_batch}, Smooth Gaussian NLL: {val_smooth_gau.item()/count_batch}')
+        print(f'LogNormal NLL: {val_gau.item()/count_batch}, Smooth LogNormal NLL: {val_smooth_gau.item()/count_batch}')
         
         # Save loss records
         loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records[:count_epoch+1])+1)],
