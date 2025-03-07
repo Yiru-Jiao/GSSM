@@ -96,11 +96,6 @@ def main(meta_both, events):
             event_meta = event_meta.drop(columns=['time_series_das', 'time_series_honda', 'file_dir', 'file2use', 'ego_reconstructed', 'surrounding_reconstructed', 'note'])
             event_meta.to_csv(path_save + f'{event_cat}/event_meta.csv')
             data.to_hdf(path_save + f'{event_cat}/event_data.h5', key='data', mode='w')
-        
-        # Print data variable descriptions
-        print(f'--------------------- Variables in {event_cat} ---------------------')
-        print(data.describe().to_string())
-        print('--------------------------------------------------------------------')
 
 
         # Save event features
@@ -150,6 +145,7 @@ def main(meta_both, events):
         current_features['s'] = spacing_list
         profiles_features = pd.DataFrame(profiles_features.reshape(-1, 4), columns=['acc_ego','v_ego','vx_sur','vy_sur'])
         print(f'--------------------- Variables in {event_cat} ---------------------')
+        print(data.columns.to_list(), '\n')
         print('Current features:\n', current_features.describe().to_string(), '\n')
         print('Profiles features:\n', profiles_features.describe().to_string())
         print('--------------------------------------------------------------------')
