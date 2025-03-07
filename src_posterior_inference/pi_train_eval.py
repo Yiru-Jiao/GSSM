@@ -76,7 +76,7 @@ def main(args, manual_seed, path_prepared):
 
         initial_lr = 0.00025 if pretrained_encoder==False else 0.00015 
         batch_size = 256
-        epochs = 500
+        epochs = 300
         
         condition = (evaluation['dataset']==dataset_name)&\
                     (evaluation['encoder_selection']==encoder_name)&\
