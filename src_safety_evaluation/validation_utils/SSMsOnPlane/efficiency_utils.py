@@ -1,12 +1,9 @@
-import numpy as np
-import warnings
-from .longitudinal_ssms import TTC, DRAC, MTTC, PSD, TTC_DRAC_MTTC
-from .two_dimensional_ssms import TAdv
-
+from .longitudinal_ssms import TTC, DRAC, MTTC, PSD
+from .two_dimensional_ssms import TAdv, TTC2D, ACT
 
 
 # Efficiency evaluation
-def efficiency(samples, indicator, iterations):
+def evaluate_efficiency(samples, indicator, iterations, average_only=True):
     if indicator=='TTC':
         compute_func = TTC
     elif indicator=='DRAC':
@@ -15,15 +12,23 @@ def efficiency(samples, indicator, iterations):
         compute_func = MTTC
     elif indicator=='PSD':
         compute_func = PSD
-    elif indicator=='TTC_DRAC_MTTC':
-        compute_func = TTC_DRAC_MTTC
+    elif indicator=='TAdv':
+        compute_func = TAdv
+    elif indicator=='TTC2D':
+        compute_func = TTC2D
+    elif indicator=='ACT':
+        compute_func = ACT
     else:
-        print('Incorrect indicator. Please specify \'TTC\', \'DRAC\', \'MTTC\', \'PSD\', or \'TTC_DRAC_MTTC\'.')
+        print('Undefined indicator. Please specify \'TTC\', \'DRAC\', \'MTTC\', \'PSD\', \'TAdv\', \'TTC2D\', or \'ACT\'.')
         return None
+
     import time as systime
     ts = []
     for _ in range(iterations):
         t = systime.time()
         _ = compute_func(samples, 'values')
         ts.append(systime.time()-t)
-    return sum(ts)/iterations
+    if average_only:
+        return sum(ts)/iterations
+    else:
+        return sum(ts)/iterations, ts
