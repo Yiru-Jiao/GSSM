@@ -1,8 +1,10 @@
 ## Data dictionary
 The file structure under this directory `./ProcessedData/SHRP2/Event/` where `Event` can be `Crash`, `NearCrash`, etc., is as follows:
-- `./plots_ego_ekf.pdf` where the plots of trajectory reconstruction using Extended Kalman Filter are stored
-- `./Ego_birdseye.h5` where the reconstructed ego vehicle trajectory is stored
-- `./Surrounding_birdseye.h5` where the reconstructed surrounding vehicle trajectories are stored
+- `plots_ego_ekf.pdf` where the plots of trajectory reconstruction for all events in the category using Extended Kalman Filter are stored,
+- `Ego_birdseye.h5` where the reconstructed ego vehicles' trajectories are stored,
+- `Surrounding_birdseye.h5` where the reconstructed surrounding vehicles' trajectories are stored.
+
+An exception is the `./ProcessedData/SHRP2/SafeBaseline/` directory where the data are separated into 5 chuncks due to its large amount. Each chunk is marked by a suffix like `_0`~`_4` for plots (e.g., `plots_ego_ekf_0.pdf`), ego vehicle trajectories (e.g., `Ego_birdseye_1.h5`), and surrounding vehicle trajectories (e.g., `Surrounding_birdseye_2.h5`).
 
 ### Ego vehicle trajectory
 The data in `Ego_birdseye.h5` is organised as a pandas dataframe with the following columns:
@@ -29,7 +31,7 @@ The data in `Ego_birdseye.h5` is organised as a pandas dataframe with the follow
 
 ### Surrounding vehicle trajectories
 
-The data in `Surrounding_birdseye.h5` is organised as a pandas dataframe with the following columns:
+Similarly but differently, the data in `Surrounding_birdseye.h5` is organised as a pandas dataframe with the following columns:
 | Data nature   | Column name  | Data type | Description|
 |---------------|--------------|-----------|------------|
 | Raw           | 'event_id'   | int       | Index of events, consistent with `Ego_birdseye.h5` and video index|
