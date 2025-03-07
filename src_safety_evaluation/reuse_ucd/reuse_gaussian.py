@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import torch
 import argparse
-sys.path.append('./')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_safety_evaluation.validation_utils.utils_evaluation import parallel_records
@@ -135,6 +134,6 @@ if __name__ == '__main__':
     args = parse_args()
 
     manual_seed = 131
-    path_result = './ResultData/'
+    path_result = 'ResultData/'
     
     main(args, manual_seed, path_result)

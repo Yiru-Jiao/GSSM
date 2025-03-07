@@ -13,9 +13,9 @@ from src_safety_evaluation.validation_utils.utils_evaluation import set_veh_dime
 from src_safety_evaluation.validation_utils.utils_features import read_data, get_context_representations
 
 manual_seed = 131
-path_processed = './ProcessedData/SHRP2/'
-path_prepared = './PreparedData/'
-path_result = './ResultData/'
+path_processed = 'ProcessedData/SHRP2/'
+path_prepared = 'PreparedData/'
+path_result = 'ResultData/'
 os.makedirs(path_result, exist_ok=True)
 
 
@@ -166,6 +166,6 @@ if __name__ == '__main__':
     # Load metadata and event information
     meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
     meta_both = meta_both.set_index('event_id')
-    events = pd.read_csv('./RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
+    events = pd.read_csv('RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
     
     main(meta_both, events)

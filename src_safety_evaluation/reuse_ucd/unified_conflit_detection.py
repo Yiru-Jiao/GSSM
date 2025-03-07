@@ -87,6 +87,7 @@ class train_val_test():
         self.device = device
         self.path_input = path_input
         self.path_output = path_output
+        os.makedirs(self.path_output, exist_ok=True)
 
         # Define model and likelihood
         self.define_model(num_inducing_points)
@@ -265,7 +266,7 @@ def define_model(num_inducing_points, device):
     likelihood = gpytorch.likelihoods.GaussianLikelihood()
 
     ## Load trained model
-    model_path = 'src_safety_evaluation/reuse_ucd'
+    model_path = 'PreparedData/PosteriorInference/highD/ucd/'
     existing_files = os.listdir(model_path)
     model_file = [file for file in existing_files if 'model_' in file]
     likelihood_file = [file for file in existing_files if 'likelihood_' in file]

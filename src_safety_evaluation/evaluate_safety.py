@@ -251,10 +251,10 @@ if __name__ == '__main__':
     args = parse_args()
 
     manual_seed = 131
-    path_prepared = './PreparedData/'
-    path_result = './ResultData/'
+    path_prepared = 'PreparedData/'
+    path_result = 'ResultData/'
 
     # Load event information to create one-hot encoder later
-    events = pd.read_csv('./RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
+    events = pd.read_csv('RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
     
     main(args, events, manual_seed, path_prepared, path_result)

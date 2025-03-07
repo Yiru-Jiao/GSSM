@@ -212,8 +212,8 @@ if __name__ == '__main__':
     manual_seed = 131
     np.random.seed(manual_seed)
 
-    path_result = './ResultData/'
+    path_result = 'ResultData/'
     os.makedirs(path_result + 'Analyses/', exist_ok=True)
-    path_prepared = './PreparedData/'
+    path_prepared = 'PreparedData/'
 
     main(path_result, path_prepared)

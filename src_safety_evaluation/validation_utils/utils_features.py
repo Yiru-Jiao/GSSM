@@ -11,8 +11,8 @@ from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
 
 manual_seed = 131
-path_prepared = './PreparedData/'
-path_processed = './ProcessedData/SHRP2/'
+path_prepared = 'PreparedData/'
+path_processed = 'ProcessedData/SHRP2/'
 
 
 def read_data(event_cat, single_file=True, path_processed=path_processed):

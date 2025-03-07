@@ -109,7 +109,7 @@ if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
     manual_seed = 131
-    path_prepared = './PreparedData/'
+    path_prepared = 'PreparedData/'
     main(args, manual_seed, path_prepared)
 
 

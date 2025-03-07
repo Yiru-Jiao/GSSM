@@ -7,10 +7,9 @@ import random
 import time as systime
 import torch
 import argparse
-sys.path.append('./')
-from unified_conflit_detection import *
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
+from src_safety_evaluation.reuse_ucd.unified_conflit_detection import *
 
 
 def parse_args():
@@ -50,14 +49,14 @@ def main(args, manual_seed):
     num_inducing_points = 100
 
     # Training
-    existing_files = os.listdir('./src_safety_evaluation/reuse_ucd/')
+    existing_files = os.listdir('PreparedData/PosteriorInference/highD/ucd/')
     existing_files = [file for file in existing_files if file.endswith('.pth')]
     if len(existing_files) > 0:
         print('Model already trained. Exiting...')
     else:
         pipeline = train_val_test(device, num_inducing_points, 
-                                  path_input='./PreparedData/Segments/highD/',
-                                  path_output='./src_safety_evaluation/reuse_ucd/')
+                                  path_input='PreparedData/Segments/highD/',
+                                  path_output='PreparedData/PosteriorInference/highD/ucd/')
         pipeline.create_dataloader(batch_size, beta)
         print('Training...')
         pipeline.train_model(num_qepochs, initial_lr)
