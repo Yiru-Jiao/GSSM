@@ -241,11 +241,11 @@ class train_val_test():
                     # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
                     sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
                     # re-define learning rate and its scheduler for new loss function
-                    beta = 1.
+                    beta = 1.5
                     self.later_loss_func = SmoothLogNormalNLL(beta).to(self.device)
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=10, cooldown=10,
+                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
                         threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                     )
                     self.lr_reduced = True
