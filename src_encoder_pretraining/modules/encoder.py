@@ -14,9 +14,9 @@ class LSTMEncoder(nn.Module):
         self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims, num_layers, batch_first=True)]*5)
         self.linear = nn.Sequential(
             nn.Linear(hidden_dims, hidden_dims),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(hidden_dims, hidden_dims),
-            nn.Dropout(0.2),
         )
 
     def forward(self, x): # x: (batch_size, 25, feature_dims=4)

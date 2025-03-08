@@ -65,9 +65,9 @@ class CurrentEncoder(nn.Module):
             nn.Linear(output_dims//2, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.2),
         )
 
     # Load a pretrained model
@@ -103,9 +103,9 @@ class EnvEncoder(nn.Module):
             nn.Linear(output_dims//2, output_dims),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.2),
         )
 
     # Load a pretrained model
@@ -161,10 +161,9 @@ class FeedForwardBlock(nn.Module):
         self.output_dims = output_dims
         self.mlp = nn.Sequential(
             nn.Linear(input_dims, output_dims),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
             nn.Dropout(0.1),
             nn.GELU(),
+            nn.Linear(output_dims, output_dims),
         )
         self.layer_norm = nn.LayerNorm(output_dims)
 
@@ -243,21 +242,21 @@ class AttentionDecoder(nn.Module):
         )
         self.output_mu = nn.Sequential( # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
+            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(128, 32),
             nn.GELU(),
             nn.Linear(32, 8),
-            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(8, 1),
         )
         self.output_log_var = nn.Sequential( # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
+            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(128, 32),
             nn.GELU(),
             nn.Linear(32, 8),
-            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(8, 1),
         )
