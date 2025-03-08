@@ -161,7 +161,7 @@ class FeedForwardBlock(nn.Module):
         self.output_dims = output_dims
         self.mlp = nn.Sequential(
             nn.Linear(input_dims, output_dims),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
         )
@@ -242,7 +242,7 @@ class AttentionDecoder(nn.Module):
         )
         self.output_mu = nn.Sequential( # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(128, 32),
             nn.GELU(),
@@ -252,7 +252,7 @@ class AttentionDecoder(nn.Module):
         )
         self.output_log_var = nn.Sequential( # (batch_size, 16*final_seq_len)
             nn.Linear(16*self.final_seq_len, 128),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(128, 32),
             nn.GELU(),
