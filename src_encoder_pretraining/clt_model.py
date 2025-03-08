@@ -155,13 +155,13 @@ class spclt():
                 raise ValueError('n_epochs should be specified when using reduced scheduler.')
             # define scheduler
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=4, cooldown=2,
+                self.optimizer, mode='min', factor=0.6, patience=4, cooldown=0,
                 threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
                 )
             
             if self.regularizer_config['reserve'] is not None:
                 self.scheduler_weight = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.optimizer_weight, mode='min', factor=0.6, patience=4, cooldown=4,
+                    self.optimizer_weight, mode='min', factor=0.6, patience=4, cooldown=1,
                     threshold=1e-3, threshold_mode='rel', min_lr=self.weight_lr*0.6**15
                     )
                 def scheduler_step(val_loss, regularizer_loss):
@@ -177,6 +177,8 @@ class spclt():
         train_dataset = datautils.custom_dataset(torch.from_numpy(train_data).float())
         train_loader = DataLoader(train_dataset, batch_size=min(self.batch_size, len(train_dataset)), shuffle=True, drop_last=True)
         del train_dataset, train_data
+        train_iters = int(len(train_loader)*0.5) # use 50% of the total iterations per epoch
+
         if n_epochs is not None:
             if self.regularizer_config['reserve'] is None:
                 loss_log = np.zeros((n_epochs, 1)) * np.nan
@@ -202,6 +204,9 @@ class spclt():
             if loss_log is not None and self.regularizer_config['reserve'] is not None:
                 train_loss_comp = torch.zeros(4, device=self.device, requires_grad=False)
             for train_batch_iter, (x, idx) in enumerate(train_loader):
+                if n_epochs is not None and train_batch_iter >= train_iters:
+                    break # use 50% of the total iterations per epoch, after 10 epochs 99.90% of the data is used
+
                 if train_soft_assignments is None:
                     soft_labels = None
                 elif isinstance(train_soft_assignments, str):
@@ -290,9 +295,7 @@ class spclt():
                     val_loss_log[self.epoch_n, 1] = 0.5*self.loss_log_vars.sum().item()
                     val_loss_log[self.epoch_n, 0] = val_loss - val_loss_log[self.epoch_n, 1]
 
-                # update learning rate after cold start of 10 epochs
-                if self.epoch_n >= 10:
-                    scheduler_step(val_loss_log[self.epoch_n, 0], val_loss_log[self.epoch_n, 1])
+                scheduler_step(val_loss_log[self.epoch_n, 0], val_loss_log[self.epoch_n, 1])
                 self.train()
 
             # save model if callback every several epochs
