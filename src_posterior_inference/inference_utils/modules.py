@@ -59,14 +59,12 @@ class CurrentEncoder(nn.Module):
         super(CurrentEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims+1, output_dims//4),
-            nn.GELU(),
-            nn.Linear(output_dims//4, output_dims//2),
-            nn.GELU(),
-            nn.Linear(output_dims//2, output_dims),
-            nn.GELU(),
+            nn.ReLU(),
+            nn.Linear(output_dims//4, output_dims),
+            nn.ReLU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(output_dims, output_dims),
         )
 
@@ -99,12 +97,12 @@ class EnvEncoder(nn.Module):
         super(EnvEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims, output_dims//2),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(output_dims//2, output_dims),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(output_dims, output_dims),
         )
 
@@ -161,9 +159,11 @@ class FeedForwardBlock(nn.Module):
         self.output_dims = output_dims
         self.mlp = nn.Sequential(
             nn.Linear(input_dims, output_dims),
-            nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
+            nn.Dropout(0.1),
+            nn.GELU(),
         )
         self.layer_norm = nn.LayerNorm(output_dims)
 
@@ -241,24 +241,20 @@ class AttentionDecoder(nn.Module):
             nn.GELU(),
         )
         self.output_mu = nn.Sequential( # (batch_size, 16*final_seq_len)
-            nn.Linear(16*self.final_seq_len, 128),
-            nn.Dropout(0.2),
+            nn.Linear(16*self.final_seq_len, 64),
+            nn.Dropout(0.1),
             nn.GELU(),
-            nn.Linear(128, 32),
+            nn.Linear(64, 16),
             nn.GELU(),
-            nn.Linear(32, 8),
-            nn.GELU(),
-            nn.Linear(8, 1),
+            nn.Linear(16, 1),
         )
         self.output_log_var = nn.Sequential( # (batch_size, 16*final_seq_len)
-            nn.Linear(16*self.final_seq_len, 128),
-            nn.Dropout(0.2),
+            nn.Linear(16*self.final_seq_len, 64),
+            nn.Dropout(0.1),
             nn.GELU(),
-            nn.Linear(128, 32),
+            nn.Linear(64, 16),
             nn.GELU(),
-            nn.Linear(32, 8),
-            nn.GELU(),
-            nn.Linear(8, 1),
+            nn.Linear(16, 1),
         )
 
     def forward(self, state):

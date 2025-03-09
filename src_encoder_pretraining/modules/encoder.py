@@ -15,7 +15,7 @@ class LSTMEncoder(nn.Module):
         self.linear = nn.Sequential(
             nn.Linear(hidden_dims, hidden_dims),
             nn.Dropout(0.2),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(hidden_dims, hidden_dims),
         )
 
