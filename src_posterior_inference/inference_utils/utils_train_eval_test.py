@@ -126,40 +126,62 @@ class train_val_test():
         else:
             return x.to(self.device)
         
+    def get_fixed_noise(self, x):
+        '''
+        For validation and testing, generate fixed noise based on the range of each feature.
+        '''
+        if len(x.size())==2:
+            if x.size(1)==12:
+                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, np.pi], requires_grad=False)
+            elif x.size(1)==13:
+                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
+            noise = 0.01 * noise_ranges.unsqueeze(0) * torch.ones_like(x, requires_grad=False)
+        elif len(x.size())==3:
+            noise_ranges = torch.tensor([1.5, 15., 15., 15], requires_grad=False)
+            noise = 0.01 * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.ones_like(x, requires_grad=False)
+        return noise
+        
     def generate_noised_x(self, x, noise=0.01):
         '''
-        Generate noise based on defined ranges of features, and add it to the original features.
-        Critical motion features are not noised, including [vx_ego, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, acc_ego].
-        Ensure the noised values of [l_ego, l_sur, combined_width] are positive, and [psi_sur, rho] are in [-pi, pi].
+        Generate noise based on the range of each feature, and add it to the original features.
+        Maintain the original values of [vy_ego, v_ego2, v_sur2, delta_v2].
         '''
-        if x.size(1)==12:
-            # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, rho
-            noise_ranges = torch.tensor([6., 6., 2., 0., 0., 0., 0., 0., 0., 0., np.pi, np.pi], requires_grad=False)
-        elif x.size(1)==13:
-            # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, acc_ego, rho
-            noise_ranges = torch.tensor([6., 6., 2., 0., 0., 0., 0., 0., 0., 0., np.pi, 0, np.pi], requires_grad=False)
-        noise = noise * noise_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
-        noised_x = x + noise
-        # make sure the rad angles are within [-pi, pi]
-        if x.size(1)==12:
-            noised_x[:,[10,11]] = (noised_x[:,[10,11]] + np.pi) % (2 * np.pi) - np.pi
-        elif x.size(1)==13:
-            noised_x[:,[10,12]] = (noised_x[:,[10,12]] + np.pi) % (2 * np.pi) - np.pi
-        # make sure certain features are positive
-        abs_mask = (noised_x>0).float() - (noised_x < 0).float()
-        abs_mask.requires_grad = False
-        abs_mask[:,[4,5]+list(range(9,x.size(1)))] = 1. # leave out vx_sur, vy_sur, delta_v, psi_sur, (acc_ego), rho
-        noised_x = noised_x * abs_mask
-        noised_x.requires_grad = x.requires_grad
+        if len(x.size())==2:
+            if self.model.training:
+                if x.size(1)==12:
+                    # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, rho
+                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, np.pi], requires_grad=False)
+                elif x.size(1)==13:
+                    # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, acc_ego, rho
+                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
+                    noise = noise * noise_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            else:
+                noise = self.get_fixed_noise(x)
+            noised_x = x + noise
+            # make sure the rad angles are within [-pi, pi]
+            if x.size(1)==12:
+                noised_x[:,[10,11]] = (noised_x[:,[10,11]] + np.pi) % (2 * np.pi) - np.pi
+            elif x.size(1)==13:
+                noised_x[:,[10,12]] = (noised_x[:,[10,12]] + np.pi) % (2 * np.pi) - np.pi
+        elif len(x.size())==3:
+            if self.model.training:
+                # acc_ego, v_ego, vx_sur, vy_sur
+                noise_ranges = torch.tensor([1.5, 15., 15., 15.], requires_grad=False)
+                noise = noise * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            else:
+                noise = self.get_fixed_noise(x)
+            noised_x = x + noise
         return noised_x
 
     def get_inducing_out(self, x):
-        if len(self.encoder_selection)==1:
+        if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             inducing_points = self.generate_noised_x(x)
-        elif len(self.encoder_selection)==2:
+        elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             inducing_points = [self.generate_noised_x(x[0]), x[1]]
-        elif len(self.encoder_selection)==3:
-            inducing_points = [self.generate_noised_x(x[0]), x[1], x[2]]
+        elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
+            inducing_points = [self.generate_noised_x(x[0]), self.generate_noised_x(x[1])]
+        elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
+            inducing_points = [self.generate_noised_x(x[0]), x[1], self.generate_noised_x(x[2])]
         inducing_points = self.send_x_to_device(inducing_points)
         inducing_out = self.model(inducing_points)
         return inducing_out
@@ -185,10 +207,10 @@ class train_val_test():
         self.initial_lr = initial_lr
         self.verbose = verbose
         self.lr_reduced = False
-
         # Move model and loss function to device
         self.model = self.model.to(self.device)
         self.loss_func = LogNormalNLL().to(self.device)
+        self.later_loss_func = SmoothLogNormalNLL(beta=5).to(self.device)
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
@@ -199,7 +221,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=10, cooldown=15,
+                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
@@ -223,27 +245,28 @@ class train_val_test():
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop()
-            if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
+            if lr_schedule and epoch_n>5: # Start learning rate scheduler after 5 epochs
                 self.scheduler.step(val_loss)
                 if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.5:
                     # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
-                    sys.stderr.write('\n\n Learning rate is reduced twice so the loss will involve KL divergence since now...\n')
+                    sys.stderr.write('\n Learning rate is reduced twice so the loss will involve KL divergence since now...')
                     # re-define learning rate and its scheduler for new loss function
-                    beta = 1.
-                    self.later_loss_func = SmoothLogNormalNLL(beta).to(self.device)
-                    self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
+                    self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
+                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=1,
                         threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                     )
                     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
-            if self.verbose > 0:
+            if self.verbose == 1:
                 progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
                                          train_loss=loss_log[epoch_n], val_loss=val_loss, refresh=False)
-                if epoch_n % self.verbose < 1:
+            elif self.verbose > 1:
+                progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
+                                         train_loss=loss_log[epoch_n], val_loss=val_loss, refresh=False)
+                if (epoch_n+1) % self.verbose == 0:
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
