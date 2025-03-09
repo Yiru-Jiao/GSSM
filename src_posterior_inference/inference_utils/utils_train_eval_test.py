@@ -111,36 +111,24 @@ class train_val_test():
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.single_output, self.return_attention)
         if self.pretrained_encoder==True:
-            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=False)
+            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=True)
         elif self.pretrained_encoder=='all':
             self.model.load_pretrained_encoders('INTERACTION_highD_ArgoverseHV_SafeBaseline', 
-                                                self.path_prepared, continue_training=True)
+                                                self.path_prepared, continue_training=False)
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
         self.train_dataloader = DataLoader(DataOrganiser('train', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
+        self.current_ranges = self.train_dataloader.dataset.data[0].abs().quantile(0.75, dim=0)
+        if 'profiles' in self.encoder_selection:
+            self.profile_ranges = self.train_dataloader.dataset.data[-2].abs().mean(dim=1).quantile(0.75, dim=0)
         
     def send_x_to_device(self, x):
         if isinstance(x, list):
             return tuple([i.to(self.device) for i in x])
         else:
             return x.to(self.device)
-        
-    def get_fixed_noise(self, x, noise=0.01):
-        '''
-        For validation and testing, generate fixed noise based on the range of each feature.
-        '''
-        if len(x.size())==2:
-            if x.size(1)==12:
-                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, np.pi], requires_grad=False)
-            elif x.size(1)==13:
-                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
-            noise = noise * noise_ranges.unsqueeze(0) * torch.ones_like(x, requires_grad=False)
-        elif len(x.size())==3:
-            noise_ranges = torch.tensor([1.5, 15., 15., 15], requires_grad=False)
-            noise = noise * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.ones_like(x, requires_grad=False)
-        return noise
         
     def generate_noised_x(self, x, noise=0.01):
         '''
@@ -149,15 +137,9 @@ class train_val_test():
         '''
         if len(x.size())==2:
             if self.model.training:
-                if x.size(1)==12:
-                    # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, rho
-                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, np.pi], requires_grad=False)
-                elif x.size(1)==13:
-                    # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, acc_ego, rho
-                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
-                    noise = noise * noise_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
-            else:
-                noise = self.get_fixed_noise(x, noise)
+                noise = noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            else: # generate fixed noise for validation and testing
+                noise = noise * self.current_ranges.unsqueeze(0) * torch.ones_like(x, requires_grad=False)
             noised_x = x + noise
             # make sure the rad angles are within [-pi, pi]
             if x.size(1)==12:
@@ -166,11 +148,9 @@ class train_val_test():
                 noised_x[:,[10,12]] = (noised_x[:,[10,12]] + np.pi) % (2 * np.pi) - np.pi
         elif len(x.size())==3:
             if self.model.training:
-                # acc_ego, v_ego, vx_sur, vy_sur
-                noise_ranges = torch.tensor([1.5, 15., 15., 15.], requires_grad=False)
-                noise = noise * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
-            else:
-                noise = self.get_fixed_noise(x, noise)
+                noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            else: # generate fixed noise for validation and testing
+                noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.ones_like(x, requires_grad=False)
             noised_x = x + noise
         return noised_x
 
