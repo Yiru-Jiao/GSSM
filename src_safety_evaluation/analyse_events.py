@@ -56,17 +56,17 @@ def main(path_result, path_prepared):
     # 1D and 2D SSMs
     for indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI']:
         if indicator in ['TTC', 'MTTC', 'TTC2D']:
-            thresholds = np.unique(np.round(10**np.arange(0,1.68,0.015),1))-0.9
+            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.68,0.015),1))-0.9, 1)
         elif indicator == 'DRAC':
-            thresholds = np.unique(np.round(10**np.arange(0,1.,0.01),2))-1
+            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.,0.01),2))-1, 2)
         elif indicator == 'PSD':
-            thresholds = np.unique(np.round((10**np.arange(0,2.25,0.015)-1)/50,2))
+            thresholds = np.unique(np.round((10**np.arange(0,2.25,0.015)-1)/50, 2))
         elif indicator == 'TAdv':
-            thresholds = np.unique(np.round((10**np.arange(0,2.1,0.02)-0.9)/10,2))
+            thresholds = np.unique(np.round((10**np.arange(0,2.1,0.02)-0.9)/10, 2))
         elif indicator == 'ACT':
-            thresholds = np.unique(np.round(10**np.arange(0,1.91,0.018),1))-0.9
+            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.91,0.018),1))-0.9, 1)
         elif indicator == 'EI':
-            thresholds = np.unique(np.round((10**np.arange(0,1.86,0.009)-0.5)/50,2))
+            thresholds = np.unique(np.round((10**np.arange(0,1.86,0.009)-0.5)/50, 2))
         
         if os.path.exists(path_result + f'Analyses/Warning_{indicator}.h5'):
             print(f'--- Analysis 1 with {indicator} already completed ---')
