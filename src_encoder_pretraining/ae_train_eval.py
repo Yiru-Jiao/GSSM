@@ -66,7 +66,7 @@ def main(args):
     if args.encoder_name == 'environment':
         datasets_list = [['SafeBaseline']]
     elif args.encoder_name == 'current':
-        datasets_list = [['highD'], ['INTERACTION'], ['SafeBaseline'], ['ArgoverseHV'],
+        datasets_list = [['highD'], ['INTERACTION'], ['SafeBaseline'], ['ArgoverseHV'], ['ArgoverseAV'],
                          ['INTERACTION', 'highD'], ['INTERACTION', 'highD', 'ArgoverseHV'],
                          ['INTERACTION', 'highD', 'ArgoverseHV', 'SafeBaseline']]
     elif args.encoder_name == 'current+acc':

@@ -31,6 +31,7 @@ def set_experiments(stage=[1,2,3,4,5]):
             [['INTERACTION'], ['current'], True],
             [['SafeBaseline'], ['current'], True],
             [['ArgoverseHV'], ['current'], True],
+            [['ArgoverseAV'], ['current'], True],
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
