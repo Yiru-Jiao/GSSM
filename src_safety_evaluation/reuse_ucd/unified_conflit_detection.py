@@ -196,7 +196,7 @@ class train_val_test():
 
         # Print inspection results
         lognorm_nll = LogNormalNLL()
-        smooth_lognorm_nll = SmoothLogNormalNLL()
+        smooth_lognorm_nll = SmoothLogNormalNLL(beta=5)
         self.model.eval()
         self.likelihood.eval()
 
