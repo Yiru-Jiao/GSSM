@@ -169,6 +169,17 @@ class SmoothLogNormalNLL(nn.Module):
         self.beta = beta
         self.scale = scale
 
+    def kl_divergence(self, mu1, log_var1, mu2, log_var2, eps=1e-8):
+        return 0.5 * (log_var2 - log_var1 + (torch.exp(log_var1)+(mu1-mu2)**2) / torch.exp(log_var2+eps) - 1)
+    
+    def js_divergence(self, mu1, log_var1, mu2, log_var2, eps=1e-8):
+        mu = 0.5 * (mu1 + mu2)
+        var = 0.5 * (torch.exp(log_var1) + torch.exp(log_var2))
+        log_var = torch.log(var + eps)
+        kl1 = self.kl_divergence(mu1, log_var1, mu, log_var)
+        kl2 = self.kl_divergence(mu2, log_var2, mu, log_var)
+        return 0.5 * (kl1 + kl2)
+
     def forward(self, out, y, inducing_out):
         mu = out[0]
         log_var = out[1]
@@ -176,7 +187,8 @@ class SmoothLogNormalNLL(nn.Module):
         nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
 
         mu_prime, log_var_prime = inducing_out
-        kl_divergence = 0.5 * (log_var_prime - log_var + (torch.exp(log_var)+(mu-mu_prime)**2) / torch.exp(log_var_prime) - 1)
-        
-        loss = nll.mean() + self.beta*kl_divergence.mean()
+        # kl_divergence = 0.5 * (log_var_prime - log_var + (torch.exp(log_var)+(mu-mu_prime)**2) / torch.exp(log_var_prime) - 1)        
+        # loss = nll.mean() + self.beta*kl_divergence.mean()
+        js_divergence = self.js_divergence(mu, log_var, mu_prime, log_var_prime)
+        loss = nll.mean() + self.beta*js_divergence.mean()
         return loss * self.scale
