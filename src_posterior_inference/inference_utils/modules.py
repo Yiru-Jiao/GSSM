@@ -58,13 +58,16 @@ class CurrentEncoder(nn.Module):
     def __init__(self, input_dims=1, output_dims=64):
         super(CurrentEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims+1, output_dims//4),
-            nn.ReLU(),
-            nn.Linear(output_dims//4, output_dims),
-            nn.ReLU(),
+            nn.Linear(input_dims+1, 8),
+            nn.GELU(),
+            nn.Linear(8, output_dims//2),
+            nn.GELU(),
+            nn.Linear(output_dims//2, output_dims),
+            nn.Dropout(0.2),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
         )
 
@@ -97,12 +100,13 @@ class EnvEncoder(nn.Module):
         super(EnvEncoder, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dims, output_dims//2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(output_dims//2, output_dims),
-            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(output_dims, output_dims),
         )
 
@@ -239,20 +243,25 @@ class AttentionDecoder(nn.Module):
             nn.GELU(),
             nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
             nn.GELU(),
+            nn.Flatten(), # (batch_size, 16*final_seq_len)
+            nn.Linear(16*self.final_seq_len, 128),
+            nn.Dropout(0.1),
         )
-        self.output_mu = nn.Sequential( # (batch_size, 16*final_seq_len)
-            nn.Linear(16*self.final_seq_len, 64),
+        self.output_mu = nn.Sequential( # (batch_size, 128)
+            nn.Linear(128, 64),
             nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(64, 16),
+            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(16, 1),
         )
-        self.output_log_var = nn.Sequential( # (batch_size, 16*final_seq_len)
-            nn.Linear(16*self.final_seq_len, 64),
+        self.output_log_var = nn.Sequential( # (batch_size, 128)
+            nn.Linear(128, 64),
             nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(64, 16),
+            nn.Dropout(0.1),
             nn.GELU(),
             nn.Linear(16, 1),
         )
@@ -271,8 +280,7 @@ class AttentionDecoder(nn.Module):
             attention_matrices = None
         attended_state, attention_matrices = self.SelfAttention(state, attention_matrices) # (batch_size, final_seq_len, latent_dims*4=256)
         transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, final_seq_len)
-        out = self.output_cnn(transposed_state) # (batch_size, 16, final_seq_len)
-        out = out.reshape(out.size(0), -1) # (batch_size, 16*final_seq_len)
+        out = self.output_cnn(transposed_state) # (batch_size, 16, final_seq_len) -> (batch_size, 128)
         mu = self.output_mu(out)
         log_var = self.output_log_var(out)
         if self.single_output is None:
