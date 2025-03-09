@@ -127,7 +127,7 @@ class train_val_test():
         else:
             return x.to(self.device)
         
-    def get_fixed_noise(self, x):
+    def get_fixed_noise(self, x, noise=0.01):
         '''
         For validation and testing, generate fixed noise based on the range of each feature.
         '''
@@ -136,10 +136,10 @@ class train_val_test():
                 noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, np.pi], requires_grad=False)
             elif x.size(1)==13:
                 noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
-            noise = 0.01 * noise_ranges.unsqueeze(0) * torch.ones_like(x, requires_grad=False)
+            noise = noise * noise_ranges.unsqueeze(0) * torch.ones_like(x, requires_grad=False)
         elif len(x.size())==3:
             noise_ranges = torch.tensor([1.5, 15., 15., 15], requires_grad=False)
-            noise = 0.01 * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.ones_like(x, requires_grad=False)
+            noise = noise * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.ones_like(x, requires_grad=False)
         return noise
         
     def generate_noised_x(self, x, noise=0.01):
@@ -157,7 +157,7 @@ class train_val_test():
                     noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
                     noise = noise * noise_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else:
-                noise = self.get_fixed_noise(x)
+                noise = self.get_fixed_noise(x, noise)
             noised_x = x + noise
             # make sure the rad angles are within [-pi, pi]
             if x.size(1)==12:
@@ -170,7 +170,7 @@ class train_val_test():
                 noise_ranges = torch.tensor([1.5, 15., 15., 15.], requires_grad=False)
                 noise = noise * noise_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else:
-                noise = self.get_fixed_noise(x)
+                noise = self.get_fixed_noise(x, noise)
             noised_x = x + noise
         return noised_x
 
