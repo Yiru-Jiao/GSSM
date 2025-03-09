@@ -133,9 +133,9 @@ class train_val_test():
         '''
         if len(x.size())==2:
             if x.size(1)==12:
-                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, np.pi], requires_grad=False)
+                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, np.pi], requires_grad=False)
             elif x.size(1)==13:
-                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
+                noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
             noise = noise * noise_ranges.unsqueeze(0) * torch.ones_like(x, requires_grad=False)
         elif len(x.size())==3:
             noise_ranges = torch.tensor([1.5, 15., 15., 15], requires_grad=False)
@@ -151,10 +151,10 @@ class train_val_test():
             if self.model.training:
                 if x.size(1)==12:
                     # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, rho
-                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, np.pi], requires_grad=False)
+                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, np.pi], requires_grad=False)
                 elif x.size(1)==13:
                     # l_ego, l_sur, combined_width, vy_ego, vx_sur, vy_sur, v_ego2, v_sur2, delta_v2, delta_v, psi_sur, acc_ego, rho
-                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 450., 450., 450., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
+                    noise_ranges = torch.tensor([6., 6., 2., 15., 15., 15., 300., 300., 300., 15., np.pi/2, 1.5, np.pi], requires_grad=False)
                     noise = noise * noise_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else:
                 noise = self.get_fixed_noise(x, noise)
