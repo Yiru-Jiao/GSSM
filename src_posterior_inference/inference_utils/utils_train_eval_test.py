@@ -54,16 +54,16 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 5 in stage: # add extra features
         exp_config.extend([
-            [['INTERACTION','highD','ArgoverseHV','SafeBaseline'], ['current','profiles'], 'all'],
             [['INTERACTION','highD','ArgoverseHV','SafeBaseline'], ['current+acc'], 'all'],
+            [['INTERACTION','highD','ArgoverseHV','SafeBaseline'], ['current','profiles'], 'all'],
             [['INTERACTION','highD','ArgoverseHV','SafeBaseline'], ['current+acc','profiles'], 'all'],
-            [['SafeBaseline'], ['current', 'environment'], 'all'],
             [['SafeBaseline'], ['current', 'profiles'], 'all'],
             [['SafeBaseline'], ['current','environment','profiles'], 'all'],
-            [['SafeBaseline'], ['current+acc'], 'all'],
-            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
             [['SafeBaseline'], ['current+acc', 'profiles'], 'all'],
             [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
+            [['SafeBaseline'], ['current+acc'], 'all'],
+            [['SafeBaseline'], ['current', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
             [['INTERACTION','highD','ArgoverseHV','SafeBaseline'], ['current','profiles'], False],
             [['INTERACTION','highD','ArgoverseHV','SafeBaseline'], ['current+acc'], False],
             [['INTERACTION','highD','ArgoverseHV','SafeBaseline'], ['current+acc','profiles'], False],
