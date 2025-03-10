@@ -120,9 +120,9 @@ class train_val_test():
         self.batch_size = batch_size
         self.train_dataloader = DataLoader(DataOrganiser('train', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
-        self.current_ranges = self.train_dataloader.dataset.data[0].abs().quantile(0.75, dim=0)
+        self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
         if 'profiles' in self.encoder_selection:
-            self.profile_ranges = self.train_dataloader.dataset.data[-2].abs().mean(dim=1).quantile(0.75, dim=0)
+            self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
         
     def send_x_to_device(self, x):
         if isinstance(x, list):
@@ -130,7 +130,7 @@ class train_val_test():
         else:
             return x.to(self.device)
         
-    def generate_noised_x(self, x, noise=0.01):
+    def generate_noised_x(self, x, noise=0.025):
         '''
         Generate noise based on the range of each feature, and add it to the original features.
         Maintain the original values of [vy_ego, v_ego2, v_sur2, delta_v2].
@@ -202,7 +202,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
+                self.optimizer, mode='min', factor=0.6, patience=10, cooldown=15,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
@@ -234,7 +234,7 @@ class train_val_test():
                     # re-define learning rate and its scheduler for new loss function
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=1,
+                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=2,
                         threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                     )
                     self.lr_reduced = True
