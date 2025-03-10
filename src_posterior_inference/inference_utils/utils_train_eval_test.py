@@ -130,7 +130,7 @@ class train_val_test():
         else:
             return x.to(self.device)
         
-    def generate_noised_x(self, x, noise=0.025):
+    def generate_noised_x(self, x, noise=0.01):
         '''
         Generate noise based on the range of each feature, and add it to the original features.
         Maintain the original values of [vy_ego, v_ego2, v_sur2, delta_v2].
@@ -202,7 +202,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=10, cooldown=15,
+                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=10,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
