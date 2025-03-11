@@ -161,11 +161,11 @@ def determine_target(indicator, danger, before_danger):
         median_danger = np.nan
     else:
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-            target_id = danger.loc[danger[indicator].idxmin(),'target_id']
+            target_id = danger[indicator].idxmin()
         elif indicator in ['DRAC', 'EI', 'intensity']:
-            target_id = danger.loc[danger[indicator].idxmax(),'target_id']
+            target_id = danger[indicator].idxmax()
         median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-        median_danger = danger[danger['target_id']==target_id][indicator].median()
+        median_danger = danger.loc[[target_id]][indicator].median()
     return target_id, median_before_danger, median_danger
 
 
@@ -183,9 +183,9 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         records.loc[event_id, initial_columns] = initial_vlaues
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
-                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
-        before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
-        if danger.groupby('target_id')['time'].count().max()<20:
+                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index().set_index('target_id')
+        before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)]
+        if danger.groupby('target_id').size().max()<20:
             # a potential target in danger for at least 2 seconds
             continue
 
@@ -194,7 +194,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         records.loc[event_id, ['target_id','median_before_danger','median_danger']] = [target_id, median_before_danger, median_danger]
         if np.isnan(target_id):
             continue
-        target_danger = danger[danger['target_id']==target_id]
+        target_danger = danger.loc[[target_id]]
         if len(target_danger)<20:
             continue
         records.loc[event_id, 'danger_recorded'] = True
@@ -317,9 +317,9 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         event = safety_evaluation.loc[event_id].reset_index().set_index('target_id')
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
-                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
-        before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
-        if danger.groupby('target_id')['time'].count().max()<20:
+                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index().set_index('target_id')
+        before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)]
+        if danger.groupby('target_id').size().max()<20:
             records.loc[event_id, 'danger_recorded'] = False
             continue
 
@@ -329,7 +329,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
             continue
-        target_danger = danger[danger['target_id']==target_id]
+        target_danger = danger.loc[[target_id]]
         if len(target_danger)<20:
             records.loc[event_id, 'danger_recorded'] = False
             continue
