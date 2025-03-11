@@ -165,8 +165,14 @@ def determine_target(indicator, danger, before_danger):
         elif indicator in ['DRAC', 'EI', 'intensity']:
             target_id = danger.loc[danger[indicator].idxmax(),'target_id']
         danger = danger.set_index('target_id')
-        median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-        median_danger = danger.loc[[target_id], indicator].median()
+        median_danger = danger.loc[target_id, indicator]
+        if isinstance(median_danger, pd.Series):
+            median_danger = median_danger.median()
+            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
+        else: # median_danger is a scalar, i.e., only one time moment
+            target_id = np.nan
+            median_before_danger = np.nan
+            median_danger = np.nan
     return target_id, median_before_danger, median_danger, danger
 
 
