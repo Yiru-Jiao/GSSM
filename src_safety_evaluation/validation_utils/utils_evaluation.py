@@ -220,7 +220,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         for target_id in targets_period.index.get_level_values('target_id').unique():
             target_period = targets_period.loc[(event_id, target_id, slice(None))]
             target_period = target_period.iloc[15:65]
-            acc_ego = event_data.loc[target_period.index, 'acc_ego'].values
+            acc_ego = event_data.loc[(event_id, target_id, target_period.index), 'acc_ego'].values
             no_hard_braking = (acc_ego.min()>-1.5)
             if no_hard_braking:
                 safety_recorded = True
