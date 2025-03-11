@@ -246,7 +246,10 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results['mode'] = np.exp(results['mu'] - results['sigma']**2)
         print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
         out = (torch.from_numpy(mu).float(), torch.from_numpy(np.log(sigma**2)).float())
-        print(f'LogNormal NLL: {loss_func(out, torch.from_numpy(spacing_list).float()).item()}')
+        nll = loss_func(out, torch.from_numpy(spacing_list).float()).item()
+        model_evaluation.loc[model_id, 'test_nll'] = nll
+        print(f'LogNormal NLL: {nll}')
+    model_evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
