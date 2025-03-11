@@ -16,6 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
+from src_posterior_inference.model import LogNormalNLL
 from src_safety_evaluation.validation_utils.EmergencyIndex import get_EI
 from src_safety_evaluation.validation_utils.SSMsOnPlane import longitudinal_ssms, two_dimensional_ssms
 from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions, define_model, SSSE
@@ -183,6 +184,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
     # SSSE models in this study
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
+    loss_func = LogNormalNLL()
     for model_id in range(len(model_evaluation)):
         dataset_name = model_evaluation.iloc[model_id]['dataset']
         dataset = dataset_name.split('_')
@@ -243,6 +245,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
         results['mode'] = np.exp(results['mu'] - results['sigma']**2)
         print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
+        out = (torch.from_numpy(mu).float(), torch.from_numpy(np.log(sigma**2)).float())
+        print(f'LogNormal NLL: {loss_func(out, torch.from_numpy(spacing_list).float()).item()}')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
