@@ -103,7 +103,7 @@ def main(args, path_result, path_prepared):
         encoder_name_list = encoder_name_list[::-1]
         pretraining_list = pretraining_list[::-1]
 
-    ssse_thresholds = np.unique(np.round(10**(np.arange(0,2.04,0.0112)**2))).astype(int)
+    ssse_thresholds = np.unique(np.round(np.arange(0,20,0.2)**0.5,2))
     for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):

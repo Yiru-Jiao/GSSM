@@ -13,6 +13,7 @@ import torch
 import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
+from src_posterior_inference.model import LogNormalNLL
 from src_safety_evaluation.validation_utils.utils_evaluation import parallel_records
 from src_safety_evaluation.reuse_ucd.unified_conflit_detection import UCD, define_model
 from joblib import Parallel, delayed
@@ -94,9 +95,13 @@ def main(args, manual_seed, path_result):
     results['intensity'] = max_intensity
     results = results.sort_values(['event_id','target_id','time']).reset_index(drop=True)
     results.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
-
     eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, results['target_id'].nunique(), len(results)]
     eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
+    results['mode'] = np.exp(results['mu'] - results['sigma']**2)
+    print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
+    loss_func = LogNormalNLL()
+    out = (torch.from_numpy(mu).float(), torch.from_numpy(np.log(sigma**2)).float())
+    print(f'LogNormal NLL: {loss_func(out, torch.from_numpy(spacing_list).float()).item()}')
 
     # Warning analysis
     event_data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
@@ -110,7 +115,7 @@ def main(args, manual_seed, path_result):
     event_meta['danger_end'] = danger_end
     assert np.all(np.isin(event_data['event_id'].unique(), event_meta.index.values))
 
-    ucd_thresholds = np.unique(np.round(10**(np.arange(0,2.04,0.0112)**2))).astype(int)
+    ucd_thresholds = np.unique(np.round(np.arange(0,20,0.2)**0.5,2))
     print('--- Analyzing ---')
     progress_bar = tqdm(ucd_thresholds, desc='UCD', ascii=True, dynamic_ncols=False, miniters=10)
     ucd_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, results, event_data, event_meta[event_meta['duration_enough']], 'SSSE') for threshold in progress_bar)
