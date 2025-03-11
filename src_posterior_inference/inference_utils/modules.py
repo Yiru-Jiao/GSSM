@@ -273,11 +273,15 @@ class AttentionDecoder(nn.Module):
         environment: (batch_size, 1, latent_dims=64),
         ts: (batch_size, 5, latent_dims=64),
         which are concatenated as (batch_size, 12~19, latent_dims=64)
+        or additionaly include spacing (batch_size, 1) when testing.
         '''
         if self.return_attention:
             attention_matrices = dict()
         else:
             attention_matrices = None
+        if self.single_output == 'intensity':
+            spacing = state[:,-1,0:1].detach() # (batch_size, 1)
+            state = state[:,:-1]
         attended_state, attention_matrices = self.SelfAttention(state, attention_matrices) # (batch_size, final_seq_len, latent_dims*4=256)
         transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, final_seq_len)
         out = self.output_cnn(transposed_state) # (batch_size, 16, final_seq_len) -> (batch_size, 128)
@@ -295,3 +299,8 @@ class AttentionDecoder(nn.Module):
             return mu
         elif self.single_output == 'log_var':
             return log_var
+        elif self.single_output == 'intensity':
+            assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
+            logp = torch.log(torch.tensor(0.5))
+            max_intensity = logp / torch.log(0.5*(1-torch.erf((torch.log(spacing)-mu)/(torch.exp(0.5*log_var)*2**0.5))))
+            return torch.log10(max_intensity)
