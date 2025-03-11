@@ -164,16 +164,9 @@ def determine_target(indicator, danger, before_danger):
             target_id = danger.loc[danger[indicator].idxmin(),'target_id']
         elif indicator in ['DRAC', 'EI', 'intensity']:
             target_id = danger.loc[danger[indicator].idxmax(),'target_id']
-        danger = danger.set_index('target_id')
-        median_danger = danger.loc[target_id, indicator]
-        if isinstance(median_danger, pd.Series):
-            median_danger = median_danger.median()
-            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-        else: # median_danger is a scalar, i.e., only one time moment
-            target_id = np.nan
-            median_before_danger = np.nan
-            median_danger = np.nan
-    return target_id, median_before_danger, median_danger, danger
+        median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
+        median_danger = danger[danger['target_id']==target_id][indicator].median()
+    return target_id, median_before_danger, median_danger
 
 
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
@@ -192,15 +185,18 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
         before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
-        if danger.groupby('target_id')['time'].count().max()<35: # a potential target should appear at least 3.5 seconds
+        if danger.groupby('target_id')['time'].count().max()<20:
+            # a potential target in danger for at least 2 seconds
             continue
 
         # Determine the conflicting target and warning
-        target_id, median_before_danger, median_danger, danger = determine_target(indicator, danger, before_danger)
+        target_id, median_before_danger, median_danger = determine_target(indicator, danger, before_danger)
         records.loc[event_id, ['target_id','median_before_danger','median_danger']] = [target_id, median_before_danger, median_danger]
         if np.isnan(target_id):
             continue
-        target_danger = danger.loc[target_id]
+        target_danger = danger[danger['target_id']==target_id]
+        if len(target_danger)<20:
+            continue
         records.loc[event_id, 'danger_recorded'] = True
         target_danger = determine_conflicts(target_danger, indicator, threshold)
         if target_danger['conflict'].sum()>5: # at least warning for 0.5 second
@@ -213,11 +209,12 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         the beginning of a non-target vehicle in an event before start_timestamp with no hard braking
         * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
         * start: 1.5 seconds after the target is detected
-        * end: considering 5 seconds after start, at least 3 seconds before conflict start_timestamp
+        * end: considering 2~5 seconds after start, at least 3 seconds before conflict start_timestamp
         '''
         targets = event[event['target_id']!=target_id]
         targets_period = targets[targets['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)]
-        if targets_period.groupby('target_id')['time'].count().min()<=35:
+        if len(targets_period) < 35:
+            # later there will be a filter of 35 time moments per target, so here it is meaningless if less than 35
             records.loc[event_id, 'safety_recorded'] = False
             continue
         safety_recorded = False
@@ -225,7 +222,10 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         false_warnings = 0
         targets_period = targets_period.reset_index().set_index(['event_id', 'target_id', 'time'])
         for target_id in targets_period.index.get_level_values('target_id').unique():
-            target_period = targets_period.loc[(event_id, target_id, slice(None))]
+            target_period = targets_period.loc[(event_id, target_id)]
+            if len(target_period)<35:
+                # a potential target in safety for at least 2 seconds after start (i.e. 15+20)
+                continue
             target_period = target_period.iloc[15:65]
             no_hard_braking = (event_data.loc[(event_id, target_id, target_period.index), 'acc_ego'].min()>-1.5)
             if no_hard_braking:
@@ -319,14 +319,18 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index()
         before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
-        if danger.groupby('target_id')['time'].count().max()<35:
+        if danger.groupby('target_id')['time'].count().max()<20:
             records.loc[event_id, 'danger_recorded'] = False
             continue
 
         # Determine the conflicting target
-        target_id, median_before_danger, median_danger, danger = determine_target(indicator, danger, before_danger)
+        target_id, median_before_danger, median_danger = determine_target(indicator, danger, before_danger)
         records.loc[event_id, 'target_id'] = target_id
         if np.isnan(target_id):
+            records.loc[event_id, 'danger_recorded'] = False
+            continue
+        target_danger = danger[danger['target_id']==target_id]
+        if len(target_danger)<20:
             records.loc[event_id, 'danger_recorded'] = False
             continue
         if (indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']) and (median_before_danger < median_danger):
@@ -335,6 +339,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         if (indicator in ['DRAC', 'EI', 'SSSE']) and (median_before_danger > median_danger):
             records.loc[event_id, 'danger_recorded'] = False
             continue
+        records.loc[event_id, 'danger_recorded'] = True
         target = determine_conflicts(event.loc[target_id], indicator, optimal_threshold)
 
         # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
