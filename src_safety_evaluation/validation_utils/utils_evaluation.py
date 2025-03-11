@@ -127,6 +127,7 @@ def SSSE(states, model, device):
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu, sigma)+1e-6)
+    max_intensity = np.maximum(max_intensity, 1e-6)
 
     return mu, sigma, np.log10(max_intensity)
 
@@ -165,7 +166,7 @@ def determine_target(indicator, danger, before_danger):
             target_id = danger.loc[danger[indicator].idxmax(),'target_id']
         danger = danger.set_index('target_id')
         median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-        median_danger = danger.loc[target_id, indicator].median()
+        median_danger = danger.loc[[target_id], indicator].median()
     return target_id, median_before_danger, median_danger, danger
 
 
