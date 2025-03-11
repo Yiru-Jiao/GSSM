@@ -64,6 +64,8 @@ def main(args, path_result, path_prepared):
     
     # 1D and 2D SSMs
     for indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI']:
+        if args.reversed_list:
+            continue
         if indicator in ['TTC', 'MTTC', 'TTC2D']:
             thresholds = np.round(np.unique(np.round(10**np.arange(0,1.68,0.015),1))-0.9, 1)
         elif indicator == 'DRAC':
