@@ -127,7 +127,7 @@ def main(args, manual_seed, path_result):
     ucd_records.loc[ucd_records['danger_recorded'].isna(), 'danger_recorded'] = False
     ucd_records.loc[ucd_records['safety_recorded'].isna(), 'safety_recorded'] = False
     ucd_records[['danger_recorded', 'safety_recorded']] = ucd_records[['danger_recorded', 'safety_recorded']].astype(bool)
-    ucd_records[['indicator', 'model']] = ucd_records[['indicator', 'model']].astype(str)
+    ucd_records[['safe_target_ids', 'indicator', 'model']] = ucd_records[['safe_target_ids', 'indicator', 'model']].astype(str)
     ucd_records.to_hdf(path_result + 'Analyses/Warning_UCD.h5', key='results', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
