@@ -58,7 +58,7 @@ def define_model(device, path_prepared, dataset, encoder_selection, pretrained_e
     pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output, return_attention)
     # Load trained model
     pipeline.load_model()
-    print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}-{pipeline.pretraining}')
+    print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}-{pipeline.pretrained_encoder}')
     return pipeline.model
 
 
