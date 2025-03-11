@@ -4,6 +4,7 @@ This script is to analyse the safety evaluation results for all events.
 
 import os
 import sys
+import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -11,6 +12,14 @@ import time as systime
 from joblib import Parallel, delayed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluation, optimize_threshold, issue_warning, parallel_records, read_events
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--reversed_list', type=int, default=0, help='Whether to reverse the model list (defaults to False), useful for running parallel jobs')
+    args = parser.parse_args()
+    args.reversed_list = bool(args.reversed_list)
+    return args
 
 
 def fill_na_warning(results):
@@ -21,7 +30,7 @@ def fill_na_warning(results):
     return results
 
 
-def main(path_result, path_prepared):
+def main(args, path_result, path_prepared):
     initial_time = systime.time()
     print('---- available cpus:', os.cpu_count(), '----')
 
@@ -89,6 +98,10 @@ def main(path_result, path_prepared):
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
     pretraining_list = model_evaluation['pretraining'].values
+    if args.reversed_list:
+        dataset_name_list = dataset_name_list[::-1]
+        encoder_name_list = encoder_name_list[::-1]
+        pretraining_list = pretraining_list[::-1]
 
     ssse_thresholds = np.unique(np.round(10**(np.arange(0,2.04,0.0112)**2))).astype(int)
     for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
@@ -216,4 +229,5 @@ if __name__ == '__main__':
     os.makedirs(path_result + 'Analyses/', exist_ok=True)
     path_prepared = 'PreparedData/'
 
-    main(path_result, path_prepared)
+    args = parse_args()
+    main(args, path_result, path_prepared)
