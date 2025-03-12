@@ -317,8 +317,8 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         event = safety_evaluation.loc[event_id].reset_index().set_index('target_id')
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
-                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index().set_index('target_id')
-        before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)]
+                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)]
+        before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
         if danger.groupby('target_id').size().max()<20:
             records.loc[event_id, 'danger_recorded'] = False
             continue
