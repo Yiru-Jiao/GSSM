@@ -16,6 +16,7 @@ from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluat
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--stage', type=int, default=0, help='Whether to reverse the model list (defaults to False), useful for running parallel jobs')
     parser.add_argument('--reversed_list', type=int, default=0, help='Whether to reverse the model list (defaults to False), useful for running parallel jobs')
     args = parser.parse_args()
     args.reversed_list = bool(args.reversed_list)
@@ -100,6 +101,10 @@ def main(args, path_result, path_prepared):
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
     pretraining_list = model_evaluation['pretraining'].values
+    if args.stage > 0:
+        dataset_name_list = dataset_name_list[args.stage:]
+        encoder_name_list = encoder_name_list[args.stage:]
+        pretraining_list = pretraining_list[args.stage:]
     if args.reversed_list:
         dataset_name_list = dataset_name_list[::-1]
         encoder_name_list = encoder_name_list[::-1]
