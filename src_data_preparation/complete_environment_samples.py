@@ -45,7 +45,7 @@ def main(path_prepared):
     for feature in features:
         f = feature.split('_')[0]
         if f not in feature_count:
-            feature_count[f] = 0
+            feature_count[f] = 1
         else:
             feature_count[f] += 1
     print(f'Environment features column count: {feature_count}')
