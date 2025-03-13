@@ -60,6 +60,7 @@ class UnifiedProximity(nn.Module):
         self.AttentionDecoder = modules.AttentionDecoder(encoder_selection=self.encoder_selection,
                                                          single_output=single_output,
                                                          return_attention=return_attention)
+        self.layer_norm = nn.LayerNorm(64)
         self.combi_encoder = self.define_combi_encoder()
 
     def select_best_model(self, pretraining_evaluation):
@@ -102,26 +103,30 @@ class UnifiedProximity(nn.Module):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_encoder(x):
                 x_current = self.CurrentEncoder(x)
-                return x_current
+                latent = self.layer_norm(x_current)
+                return latent # (batch_size, 12/13, latent_dims=64)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
                 x_current = self.CurrentEncoder(x_current)
                 x_environment = self.EnvEncoder(x_environment)
-                return torch.cat([x_current, x_environment], dim=1) # (batch_size, seq_len, latent_dims=64)                
+                latent = self.layer_norm(torch.cat([x_current, x_environment], dim=1))
+                return latent # (batch_size, 16/17, latent_dims=64)
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
             def combi_encoder(x):
                 x_current, x_ts = x
                 x_current = self.CurrentEncoder(x_current)
                 x_ts = self.TSEncoder(x_ts)
-                return torch.cat([x_current, x_ts], dim=1) # (batch_size, seq_len, latent_dims=64)
+                latent = self.layer_norm(torch.cat([x_current, x_ts], dim=1))
+                return latent # (batch_size, 17/18, latent_dims=64)
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
                 x_current = self.CurrentEncoder(x_current)
                 x_environment = self.EnvEncoder(x_environment)
                 x_ts = self.TSEncoder(x_ts)
-                return torch.cat([x_current, x_environment, x_ts], dim=1) # (batch_size, seq_len, latent_dims=64)
+                latent = self.layer_norm(torch.cat([x_current, x_environment, x_ts], dim=1))
+                return latent # (batch_size, 21/22, latent_dims=64)
         else:
             Warning('Invalid encoder selection.')
         return combi_encoder
