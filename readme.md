@@ -36,7 +36,7 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 `src_encoder_pretraining/ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
 
 ### Posterior inference
-`src_posterior_inference/pi_train_eval.py`, `src_safety_evaluation/reuse_ucd/train_gaussian.py`
+`src_safety_evaluation/reuse_ucd/train_gaussian.py`, `src_posterior_inference/pi_train_eval.py`
 
 ### Safety evaluation
 `src_safety_evaluation/organise_events.py`, `src_safety_evaluation/evaluate_safety.py`, `src_safety_evaluation/analyse_events.py`, `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`
@@ -61,6 +61,7 @@ Thanks to GitHub for offering the open environment, from which this work reuses/
     - TopoAE https://github.com/BorgwardtLab/topological-autoencoders
     - GGAE https://github.com/JungbinLim/GGAE-public
 - Two-dimensional traffic safety evaluation
+  - Two-Dimensional-Time-To-Collision https://github.com/Yiru-Jiao/Two-Dimensional-Time-To-Collision
   - EmergencyIndex https://github.com/AutoChengh/EmergencyIndex
   - UnifiedConflictDetection https://github.com/Yiru-Jiao/UnifiedConflictDetection
 
