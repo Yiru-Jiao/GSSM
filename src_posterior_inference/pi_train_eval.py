@@ -98,7 +98,8 @@ def main(args, manual_seed, path_prepared):
             val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
         model_size = sum(p.numel() for p in pipeline.model.parameters())
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
-        evaluation.loc[len(evaluation)] = [dataset_name, encoder_name, pretraining, val_loss, model_size]
+        columns = ['dataset', 'encoder_selection', 'pretraining', 'val_loss', 'model_size']
+        evaluation.loc[len(evaluation), columns] = [dataset_name, encoder_name, pretraining, val_loss, model_size]
         evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'pretraining'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
