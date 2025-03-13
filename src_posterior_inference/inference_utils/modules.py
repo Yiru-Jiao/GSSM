@@ -98,17 +98,19 @@ class EnvEncoder(nn.Module):
     '''
     def __init__(self, input_dims=27, output_dims=64):
         super(EnvEncoder, self).__init__()
-        self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims, output_dims//2),
-            nn.GELU(),
-            nn.Linear(output_dims//2, output_dims),
-            nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-        )
+        self.feature_extractor = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(indim, output_dims//2),
+                nn.GELU(),
+                nn.Linear(output_dims//2, output_dims),
+                nn.Dropout(0.2),
+                nn.GELU(),
+                nn.Linear(output_dims, output_dims),
+                nn.Dropout(0.2),
+                nn.GELU(),
+                nn.Linear(output_dims, output_dims),
+            ) for indim in [5, 8, 7, 7]
+        ]) # 4 different blocks for the 4 different categorical features
 
     # Load a pretrained model
     def load(self, model_selection, device, path_prepared, continue_training=False):
@@ -123,8 +125,12 @@ class EnvEncoder(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 27)
-        out = self.feature_extractor(x) # (batch_size, 64)
-        return  out.unsqueeze(1) # (batch_size, 1, 64)
+        lighting = x[:,0:5] # (batch_size, 5)
+        weather = x[:,5:13] # (batch_size, 8)
+        surface = x[:,13:20] # (batch_size, 7)
+        traffic = x[:,20:27] # (batch_size, 7)
+        out = [block(features) for block, features in zip(self.feature_extractor, [lighting, weather, surface, traffic])]
+        return torch.stack(out, dim=1) # (batch_size, 4, 64)
 
 
 class AttentionBlock(nn.Module):
@@ -204,11 +210,11 @@ class StackedAttention(nn.Module):
 
 class AttentionDecoder(nn.Module):
     '''
-    State (Current + Environment) self-attention: (batch_size, 12/13+1, latent_dims=64) -> (batch_size, 12/13+1, hidden_dims=256=64*4)
+    State (Current + Environment) self-attention: (batch_size, 12/13+4, latent_dims=64) -> (batch_size, 12/13+4, hidden_dims=256=64*4)
     TimeSeries self-attention: (batch_size, 5, latent_dims=64) -> (batch_size, 5, hidden_dims=256=64*4)
 
-    Local interaction with CNN: (batch_size, 256, 12~19) -> (batch_size, 16, 12~19)
-    Output with MLP: (batch_size, 16*(12~19)) -> (batch_size, 1)
+    Local interaction with CNN: (batch_size, 256, 12~22) -> (batch_size, 16, 12~22)
+    Output with MLP: (batch_size, 16*(12~22)) -> (batch_size, 1)
     '''
     def __init__(self, latent_dims=64, encoder_selection=[], single_output=None, return_attention=False):
         super(AttentionDecoder, self).__init__()
@@ -224,7 +230,7 @@ class AttentionDecoder(nn.Module):
         if 'current+acc' in self.encoder_selection:
             self.final_seq_len += 13
         if 'environment' in self.encoder_selection:
-            self.final_seq_len += 1
+            self.final_seq_len += 4
         if 'profiles' in self.encoder_selection:
             self.final_seq_len += 5
 
@@ -301,6 +307,9 @@ class AttentionDecoder(nn.Module):
             return log_var
         elif self.single_output == 'intensity':
             assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
-            logp = torch.log(torch.tensor(0.5))
-            max_intensity = logp / torch.log(0.5*(1-torch.erf((torch.log(spacing)-mu)/(torch.exp(0.5*log_var)*2**0.5))))
-            return torch.log10(max_intensity)
+            log_p = torch.log(torch.tensor(0.5))
+            log_s = torch.log(torch.clamp(spacing, min=1e-6, max=None))
+            squared2var = torch.sqrt(2*torch.exp(log_var))
+            erf_term = 0.5*(1-torch.erf((log_s-mu)/squared2var))
+            max_intensity = log_p / torch.log(torch.clamp(erf_term, min=1e-6, max=None))
+            return torch.log10(torch.clamp(max_intensity, min=1., max=None))
