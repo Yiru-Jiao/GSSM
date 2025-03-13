@@ -41,10 +41,6 @@ def read_dataset(dataset, path_processed):
         random_dimensions = pd.DataFrame(veh_dimensions.loc[random_dimensions, ['target_length','target_width']].values,
                                          columns=['random_length','random_width'], index=data_both['event_id'].unique())
         data_both[['length_sur','width_sur']] = random_dimensions.loc[data_both['event_id'].values, ['random_length','random_width']].values
-    elif dataset=='INTERACTION':
-        data_both = pd.read_hdf(path_processed+'INTERACTION/paired_GL.h5', key='pairs')
-        data_both['event_id'] = data_both['i']
-        data_both['target_id'] = data_both['i'].astype(str) + '_' + data_both['j'].astype(str)
     elif dataset=='ArgoverseHV':
         data_both = pd.read_hdf(path_processed+'Argoverse/argo_hv.h5', key='data')
         data_both['event_id'] = data_both['log_id']
@@ -101,8 +97,6 @@ class ContextSegmenter(coortrans):
             df_view_relative = self.transform_coor(df, 'relative')
             if self.dataset=='highD' or self.dataset=='ArgoverseAV':
                 indices_end = np.arange(len(df)-1, 25, -15)
-            elif self.dataset=='INTERACTION':
-                indices_end = np.arange(len(df)-1, 25, -10)
             elif self.dataset=='SafeBaseline':
                 indices_end = np.arange(len(df)-1, 25, -20)
             elif self.dataset=='ArgoverseHV':

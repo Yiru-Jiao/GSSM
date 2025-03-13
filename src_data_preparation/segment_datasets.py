@@ -14,7 +14,7 @@ def main(path_prepared, path_processed):
     initial_time = systime.time()
     print(f'Available cores for parallel processing: {multiprocessing.cpu_count()}')
 
-    for dataset in ['highD', 'INTERACTION', 'SafeBaseline', 'ArgoverseHV', 'ArgoverseAV']:
+    for dataset in ['highD', 'SafeBaseline', 'ArgoverseHV', 'ArgoverseAV']:
         path_save = f'{path_prepared}{dataset}/'
         os.makedirs(path_save, exist_ok=True)
         if os.path.exists(path_save + f'profiles_{dataset}_val.h5'):
@@ -26,7 +26,6 @@ def main(path_prepared, path_processed):
         # Separate all the events into train (80%) and val (20%) sets, the test set will be (near-)crashes in SHRP2
         '''
         highD: 236,685 train scenes (min. dist. 1.36 m) + 57,939 val scenes (min. dist. 2.95 m)
-        INTERACTION: train 251,957 scenes (min. dist. 2.61 m) + 63,388 val scenes (min. dist. 2.68 m)
         SafeBaseline: 219,016 train scenes (min. dist. 1.83 m) + 54,101 val scenes (min. dist. 2.34 m)
         ArgoverseHV: 244,444 train scenes (min. dist. 0.29 m) + 60,918 val scenes (min. dist. 0.22 m)
         ArgoverseAV: 232,164 train scenes (min. dist. 1.33 m) + 58,009 val scenes (min. dist. 1.73 m)
