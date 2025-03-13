@@ -35,7 +35,7 @@ class model(nn.Module):
             self.decoder = AEDecoder(input_dims=13*64, output_dims=13)
         elif encoder_name == 'environment':
             self.encoder = EnvEncoder(input_dims=27, output_dims=64)
-            self.decoder = AEDecoder(input_dims=64, output_dims=27)
+            self.decoder = AEDecoder(input_dims=4*64, output_dims=27)
         else:
             ValueError("Undefined encoder name: should be among 'current', 'current+acc', 'environment'.")
 
