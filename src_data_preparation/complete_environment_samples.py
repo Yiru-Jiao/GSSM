@@ -39,6 +39,17 @@ def main(path_prepared):
     train_data.to_hdf(path_prepared + 'Segments/environment_features_train_AE.h5', key='features')
     val_data.to_hdf(path_prepared + 'Segments/environment_features_val_AE.h5', key='features')
 
+    features = train_data.columns
+    print(f'Environment features included: {features}')
+    feature_count = {}
+    for feature in features:
+        f = feature.split('_')[0]
+        if f not in feature_count:
+            feature_count[f] = 0
+        else:
+            feature_count[f] += 1
+    print(f'Environment features column count: {feature_count}')
+
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
