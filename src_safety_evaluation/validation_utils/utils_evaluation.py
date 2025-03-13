@@ -127,7 +127,7 @@ def SSSE(states, model, device):
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
     max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu, sigma)+1e-6)
-    max_intensity = np.maximum(max_intensity, 1e-6)
+    max_intensity = np.maximum(max_intensity, 1)
 
     return mu, sigma, np.log10(max_intensity)
 
@@ -147,8 +147,8 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
         return evaluation
     
     elif conflict_indicator=='SSSE':
-        evaluation['probability'] = extreme_cdf(evaluation['proximity'].values, evaluation['mu'].values, evaluation['sigma'].values, threshold)
         evaluation.loc[evaluation['intensity']>threshold, 'conflict'] = True
+        evaluation['probability'] = extreme_cdf(evaluation['proximity'].values, evaluation['mu'].values, evaluation['sigma'].values, threshold)
         return evaluation
 
 
@@ -160,12 +160,23 @@ def determine_target(indicator, danger, before_danger):
         median_before_danger = np.nan
         median_danger = np.nan
     else:
+        # If the median conflict levels of other surrounding vehicles before the danger period is higher than 
+        # the median conflict level of the selected target vehicle during the danger period,
+        # the selected target vehicle is not the conflicting target and the real conflicting target might be missed
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             target_id = danger[indicator].idxmin()
+            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
+            median_danger = danger.loc[[target_id]][indicator].median()
+            target_not_recorded = (median_before_danger < median_danger)
         elif indicator in ['DRAC', 'EI', 'intensity']:
             target_id = danger[indicator].idxmax()
-        median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-        median_danger = danger.loc[[target_id]][indicator].median()
+            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
+            median_danger = danger.loc[[target_id]][indicator].median()
+            target_not_recorded = (median_before_danger > median_danger)
+        if target_not_recorded:
+            target_id = np.nan
+            median_before_danger = np.nan
+            median_danger = np.nan
     return target_id, median_before_danger, median_danger
 
 
@@ -246,11 +257,6 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
 
 def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=False):
-    if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-        warning.loc[warning['median_before_danger']<warning['median_danger'], 'danger_recorded'] = False
-    elif conflict_indicator in ['DRAC', 'EI', 'SSSE']:
-        warning.loc[warning['median_before_danger']>warning['median_danger'], 'danger_recorded'] = False
-
     # true_positives = warning[warning['danger_recorded']&(warning['true_warning']>0.5)].groupby('threshold').size()
     # false_positives = warning[warning['safety_recorded']&(warning['false_warning']>0.5)].groupby('threshold').size()
     # true_negatives = warning[warning['safety_recorded']&(warning['false_warning']<0.5)].groupby('threshold').size()
@@ -331,12 +337,6 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
             continue
         target_danger = danger.loc[[target_id]]
         if len(target_danger)<20:
-            records.loc[event_id, 'danger_recorded'] = False
-            continue
-        if (indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']) and (median_before_danger < median_danger):
-            records.loc[event_id, 'danger_recorded'] = False
-            continue
-        if (indicator in ['DRAC', 'EI', 'SSSE']) and (median_before_danger > median_danger):
             records.loc[event_id, 'danger_recorded'] = False
             continue
         records.loc[event_id, 'danger_recorded'] = True
