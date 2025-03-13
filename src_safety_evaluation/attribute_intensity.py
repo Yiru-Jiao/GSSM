@@ -14,7 +14,6 @@ from scipy.special import erf
 import torch
 import argparse
 from sklearn.cluster import MiniBatchKMeans
-from sklearn.preprocessing import OneHotEncoder
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
