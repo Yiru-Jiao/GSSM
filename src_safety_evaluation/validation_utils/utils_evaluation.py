@@ -269,13 +269,13 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
     statistics = statistics.fillna(0).reset_index().sort_values('threshold') # nan can be caused by empty combination of threshold and warning
 
     if curve_type=='ROC':
-        statistics['true positive rate'] = statistics['TP']/(statistics['TP']+statistics['FN'])
+        statistics['false negative rate'] = statistics['FN']/(statistics['TP']+statistics['FN'])
         statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
         if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, False, True])
+            statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
         else:
-            statistics = statistics.sort_values(by=['false positive rate','true positive rate','threshold'], ascending=[True, False, False])
-        statistics['combined rate'] = (1-statistics['true positive rate'])**2+(statistics['false positive rate'])**2
+            statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
+        statistics['combined rate'] = statistics['false negative rate']**2+statistics['false positive rate']**2
     elif curve_type=='PRC':
         statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
         statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
@@ -301,7 +301,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
             if curve_type=='ROC':
                 print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
                     ' optimal threshold: ', optimal_threshold['threshold'], 
-                    ' true positive rate: ', round(optimal_threshold['true positive rate']*100, 2),
+                    ' false negative rate: ', round(optimal_threshold['false negative rate']*100, 2),
                     ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
             elif curve_type=='PRC':
                 print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
