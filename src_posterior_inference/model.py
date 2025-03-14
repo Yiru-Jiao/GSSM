@@ -151,36 +151,38 @@ class UnifiedProximity(nn.Module):
 
 
 class LogNormalNLL(nn.Module):
-    def __init__(self, scale=10.):
+    def __init__(self, scale=10., eps=1e-6):
         super(LogNormalNLL, self).__init__()
         '''
         Scaling is important in this loss as otherwise the original loss value often goes 
         too close to zero where the gradient is too small for effective learning.
         '''
         self.scale = scale
+        self.eps = eps
 
     def forward(self, out, y):
         mu = out[0]
         log_var = out[1]
-        log_y = torch.log(y)
+        log_y = torch.log(torch.clamp(y, min=self.eps))
         nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
         loss = nll.mean()
         return loss * self.scale
 
 
 class SmoothLogNormalNLL(nn.Module):
-    def __init__(self, beta=5., scale=10.):
+    def __init__(self, beta=5., scale=10., eps=1e-6):
         super(SmoothLogNormalNLL, self).__init__()
         self.beta = beta
         self.scale = scale
+        self.eps = eps
 
-    def kl_divergence(self, mu1, log_var1, mu2, log_var2, eps=1e-8):
-        return 0.5 * (log_var2 - log_var1 + (torch.exp(log_var1)+(mu1-mu2)**2) / torch.exp(log_var2+eps) - 1)
+    def kl_divergence(self, mu1, log_var1, mu2, log_var2):
+        return 0.5 * (log_var2 - log_var1 + (torch.exp(log_var1)+(mu1-mu2)**2) / torch.exp(log_var2) - 1)
     
-    def js_divergence(self, mu1, log_var1, mu2, log_var2, eps=1e-8):
+    def js_divergence(self, mu1, log_var1, mu2, log_var2):
         mu = 0.5 * (mu1 + mu2)
         var = 0.5 * (torch.exp(log_var1) + torch.exp(log_var2))
-        log_var = torch.log(var + eps)
+        log_var = torch.log(torch.clamp(var, min=self.eps))
         kl1 = self.kl_divergence(mu1, log_var1, mu, log_var)
         kl2 = self.kl_divergence(mu2, log_var2, mu, log_var)
         return 0.5 * (kl1 + kl2)
@@ -188,7 +190,7 @@ class SmoothLogNormalNLL(nn.Module):
     def forward(self, out, y, inducing_out):
         mu = out[0]
         log_var = out[1]
-        log_y = torch.log(y)
+        log_y = torch.log(torch.clamp(y, min=self.eps))
         nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
 
         mu_prime, log_var_prime = inducing_out
