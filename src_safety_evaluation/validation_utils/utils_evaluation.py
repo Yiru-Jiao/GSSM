@@ -62,6 +62,15 @@ def define_model(device, path_prepared, dataset, encoder_selection, pretrained_e
     return pipeline.model
 
 
+def lognormal_pdf(x, mu, sigma, rescale=True):
+    p = 1/x/np.sqrt(2*np.pi)/sigma*np.exp(-1/2*(np.log(x)-mu)**2/sigma**2)
+    if rescale:
+        mode = np.exp(mu-sigma**2)
+        pmax = 1/mode/np.sqrt(2*np.pi)/sigma*np.exp(-1/2*sigma**2)
+        p = p/pmax
+    return p
+
+
 def lognormal_cdf(x, mu, sigma):
     x = np.maximum(1e-6, x)
     return 1/2+1/2*erf((np.log(x)-mu)/sigma/np.sqrt(2))
