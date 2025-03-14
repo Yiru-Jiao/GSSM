@@ -100,7 +100,8 @@ def main(args, manual_seed, path_result):
     results['mode'] = np.exp(results['mu'] - results['sigma']**2)
     print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
     loss_func = LogNormalNLL()
-    out = (torch.from_numpy(mu).float(), torch.from_numpy(np.log(sigma**2)).float())
+    log_var = np.log(np.maximum(1e-6, sigma**2))
+    out = (torch.from_numpy(mu).float(), torch.from_numpy(log_var).float())
     print(f'LogNormal NLL: {loss_func(out, torch.from_numpy(spacing_list).float()).item()}')
 
     # Warning analysis

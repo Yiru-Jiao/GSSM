@@ -308,8 +308,8 @@ class AttentionDecoder(nn.Module):
         elif self.single_output == 'intensity':
             assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
             log_p = torch.log(torch.tensor(0.5))
-            log_s = torch.log(torch.clamp(spacing, min=1e-6, max=None))
+            log_s = torch.log(torch.clamp(spacing, min=1e-6))
             squared2var = torch.sqrt(2*torch.exp(log_var))
-            erf_term = 0.5*(1-torch.erf((log_s-mu)/squared2var))
-            max_intensity = log_p / torch.log(torch.clamp(erf_term, min=1e-6, max=None))
-            return torch.log10(torch.clamp(max_intensity, min=1., max=None))
+            one_minus_cdf = 0.5*(1-torch.erf((log_s-mu)/squared2var))
+            max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=1e-6))
+            return torch.log10(torch.clamp(max_intensity, min=1.))

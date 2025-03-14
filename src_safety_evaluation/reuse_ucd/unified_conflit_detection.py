@@ -136,7 +136,7 @@ class train_val_test():
         f_dist = self.model(inducing_points)
         y_dist = self.likelihood(f_dist)
         mu, var = y_dist.mean, y_dist.variance
-        return mu, torch.log(var)
+        return mu, torch.log(torch.clamp(var, min=1e-6))
 
     def train_model(self, num_epochs=100, initial_lr=0.1):
         self.initial_lr = initial_lr
@@ -208,11 +208,12 @@ class train_val_test():
                 f_dist = self.model(interaction_context.to(self.device))
                 y_dist = self.likelihood(f_dist)
                 mu, var = y_dist.mean, y_dist.variance # mu: [batch_size], var: [batch_size]
+                log_var = torch.log(torch.clamp(var, min=1e-6))
                 mu_list.append(mu.cpu().numpy())
                 sigma_list.append(var.sqrt().cpu().numpy())
-                val_gau += lognorm_nll((mu, torch.log(var)), torch.exp(current_spacing.to(self.device)))
+                val_gau += lognorm_nll((mu, log_var), torch.exp(current_spacing.to(self.device)))
                 inducing_out = self.get_inducing_out(interaction_context.to(self.device))
-                val_smooth_gau += smooth_lognorm_nll((mu, torch.log(var)), torch.exp(current_spacing.to(self.device)), inducing_out)
+                val_smooth_gau += smooth_lognorm_nll((mu, log_var), torch.exp(current_spacing.to(self.device)), inducing_out)
 
         self.model.train()
         self.likelihood.train()
@@ -293,6 +294,7 @@ class custom_dataset(Dataset):
     
 
 def lognormal_cdf(x, mu, sigma):
+    x = np.maximum(1e-6, x)
     return 1/2+1/2*erf((np.log(x)-mu)/sigma/np.sqrt(2))
 
 
@@ -316,8 +318,9 @@ def UCD(states, model, likelihood, device):
     sigma = np.concatenate(sigma_list)
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
-    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu, sigma)+1e-6)
-    max_intensity = np.maximum(max_intensity, 1)
+    one_minus_cdf = 1 - lognormal_cdf(spacing_list, mu, sigma)
+    max_intensity = np.log(0.5)/np.log(np.maximum(1e-6, one_minus_cdf))
+    max_intensity = np.maximum(1, max_intensity)
 
     return mu, sigma, np.log10(max_intensity)
 
