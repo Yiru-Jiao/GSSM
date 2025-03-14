@@ -128,10 +128,11 @@ def SSSE(states, model, device):
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
     one_minus_cdf = 1 - lognormal_cdf(spacing_list, mu, sigma)
-    max_intensity = np.log(0.5)/np.log(np.maximum(1e-6, one_minus_cdf))
+    one_minus_cdf = np.minimum(1-1e-6, np.maximum(1e-6, one_minus_cdf))
+    max_intensity = np.log(0.5)/np.log(one_minus_cdf) # around (0.050171666, 693146.834)
     max_intensity = np.maximum(1, max_intensity)
 
-    return mu, sigma, np.log10(max_intensity)
+    return mu, sigma, np.log10(max_intensity) # (0, 5.8408)
 
 
 def determine_conflicts(evaluation, conflict_indicator, threshold):
