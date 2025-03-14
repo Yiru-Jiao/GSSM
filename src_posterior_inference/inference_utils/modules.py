@@ -311,5 +311,5 @@ class AttentionDecoder(nn.Module):
             log_s = torch.log(torch.clamp(spacing, min=1e-6))
             squared2var = torch.sqrt(2*torch.exp(log_var))
             one_minus_cdf = 0.5*(1-torch.erf((log_s-mu)/squared2var))
-            max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=1e-6))
+            max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=1e-6, max=1-1e-6))
             return torch.log10(torch.clamp(max_intensity, min=1.))
