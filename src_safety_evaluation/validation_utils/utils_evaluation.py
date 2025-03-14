@@ -62,16 +62,8 @@ def define_model(device, path_prepared, dataset, encoder_selection, pretrained_e
     return pipeline.model
 
 
-def lognormal_pdf(x, mu, sigma, rescale=True):
-    p = 1/x/np.sqrt(2*np.pi)/sigma*np.exp(-1/2*(np.log(x)-mu)**2/sigma**2)
-    if rescale:
-        mode = np.exp(mu-sigma**2)
-        pmax = 1/mode/np.sqrt(2*np.pi)/sigma*np.exp(-1/2*sigma**2)
-        p = p/pmax
-    return p
-
-
 def lognormal_cdf(x, mu, sigma):
+    x = np.maximum(1e-6, x)
     return 1/2+1/2*erf((np.log(x)-mu)/sigma/np.sqrt(2))
 
 
@@ -126,8 +118,9 @@ def SSSE(states, model, device):
     sigma = np.concatenate(sigma_list)
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
-    max_intensity = np.log(0.5)/np.log(1-lognormal_cdf(spacing_list, mu, sigma)+1e-6)
-    max_intensity = np.maximum(max_intensity, 1)
+    one_minus_cdf = 1 - lognormal_cdf(spacing_list, mu, sigma)
+    max_intensity = np.log(0.5)/np.log(np.maximum(1e-6, one_minus_cdf))
+    max_intensity = np.maximum(1, max_intensity)
 
     return mu, sigma, np.log10(max_intensity)
 
@@ -142,8 +135,6 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
     
     elif conflict_indicator in ['DRAC', 'EI']:
         evaluation.loc[(evaluation[conflict_indicator]>threshold), 'conflict'] = True
-        if conflict_indicator=='DRAC':
-            evaluation.loc[(evaluation['DRAC']<0), 'conflict'] = True # DRAC<0 means overlapping bounding boxes
         return evaluation
     
     elif conflict_indicator=='SSSE':
@@ -152,32 +143,81 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
         return evaluation
 
 
+def is_target_recorded(danger, before_danger, target_id, indicator, safe_threshold):
+    '''
+    The conflicting target was not marked in the SHRP2 data, and it's possible the target was not recorded in
+    the data. We thus need to filter out those invalid cases.
+    1) If there was no other surrounding vehicles before the danger period, a filtering is not possible so we 
+       skip the event, better being conservative than misleading.
+    2) Assuming that a detection is consistent by its own, if any the average conflict levels of other surrounding
+       vehicles before the danger period is higher than the average conflict level of the selected target vehicle
+       during the danger period, the selected target vehicle is not the conflicting target and the real 
+       conflicting target might be missed.
+    '''
+    before_danger = before_danger[before_danger['target_id']!=target_id]
+    mean_danger = danger.loc[[target_id]][indicator].mean()
+
+    # 1) No other surrounding vehicles before the danger period
+    if len(before_danger)<1:
+        target_not_recorded = True
+        mean_before_danger = np.nan
+    else:
+        target_not_recorded = False
+        # 2) Other surrounding vehicles before the danger period are riskier than the target in danger
+        if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+            mean_before_danger = before_danger[before_danger[indicator]<safe_threshold][indicator].mean()
+            if mean_before_danger < mean_danger:
+                target_not_recorded = True
+        elif indicator in ['DRAC', 'intensity', 'EI']:
+            mean_before_danger = before_danger[before_danger[indicator]>safe_threshold][indicator].mean()
+            if mean_before_danger > mean_danger:
+                target_not_recorded = True
+
+    return target_not_recorded, mean_before_danger, mean_danger
+
+
 def determine_target(indicator, danger, before_danger):
     if indicator == 'SSSE':
         indicator = 'intensity'
     if danger[indicator].isna().all() or before_danger[indicator].isna().all():
         target_id = np.nan
-        median_before_danger = np.nan
-        median_danger = np.nan
+        mean_before_danger = np.nan
+        mean_danger = np.nan
     else:
-        # If the median conflict levels of other surrounding vehicles before the danger period is higher than 
-        # the median conflict level of the selected target vehicle during the danger period,
-        # the selected target vehicle is not the conflicting target and the real conflicting target might be missed
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-            target_id = danger[indicator].idxmin()
-            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-            median_danger = danger.loc[[target_id]][indicator].median()
-            target_not_recorded = (median_before_danger < median_danger)
-        elif indicator in ['DRAC', 'EI', 'intensity']:
-            target_id = danger[indicator].idxmax()
-            median_before_danger = before_danger[before_danger['target_id']!=target_id][indicator].median()
-            median_danger = danger.loc[[target_id]][indicator].median()
-            target_not_recorded = (median_before_danger > median_danger)
+            # For these time-based indicators, we consider 15 seconds as a safe threshold,
+            # i.e., no conflict is possible if the indicator value is larger than 15
+            safe_threshold = 15
+            danger = danger[danger[indicator]<safe_threshold]
+            if len(danger)<1:
+                target_not_recorded = True
+            else:
+                target_id = danger.groupby('target_id')[indicator].mean().idxmin()
+                target_not_recorded, mean_before_danger, mean_danger = is_target_recorded(danger, before_danger, target_id, indicator, safe_threshold)
+        elif indicator in ['DRAC', 'intensity']:
+            # For DRAC and intensity, 0 is a clearly defined safe threshold.
+            safe_threshold = 0
+            danger = danger[danger[indicator]>safe_threshold]
+            if len(danger)<1:
+                target_not_recorded = True
+            else:
+                target_id = danger.groupby('target_id')[indicator].mean().idxmax()
+                target_not_recorded, mean_before_danger, mean_danger = is_target_recorded(danger, before_danger, target_id, indicator, safe_threshold)
+        elif indicator == 'EI':
+            # For EI, we consider -1 as a safe threshold.
+            safe_threshold = -1
+            danger = danger[danger[indicator]>safe_threshold]
+            if len(danger)<1:
+                target_not_recorded = True
+            else:
+                target_id = danger.groupby('target_id')[indicator].mean().idxmax()
+                target_not_recorded, mean_before_danger, mean_danger = is_target_recorded(danger, before_danger, target_id, indicator, safe_threshold)
+
         if target_not_recorded:
             target_id = np.nan
-            median_before_danger = np.nan
-            median_danger = np.nan
-    return target_id, median_before_danger, median_danger
+            mean_before_danger = np.nan
+            mean_danger = np.nan
+    return target_id, mean_before_danger, mean_danger
 
 
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
@@ -196,19 +236,17 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index().set_index('target_id')
         before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)]
-        if danger.groupby('target_id').size().max()<20:
-            # a potential target in danger for at least 2 seconds
-            continue
 
         # Determine the conflicting target and warning
-        target_id, median_before_danger, median_danger = determine_target(indicator, danger, before_danger)
-        records.loc[event_id, ['target_id','median_before_danger','median_danger']] = [target_id, median_before_danger, median_danger]
+        target_id, mean_before_danger, mean_danger = determine_target(indicator, danger, before_danger)
         if np.isnan(target_id):
             continue
         target_danger = danger.loc[[target_id]]
         if len(target_danger)<20:
+            # a potential target in danger for at least 2 seconds
             continue
         records.loc[event_id, 'danger_recorded'] = True
+        records.loc[event_id, ['target_id','mean_before_danger','mean_danger']] = [target_id, mean_before_danger, mean_danger]
         target_danger = determine_conflicts(target_danger, indicator, threshold)
         if target_danger['conflict'].sum()>5: # at least warning for 0.5 second
             records.loc[event_id, 'true_warning'] = 1
@@ -325,13 +363,9 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)]
         before_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
-        if danger.groupby('target_id').size().max()<20:
-            records.loc[event_id, 'danger_recorded'] = False
-            continue
 
         # Determine the conflicting target
-        target_id, median_before_danger, median_danger = determine_target(indicator, danger, before_danger)
-        records.loc[event_id, 'target_id'] = target_id
+        target_id, mean_before_danger, mean_danger = determine_target(indicator, danger, before_danger)
         if np.isnan(target_id):
             records.loc[event_id, 'danger_recorded'] = False
             continue
@@ -340,6 +374,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
             records.loc[event_id, 'danger_recorded'] = False
             continue
         records.loc[event_id, 'danger_recorded'] = True
+        records.loc[event_id, ['target_id','mean_before_danger','mean_danger']] = [target_id, mean_before_danger, mean_danger]
         target = determine_conflicts(event.loc[target_id], indicator, optimal_threshold)
 
         # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
