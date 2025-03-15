@@ -184,12 +184,12 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
         max_danger = np.nan
     else:
         target_not_recorded = False
-        mean_pre_danger = pre_danger[indicator].mean()
-        mean_danger = danger[indicator].mean()
         median_pre_danger = pre_danger[indicator].median()
         median_danger = danger[indicator].median()
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
-            # For time-based indicators, the smaller the value, the higher the risk
+            # For these indicators, the smaller the value, the higher the risk
+            mean_pre_danger = pre_danger[pre_danger[indicator]<np.inf][indicator].mean()
+            mean_danger = danger[danger[indicator]<np.inf][indicator].mean()
             max_pre_danger = pre_danger[indicator].min()
             max_danger = danger[indicator].min()
             # 2a) Average
@@ -203,6 +203,8 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
                 target_not_recorded = True
         elif indicator in ['DRAC', 'intensity', 'EI']:
             # For these indicators, the larger the value, the higher the risk
+            mean_pre_danger = pre_danger[indicator].mean()
+            mean_danger = danger[indicator].mean()
             max_pre_danger = pre_danger[indicator].max()
             max_danger = danger[indicator].max()
             # 2a) Average
