@@ -170,7 +170,7 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
        otherwise, the real conflicting target might be missed.
     '''
     danger = danger.loc[[target_id]]
-    pre_danger = pre_danger.loc[[target_id]]
+    pre_danger = pre_danger[pre_danger['target_id']==target_id]
 
     # 1) No data before the danger period
     if len(pre_danger)<1:
@@ -243,7 +243,7 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index().set_index('target_id')
-        pre_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index().set_index('target_id')
+        pre_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
 
         # Determine the conflicting target and warning
         target_id, indicator_values = determine_target(indicator, danger, pre_danger)
@@ -372,7 +372,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
 
         danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
                        (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)]
-        pre_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)]
+        pre_danger = event[(event['time']<event_meta.loc[event_id, 'danger_start']/1000)].reset_index()
 
         # Determine the conflicting target
         target_id, indicator_values = determine_target(indicator, danger, pre_danger)
