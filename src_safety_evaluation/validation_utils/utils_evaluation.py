@@ -178,6 +178,8 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
         target_not_recorded = True
         mean_pre_danger = np.nan
         mean_danger = np.nan
+        median_pre_danger = np.nan
+        median_danger = np.nan
         max_pre_danger = np.nan
         max_danger = np.nan
     else:
