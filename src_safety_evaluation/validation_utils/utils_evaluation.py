@@ -188,18 +188,18 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             # For time-based indicators, the smaller the value, the higher the risk
             # 2a) Average
-            if mean_pre_danger < mean_danger:
+            if mean_pre_danger <= mean_danger:
                 target_not_recorded = True
             # 2b) Maximum
-            if max_pre_danger < max_danger:
+            if max_pre_danger <= max_danger:
                 target_not_recorded = True
         elif indicator in ['DRAC', 'intensity', 'EI']:
             # For these indicators, the larger the value, the higher the risk
             # 2a)
-            if mean_pre_danger > mean_danger:
+            if mean_pre_danger >= mean_danger:
                 target_not_recorded = True
             # 2b)
-            if max_pre_danger > max_danger:
+            if max_pre_danger >= max_danger:
                 target_not_recorded = True
 
     return target_not_recorded, (mean_pre_danger, mean_danger, max_pre_danger, max_danger)
