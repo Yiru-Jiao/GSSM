@@ -166,7 +166,8 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
        skip the event, better being conservative than misleading;
     2) for the selected target, 
        (a) the average risk in the pre-danger period should be less than the average risk in the danger period, and
-       (b) the maximum risk in the pre-danger period should be less than the maximum risk in the danger period, 
+       (b) the median risk in the pre-danger period should be less than the median risk in the danger period, and
+       (c) the maximum risk in the pre-danger period should be less than the maximum risk in the danger period,
        otherwise, the real conflicting target might be missed.
     '''
     danger = danger.loc[[target_id]]
@@ -183,26 +184,36 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
         target_not_recorded = False
         mean_pre_danger = pre_danger[indicator].mean()
         mean_danger = danger[indicator].mean()
-        max_pre_danger = pre_danger[indicator].max()
-        max_danger = danger[indicator].max()
+        median_pre_danger = pre_danger[indicator].median()
+        median_danger = danger[indicator].median()
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             # For time-based indicators, the smaller the value, the higher the risk
+            max_pre_danger = pre_danger[indicator].min()
+            max_danger = danger[indicator].min()
             # 2a) Average
             if mean_pre_danger <= mean_danger:
                 target_not_recorded = True
-            # 2b) Maximum
+            # 2b) Median
+            if median_pre_danger <= median_danger:
+                target_not_recorded = True
+            # 2c) Maximum
             if max_pre_danger <= max_danger:
                 target_not_recorded = True
         elif indicator in ['DRAC', 'intensity', 'EI']:
             # For these indicators, the larger the value, the higher the risk
-            # 2a)
+            max_pre_danger = pre_danger[indicator].max()
+            max_danger = danger[indicator].max()
+            # 2a) Average
             if mean_pre_danger >= mean_danger:
                 target_not_recorded = True
-            # 2b)
+            # 2b) Median
+            if median_pre_danger >= median_danger:
+                target_not_recorded = True
+            # 2c) Maximum
             if max_pre_danger >= max_danger:
                 target_not_recorded = True
 
-    return target_not_recorded, (mean_pre_danger, mean_danger, max_pre_danger, max_danger)
+    return target_not_recorded, (mean_pre_danger, mean_danger, median_pre_danger, median_danger, max_pre_danger, max_danger)
 
 
 def determine_target(indicator, danger, pre_danger):
@@ -210,10 +221,10 @@ def determine_target(indicator, danger, pre_danger):
         indicator = 'intensity'
     if len(danger)<1: # no surrounding vehicles recorded in the danger period
         target_id = np.nan
-        indicator_values = (np.nan, np.nan, np.nan, np.nan)
+        indicator_values = (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
     elif danger[indicator].isna().all() or pre_danger[indicator].isna().all(): # in case of invalid values
         target_id = np.nan
-        indicator_values = (np.nan, np.nan, np.nan, np.nan)
+        indicator_values = (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
     else: # a target is temporarily selected as the most risky one in the danger period
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             target_id = danger.groupby('target_id')[indicator].mean().idxmin()
@@ -224,7 +235,7 @@ def determine_target(indicator, danger, pre_danger):
 
         if target_not_recorded:
             target_id = np.nan
-            indicator_values = (np.nan, np.nan, np.nan, np.nan)
+            indicator_values = (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
     return target_id, indicator_values
 
 
@@ -255,7 +266,9 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             continue
         records.loc[event_id, 'danger_recorded'] = True
         records.loc[event_id, 'target_id'] = target_id
-        records.loc[event_id, ['mean_pre_danger','mean_danger','max_pre_danger','max_danger']] = indicator_values
+        records.loc[event_id, ['mean_pre_danger','mean_danger',
+                               'median_pre_danger','median_danger',
+                               'max_pre_danger','max_danger']] = indicator_values
         target_danger = determine_conflicts(target_danger, indicator, threshold)
         if target_danger['conflict'].sum()>5: # at least warning for 0.5 second
             records.loc[event_id, 'true_warning'] = 1
@@ -384,7 +397,9 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
             continue
         records.loc[event_id, 'danger_recorded'] = True
         records.loc[event_id, 'target_id'] = target_id
-        records.loc[event_id, ['mean_pre_danger','mean_danger','max_pre_danger','max_danger']] = indicator_values
+        records.loc[event_id, ['mean_pre_danger','mean_danger',
+                               'median_pre_danger','median_danger',
+                               'max_pre_danger','max_danger']] = indicator_values
         target = determine_conflicts(event.loc[target_id], indicator, optimal_threshold)
 
         # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
