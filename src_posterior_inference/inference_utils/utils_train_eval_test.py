@@ -15,7 +15,7 @@ from model import UnifiedProximity, LogNormalNLL, SmoothLogNormalNLL
 from torch.utils.data import DataLoader
 
 
-def set_experiments(stage=[1,2,3,4,5]):
+def set_experiments(stage=[1,2,3,4]):
     exp_config = []
     if 1 in stage: # single dataset, current only, no encoder pretraining
         exp_config.extend([
@@ -33,31 +33,26 @@ def set_experiments(stage=[1,2,3,4,5]):
         ])
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
-            [['highD','ArgoverseHV'], ['current'], False],
             [['highD','ArgoverseHV'], ['current'], True],
+            [['highD','ArgoverseHV'], ['current'], False],
         ])
     if 4 in stage: # add extra features
         exp_config.extend([
-            [['highD','ArgoverseHV','SafeBaseline'], ['current+acc'], 'all'],
-            [['highD','ArgoverseHV','SafeBaseline'], ['current','profiles'], 'all'],
-            [['highD','ArgoverseHV','SafeBaseline'], ['current+acc','profiles'], 'all'],
-            [['SafeBaseline'], ['current', 'profiles'], 'all'],
-            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
-            [['SafeBaseline'], ['current+acc', 'profiles'], 'all'],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
-            [['SafeBaseline'], ['current+acc'], 'all'],
-            [['SafeBaseline'], ['current', 'environment'], 'all'],
-            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
-            [['highD','ArgoverseHV','SafeBaseline'], ['current','profiles'], False],
-            [['highD','ArgoverseHV','SafeBaseline'], ['current+acc'], False],
-            [['highD','ArgoverseHV','SafeBaseline'], ['current+acc','profiles'], False],
-            [['SafeBaseline'], ['current', 'environment'], False],
-            [['SafeBaseline'], ['current', 'profiles'], False],
-            [['SafeBaseline'], ['current','environment','profiles'], False],
+            [['SafeBaseline'], ['current+acc'], True],
             [['SafeBaseline'], ['current+acc'], False],
+            [['SafeBaseline'], ['current+acc'], 'all'],
+            [['SafeBaseline'], ['current', 'environment'], True],
+            [['SafeBaseline'], ['current', 'environment'], False],
+            [['SafeBaseline'], ['current', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'environment'], True],
             [['SafeBaseline'], ['current+acc', 'environment'], False],
-            [['SafeBaseline'], ['current+acc', 'profiles'], False],
+            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            [['SafeBaseline'], ['current','environment','profiles'], False],
+            [['SafeBaseline'], ['current','environment','profiles'], True],
+            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], True],
             [['SafeBaseline'], ['current+acc','environment','profiles'], False],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
         ])
     return exp_config
 
