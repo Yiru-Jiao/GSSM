@@ -157,18 +157,19 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
     '''
     The conflicting target was not marked in the SHRP2 data, and it's possible the target was not recorded in
     the data. We thus need to filter out those invalid cases. 
-    Later the method evaluation will assess missed detection based on the target in the danger and assess false
-    detection based on other surrounding vehicles in the pre-danger period. 
-    To remain those data unintervened, this filtering is based on the target in the pre-danger period and other
-    surrounding vehicles in the danger period. It is thus assumed that the conflicting target has less risk in 
-    the pre-danger period than within the danger period. More specifically,
+    Later the method evaluation will assess missed detection based on [the target in danger] and assess false
+    detection based on [other surrounding vehicles in the pre-danger period]. 
+    To remain those eval-use data unintervened, this filtering is based on [the target in the pre-danger period] 
+    and [other surrounding vehicles in the danger period]. It is thus assumed that the conflicting target is less
+    risky in the pre-danger period than within the danger period. 
+    More specifically,
     1) if the selected target has no data before the danger period, a filtering is not possible so we 
        skip the event, better being conservative than misleading;
-    2) for the selected target, 
-       (a) the average risk in the pre-danger period should be less than the average risk in the danger period, and
-       (b) the median risk in the pre-danger period should be less than the median risk in the danger period, and
-       (c) the maximum risk in the pre-danger period should be less than the maximum risk in the danger period,
-       otherwise, the real conflicting target might be missed.
+    2) for the selected target, the 25th, 50th, and 75th percentiles of the risk indicated by the indicator values
+       should be less in the pre-danger period than in the danger period, otherwise, the real conflicting target
+       might be missed.
+    * The use of 25th, 50th, and 75th percentiles (rather than e.g., min, mean, max) intends for a more robust 
+      comparison and to avoid potential influence of outliers.
     '''
     danger = danger.loc[[target_id]]
     pre_danger = pre_danger[pre_danger['target_id']==target_id]
@@ -176,48 +177,26 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
     # 1) No data before the danger period
     if len(pre_danger)<1:
         target_not_recorded = True
-        mean_pre_danger = np.nan
-        mean_danger = np.nan
-        median_pre_danger = np.nan
-        median_danger = np.nan
-        max_pre_danger = np.nan
-        max_danger = np.nan
+        percentiles_pre_danger = [np.nan, np.nan, np.nan]
+        percentiles_danger = [np.nan, np.nan, np.nan]
     else:
         target_not_recorded = False
-        median_pre_danger = pre_danger[indicator].median()
-        median_danger = danger[indicator].median()
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             # For these indicators, the smaller the value, the higher the risk
-            mean_pre_danger = pre_danger[pre_danger[indicator]<np.inf][indicator].mean()
-            mean_danger = danger[danger[indicator]<np.inf][indicator].mean()
-            max_pre_danger = pre_danger[indicator].min()
-            max_danger = danger[indicator].min()
-            # 2a) Average
-            if mean_pre_danger <= mean_danger:
-                target_not_recorded = True
-            # 2b) Median
-            if median_pre_danger <= median_danger:
-                target_not_recorded = True
-            # 2c) Maximum
-            if max_pre_danger <= max_danger:
-                target_not_recorded = True
+            percentiles_pre_danger = pre_danger[indicator].quantile([0.25, 0.5, 0.75]).values
+            percentiles_danger = danger[indicator].quantile([0.25, 0.5, 0.75]).values
+            for i in range(3):
+                if percentiles_pre_danger[i] <= percentiles_danger[i]:
+                    target_not_recorded = True
         elif indicator in ['DRAC', 'intensity', 'EI']:
             # For these indicators, the larger the value, the higher the risk
-            mean_pre_danger = pre_danger[indicator].mean()
-            mean_danger = danger[indicator].mean()
-            max_pre_danger = pre_danger[indicator].max()
-            max_danger = danger[indicator].max()
-            # 2a) Average
-            if mean_pre_danger >= mean_danger:
-                target_not_recorded = True
-            # 2b) Median
-            if median_pre_danger >= median_danger:
-                target_not_recorded = True
-            # 2c) Maximum
-            if max_pre_danger >= max_danger:
-                target_not_recorded = True
+            percentiles_pre_danger = pre_danger[indicator].quantile([0.25, 0.5, 0.75]).values
+            percentiles_danger = danger[indicator].quantile([0.25, 0.5, 0.75]).values
+            for i in range(3):
+                if percentiles_pre_danger[i] >= percentiles_danger[i]:
+                    target_not_recorded = True
 
-    return target_not_recorded, (mean_pre_danger, mean_danger, median_pre_danger, median_danger, max_pre_danger, max_danger)
+    return target_not_recorded, (percentiles_pre_danger, percentiles_danger)
 
 
 def determine_target(indicator, danger, pre_danger):
@@ -225,10 +204,10 @@ def determine_target(indicator, danger, pre_danger):
         indicator = 'intensity'
     if len(danger)<1: # no surrounding vehicles recorded in the danger period
         target_id = np.nan
-        indicator_values = (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
+        indicator_values = ([np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan])
     elif danger[indicator].isna().all() or pre_danger[indicator].isna().all(): # in case of invalid values
         target_id = np.nan
-        indicator_values = (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
+        indicator_values = ([np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan])
     else: # a target is temporarily selected as the most risky one in the danger period
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             target_id = danger.groupby('target_id')[indicator].mean().idxmin()
@@ -239,7 +218,7 @@ def determine_target(indicator, danger, pre_danger):
 
         if target_not_recorded:
             target_id = np.nan
-            indicator_values = (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
+            indicator_values = ([np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan])
     return target_id, indicator_values
 
 
@@ -270,9 +249,8 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
             continue
         records.loc[event_id, 'danger_recorded'] = True
         records.loc[event_id, 'target_id'] = target_id
-        records.loc[event_id, ['mean_pre_danger','mean_danger',
-                               'median_pre_danger','median_danger',
-                               'max_pre_danger','max_danger']] = indicator_values
+        records.loc[event_id, ['25th_pre_danger','50th_pre_danger','75th_pre_danger']] = indicator_values[0]
+        records.loc[event_id, ['25th_danger','50th_danger','75th_danger']] = indicator_values[1]
         target_danger = determine_conflicts(target_danger, indicator, threshold)
         if target_danger['conflict'].sum()>5: # at least warning for 0.5 second
             records.loc[event_id, 'true_warning'] = 1
@@ -401,9 +379,8 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
             continue
         records.loc[event_id, 'danger_recorded'] = True
         records.loc[event_id, 'target_id'] = target_id
-        records.loc[event_id, ['mean_pre_danger','mean_danger',
-                               'median_pre_danger','median_danger',
-                               'max_pre_danger','max_danger']] = indicator_values
+        records.loc[event_id, ['25th_pre_danger','50th_pre_danger','75th_pre_danger']] = indicator_values[0]
+        records.loc[event_id, ['25th_danger','50th_danger','75th_danger']] = indicator_values[1]
         target = determine_conflicts(event.loc[target_id], indicator, optimal_threshold)
 
         # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
