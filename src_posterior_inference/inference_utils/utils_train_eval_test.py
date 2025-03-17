@@ -38,6 +38,7 @@ def set_experiments(stage=[1,2,3,4]):
         ])
     if 4 in stage: # add extra features
         exp_config.extend([
+            [['SafeBaseline'], ['current'], 'all'],
             [['SafeBaseline'], ['current+acc'], True],
             [['SafeBaseline'], ['current+acc'], False],
             [['SafeBaseline'], ['current+acc'], 'all'],
