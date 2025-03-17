@@ -20,7 +20,7 @@ os.makedirs(path_result, exist_ok=True)
 
 
 def main(meta_both, events):
-    initial_time = systime.time()    
+    initial_time = systime.time()
     meta_both = meta_both[(meta_both['event_category']!='SafeBaseline')&
                           (meta_both['ego_reconstructed'].astype(bool))&
                           (meta_both['surrounding_reconstructed'].astype(bool))]
@@ -57,7 +57,6 @@ def main(meta_both, events):
                 NearCrash: 2
                 CrashRelevant: 1
                 Not applicable: 0
-                The target is not considered if it is a following vehicle, as the data does not provide rear radar information
                 '''
                 if event_cat=='Crash':
                     event_meta.loc[event_id, 'severity_first'] = 3
@@ -75,13 +74,29 @@ def main(meta_both, events):
                     first, second = event_cat.split('-')
                     event_meta.loc[event_id, 'severity_first'] = 3 if first=='Crash' else 2 if first=='NearCrash' else 1
                     event_meta.loc[event_id, 'severity_second'] = 3 if second=='Crash' else 2 if second=='NearCrash' else 1
+                '''
+                This dataset does not record objects behind the ego vehicle;
+                neither does it detect obstacles of no shape or when the event happened to the vehicle singly.
+                '''
+                for order in ['first', 'second']:
+                    if event_meta.loc[event_id, order] in ['following', 'obstacle', 'single']:
+                        event_meta.loc[event_id, f'severity_{order}'] = 0
+                
+                if event_meta.loc[event_id, 'severity_first'] < 0.5 and event_meta.loc[event_id, 'severity_second'] < 0.5:
+                    event_meta.loc[event_id, 'conflict'] = 'none' # no conflict could be recorded
+                elif event_meta.loc[event_id, 'severity_first'] > event_meta.loc[event_id, 'severity_second']:
+                    event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
+                elif event_meta.loc[event_id, 'severity_second'] > event_meta.loc[event_id, 'severity_first']:
+                    event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'second']
+                else: # if the severities are equal, the first one is considered
+                    event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
 
                 # Retrieve event narrative
                 event_meta.loc[event_id, 'narrative'] = events.loc[event_id, 'finalNarrative']
 
-                # Annotate duration_enough: at least one target is recorded over 5 seconds
+                # Annotate duration_enough: at least one target is recorded over 4.5 seconds (2.5 seconds of history and at least 2 seconds for evaluation)
                 target_duration = df.groupby('target_id')['time'].count()
-                if target_duration.max()>=50:
+                if target_duration.max()>=45:
                     event_meta.loc[event_id, 'duration_enough'] = True
                 else:
                     event_meta.loc[event_id, 'duration_enough'] = False
@@ -116,10 +131,12 @@ def main(meta_both, events):
             current_features = []
             spacing_list = []
             event_id_list = []
-            target_ids = data[data['event_id'].isin(event_meta[event_meta['duration_enough']].index.values)].index.unique(level='target_id').values
+            # Organise features for events with enough duration and recorded conflicts
+            event_meta = event_meta[event_meta['duration_enough']&(event_meta['conflict']!='none')]
+            target_ids = data[data['event_id'].isin(event_meta.index.values)].index.unique(level='target_id').values
             for target_id in tqdm(target_ids, desc=f'{event_cat} features', position=0, dynamic_ncols=False, ascii=True, miniters=min(len(target_ids)//10, 150)):
                 df = data.loc(axis=0)[target_id, :]
-                if len(df)<35: # skip if the target was detected for less than 3.5 seconds
+                if len(df)<45: # skip if the target was detected for less than 4.5 seconds
                     continue
                 segmented_features = get_context_representations(df, veh_dimensions.loc[df['event_id'].values[0]])
                 profiles_features.append(segmented_features[0]) # will need normalisation when being used

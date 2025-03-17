@@ -49,7 +49,7 @@ def main(args, path_result, path_prepared):
         event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
 
     '''
-    Analysis 1 - Conflict detection comparison
+    Analysis 1 - Conflict detection
     For each event, it is applicable to compare conflict detection if safety or danger period is present
     - danger: the period when an (near)crash happens as manually annotated by SHRP2
               * start: after start_timestamp or within 4.5 seconds before impact_timestamp
@@ -58,9 +58,9 @@ def main(args, path_result, path_prepared):
               * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
               * start: first evaluatable timestamp in the event
               * end: 0.5~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
-    The target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TTC2D/TAdv/ACT) during danger period is considered 
-    as the conflicting target, and the safe period is determined specifically
-    Then the comparison of ROC curves is between different indicators under various thresholds
+    The target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TTC2D/TAdv/ACT) during danger period is 
+    considered as the conflicting target, and the safe period is determined for other vehicles than the target.
+    Then conflct detection are implemented with different indicators under various thresholds.
     '''
     
     # 1D and 2D SSMs
@@ -129,16 +129,15 @@ def main(args, path_result, path_prepared):
             progress_bar.close()
             print(model_name, 'time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
-    print('--- Analysis 1: Conflict detection comparison completed ---')
+    print('--- Conflict detection comparison completed ---')
 
     '''
     Analysis 2 - Warning timeliness and warning period
-    Using the optimal threshold for every model,
-    - optimal threshold: the threshold that makes true positive rate and false positive rate closest to (100%, 0%)
-    for each event, the target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TAdv/TTC2D/ACT) during danger period is considered 
-    as the conflicting target; if a driver reaction is recorded, check if the first warning is before the reaction_timestamp
-    - first warning: the last safe->unsafe transition moment before impact_timestamp
-    - warning period: the percentage of warned time moments within [danger_start, danger_end]
+    For every model, the optimal threshold makes false negative rate and false positive rate be closest to (0%, 0%).
+    For each event, the target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TAdv/TTC2D/ACT) during danger
+    period is considered as the conflicting target, then
+    - first warning: the last safe->unsafe transition moment before impact_timestamp,
+    - warning period: the percentage of warned time moments within [danger_start, danger_end].
     '''
     if os.path.exists(path_result + 'Analyses/OptimalWarningEvaluation.h5'):
         print('--- Analysis 2: Part of optimal warning analysis already completed ---')
@@ -146,30 +145,6 @@ def main(args, path_result, path_prepared):
         existing_models = existing_results['model'].unique()
     else:
         existing_models = []
-
-    if 'conflict' not in event_meta.columns:
-        for event_id in tqdm(event_meta.index.values, desc='Severity', ascii=True, dynamic_ncols=False, miniters=714):
-            for order in ['first', 'second']:
-                '''
-                This dataset does not record objects behind the ego vehicle;
-                neither does it detect obstacles that have not shape.
-                '''
-                if event_meta.loc[event_id, order] in ['following', 'obstacle', 'single']:
-                    event_meta.loc[event_id, f'severity_{order}'] = 0
-            
-            if event_meta.loc[event_id, 'severity_first'] < 0.5 and event_meta.loc[event_id, 'severity_second'] < 0.5:
-                event_meta.loc[event_id, 'conflict'] = 'none'
-            elif event_meta.loc[event_id, 'severity_first'] > event_meta.loc[event_id, 'severity_second']:
-                event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
-            elif event_meta.loc[event_id, 'severity_second'] > event_meta.loc[event_id, 'severity_first']:
-                event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'second']
-            else:
-                event_meta.loc[event_id, 'conflict'] = event_meta.loc[event_id, 'first']
-    event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
-
-    # Filter out events of which the conflict was not detected
-    event_meta = event_meta[event_meta['conflict']!='none']
-    filtered_events = event_meta.index.values
 
     results = []
     for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
@@ -179,12 +154,11 @@ def main(args, path_result, path_prepared):
             print('--- Issuing warning', conflict_indicator, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
             safety_evaluation = read_evaluation(conflict_indicator, path_results)
-            filtered_warning = conflict_warning[conflict_warning['event_id'].isin(filtered_events)]
             if conflict_indicator == 'UCD':
-                optimal_threshold = optimize_threshold(filtered_warning, 'SSSE', 'ROC')
+                optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
                 records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
             else:
-                optimal_threshold = optimize_threshold(filtered_warning, conflict_indicator, 'ROC')
+                optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
                 records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
             records['model'] = conflict_indicator
             results.append(records.copy())
@@ -197,8 +171,7 @@ def main(args, path_result, path_prepared):
             print('--- Issuing warning', model_name, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
             safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
-            filtered_warning = conflict_warning[conflict_warning['event_id'].isin(filtered_events)]
-            optimal_threshold = optimize_threshold(filtered_warning, 'SSSE', 'ROC')
+            optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
             records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
             records['model'] = model_name
             results.append(records.copy())
@@ -209,7 +182,7 @@ def main(args, path_result, path_prepared):
     if len(existing_models) > 0:
         results = pd.concat([results, existing_results]).reset_index(drop=True)
     results.to_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results', mode='w')
-    print('--- Analysis 2: Optimal warning analysis completed ---')
+    print('--- Optimal warning analysis completed ---')
     print('Analysed models:', results['model'].unique())
 
     # '''

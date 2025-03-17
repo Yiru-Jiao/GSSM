@@ -230,7 +230,7 @@ def determine_target(indicator, danger, pre_danger):
 def parallel_records(threshold, safety_evaluation, event_data, event_meta, indicator):
     safety_evaluation = safety_evaluation.sort_values(['target_id','time']).set_index('event_id')
     event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
-    event_meta = event_meta[event_meta['duration_enough']]
+    event_meta = event_meta[event_meta['duration_enough']&(event_meta['conflict']!='none')]
     event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end']].copy()
@@ -320,7 +320,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
         if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
-        else:
+        elif conflict_indicator in ['SSSE', 'DRAC', 'EI']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
         statistics['combined rate'] = statistics['false negative rate']**2+statistics['false positive rate']**2
     elif curve_type=='PRC':
@@ -328,7 +328,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
         if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, True])
-        else:
+        elif conflict_indicator in ['SSSE', 'DRAC', 'EI']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
         statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
     statistics['combined rate'] = np.round(np.sqrt(statistics['combined rate']), 2)
@@ -360,7 +360,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
 
 def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
     safety_evaluation = safety_evaluation.sort_values(['target_id','time']).set_index('event_id')
-    event_meta = event_meta[event_meta['duration_enough']]
+    event_meta = event_meta[event_meta['duration_enough']&(event_meta['conflict']!='none')]
     event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end', 'reaction_timestamp', 'impact_timestamp']].copy()

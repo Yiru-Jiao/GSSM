@@ -6,7 +6,6 @@ import os
 import sys
 import random
 import time as systime
-from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import torch
@@ -78,7 +77,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
     avg_width = np.nanmean(event_meta['ego_width'].values)
     avg_length = np.nanmean(event_meta['ego_length'].values)
     veh_dimensions = set_veh_dimensions(event_meta, avg_width, avg_length)
-    
+
     if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
         eval_efficiency = pd.read_csv(path_save + 'EvaluationEfficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
     else:
