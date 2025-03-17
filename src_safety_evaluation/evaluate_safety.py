@@ -100,47 +100,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
     event_id_list = np.concatenate(event_id_list, axis=0)
 
 
-    # 1D SSMs adapted to 2D
-    if os.path.exists(path_save + f'TTC_DRAC_MTTC_PSD.h5'):
-        print(f'The events has been evaluated by TTC, DRAC, MTTC, and PSD.')
-    else:
-        print('--- Evaluating with TTC, DRAC, MTTC, and PSD ---')
-        results = data.merge(pd.DataFrame(event_id_list, columns=['event_id','target_id','time']),
-                             on=['event_id','target_id','time'], how='inner')
-        rename_columns = dict()
-        for column in results.columns:
-            if '_ego' in column:
-                rename_columns[column] = column.replace('_ego','_i')
-            elif '_sur' in column:
-                rename_columns[column] = column.replace('_sur','_j')
-        results = results.rename(columns=rename_columns)
-        results['vx_i'] = results['v_i']*results['hx_i']
-        results['vy_i'] = results['v_i']*results['hy_i']
-        results['vx_j'] = results['v_j']*results['hx_j']
-        results['vy_j'] = results['v_j']*results['hy_j']
-        results[['width_i','length_i','width_j','length_j']] = veh_dimensions.loc[results['event_id'].values].values
-
-        results, eval_efficiency = evaluate(longitudinal_ssms.TTC, 'TTC',
-                                            {'toreturn':'dataframe'},
-                                            eval_efficiency, results, path_save)
-        
-        results, eval_efficiency = evaluate(longitudinal_ssms.DRAC, 'DRAC',
-                                            {'toreturn':'dataframe'},
-                                            eval_efficiency, results, path_save)
-        
-        results, eval_efficiency = evaluate(longitudinal_ssms.MTTC, 'MTTC',
-                                            {'toreturn':'dataframe'},
-                                            eval_efficiency, results, path_save)
-        
-        results, eval_efficiency = evaluate(longitudinal_ssms.PSD, 'PSD',
-                                            {'toreturn':'dataframe', 'braking_dec': 5.5},
-                                            eval_efficiency, results, path_save)
-
-        results['s_box'] = longitudinal_ssms.CurrentD(results, 'values')
-        results = results[['event_id','target_id','time','width_i','length_i','width_j','length_j','acc_i','s_box', 'TTC', 'DRAC', 'MTTC', 'PSD']]
-        results.to_hdf(path_save + f'TTC_DRAC_MTTC_PSD.h5', key='data', mode='w')
-
-
     # 2D SSMs
     if os.path.exists(path_save + f'TAdv_TTC2D_ACT_EI.h5'):
         print(f'The events has been evaluated by TAdv, TTC2D, ACT, and EI.')

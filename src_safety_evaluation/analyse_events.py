@@ -58,23 +58,19 @@ def main(args, path_result, path_prepared):
               * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
               * start: first evaluatable timestamp in the event
               * end: 0.5~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
-    The target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TTC2D/TAdv/ACT) during danger period is 
+    The target has largest intensity/EI (or smallest TAdv/TTC2D/ACT) during danger period is 
     considered as the conflicting target, and the safe period is determined for other vehicles than the target.
     Then conflct detection are implemented with different indicators under various thresholds.
     '''
     
-    # 1D and 2D SSMs
-    for indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI']:
+    # 2D SSMs
+    for indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
         if args.reversed_list:
             continue
-        if indicator in ['TTC', 'MTTC', 'TTC2D']:
-            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.68,0.015),1))-0.9, 1)
-        elif indicator == 'DRAC':
-            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.,0.01),2))-1, 2)
-        elif indicator == 'PSD':
-            thresholds = np.unique(np.round((10**np.arange(0,2.25,0.015)-1)/50, 2))
-        elif indicator == 'TAdv':
+        if indicator == 'TAdv':
             thresholds = np.unique(np.round((10**np.arange(0,2.1,0.02)-0.9)/10, 2))
+        elif indicator == 'TTC2D':
+            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.68,0.015),1))-0.9, 1)
         elif indicator == 'ACT':
             thresholds = np.round(np.unique(np.round(10**np.arange(0,1.91,0.018),1))-0.9, 1)
         elif indicator == 'EI':
@@ -134,7 +130,7 @@ def main(args, path_result, path_prepared):
     '''
     Analysis 2 - Warning timeliness and warning period
     For every model, the optimal threshold makes false negative rate and false positive rate be closest to (0%, 0%).
-    For each event, the target has largest intensity/DRAC/EI (or smallest TTC/MTTC/PSD/TAdv/TTC2D/ACT) during danger
+    For each event, the target has largest intensity/EI (or smallest TAdv/TTC2D/ACT) during danger
     period is considered as the conflicting target, then
     - first warning: the last safe->unsafe transition moment before impact_timestamp,
     - warning period: the percentage of warned time moments within [danger_start, danger_end].
@@ -147,7 +143,7 @@ def main(args, path_result, path_prepared):
         existing_models = []
 
     results = []
-    for conflict_indicator in ['TTC', 'DRAC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
+    for conflict_indicator in ['TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
         if conflict_indicator in existing_models:
             print('--- Optimal warning analysis with', conflict_indicator, 'already completed ---')
         else:

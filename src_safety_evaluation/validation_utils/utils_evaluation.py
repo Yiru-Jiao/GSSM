@@ -26,10 +26,7 @@ def read_events(path_events, meta_only=False):
 
 
 def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, pretraining=None):
-    if indicator in ['TTC', 'DRAC', 'MTTC', 'PSD']:
-        safety_evaluation = pd.read_hdf(path_results + f'TTC_DRAC_MTTC_PSD.h5', key='data')
-        return safety_evaluation
-    elif indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
+    if indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
         safety_evaluation = pd.read_hdf(path_results + f'TAdv_TTC2D_ACT_EI.h5', key='data')
         return safety_evaluation
     elif indicator=='UCD':
@@ -139,11 +136,11 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
     evaluation = evaluation.reset_index()
     evaluation['conflict'] = False
 
-    if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+    if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
         evaluation.loc[(evaluation[conflict_indicator]<threshold), 'conflict'] = True
         return evaluation
     
-    elif conflict_indicator in ['DRAC', 'EI']:
+    elif conflict_indicator in ['EI']:
         evaluation.loc[(evaluation[conflict_indicator]>threshold), 'conflict'] = True
         return evaluation
     
@@ -186,14 +183,14 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
         danger_inf = np.isinf(danger[indicator])
         pre_danger.loc[pre_danger_inf, indicator] = max(1e6, pre_danger.loc[~pre_danger_inf, indicator].max())
         danger.loc[danger_inf, indicator] = max(1e6, danger.loc[~danger_inf, indicator].max())
-        if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+        if indicator in ['TAdv', 'TTC2D', 'ACT']:
             # For these indicators, the smaller the value, the higher the risk
             percentiles_pre_danger = pre_danger[indicator].quantile([0.25, 0.5, 0.75]).values
             percentiles_danger = danger[indicator].quantile([0.25, 0.5, 0.75]).values
             for i in range(3):
                 if percentiles_pre_danger[i] <= percentiles_danger[i]:
                     target_not_recorded = True
-        elif indicator in ['DRAC', 'intensity', 'EI']:
+        elif indicator in ['intensity', 'EI']:
             # For these indicators, the larger the value, the higher the risk
             percentiles_pre_danger = pre_danger[indicator].quantile([0.25, 0.5, 0.75]).values
             percentiles_danger = danger[indicator].quantile([0.25, 0.5, 0.75]).values
@@ -214,10 +211,10 @@ def determine_target(indicator, danger, pre_danger):
         target_id = np.nan
         indicator_values = ([np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan])
     else: # a target is temporarily selected as the most risky one in the danger period
-        if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+        if indicator in ['TAdv', 'TTC2D', 'ACT']:
             target_id = danger.groupby('target_id')[indicator].mean().idxmin()
             target_not_recorded, indicator_values = is_target_recorded(danger, pre_danger, target_id, indicator)
-        elif indicator in ['DRAC', 'EI', 'intensity']:
+        elif indicator in ['EI', 'intensity']:
             target_id = danger.groupby('target_id')[indicator].mean().idxmax()
             target_not_recorded, indicator_values = is_target_recorded(danger, pre_danger, target_id, indicator)
 
@@ -318,17 +315,17 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
     if curve_type=='ROC':
         statistics['false negative rate'] = statistics['FN']/(statistics['TP']+statistics['FN'])
         statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
-        if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+        if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
-        elif conflict_indicator in ['SSSE', 'DRAC', 'EI']:
+        elif conflict_indicator in ['SSSE', 'EI']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
         statistics['combined rate'] = statistics['false negative rate']**2+statistics['false positive rate']**2
     elif curve_type=='PRC':
         statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
         statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
-        if conflict_indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
+        if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, True])
-        elif conflict_indicator in ['SSSE', 'DRAC', 'EI']:
+        elif conflict_indicator in ['SSSE', 'EI']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
         statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
     statistics['combined rate'] = np.round(np.sqrt(statistics['combined rate']), 2)
