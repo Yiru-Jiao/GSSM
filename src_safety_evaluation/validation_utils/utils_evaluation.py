@@ -181,13 +181,13 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
         percentiles_danger = [np.nan, np.nan, np.nan]
     else:
         target_not_recorded = False
+        # To avoid error in returning percentiles, replace inf with a large value
+        pre_danger_inf = np.isinf(pre_danger[indicator])
+        danger_inf = np.isinf(danger[indicator])
+        pre_danger.loc[pre_danger_inf, indicator] = max(1e6, pre_danger.loc[~pre_danger_inf, indicator].max())
+        danger.loc[danger_inf, indicator] = max(1e6, danger.loc[~danger_inf, indicator].max())
         if indicator in ['TTC', 'MTTC', 'PSD', 'TAdv', 'TTC2D', 'ACT']:
             # For these indicators, the smaller the value, the higher the risk
-            # To avoid error in returning percentiles, replace inf with a large value
-            pre_danger_inf = np.isinf(pre_danger[indicator])
-            danger_inf = np.isinf(danger[indicator])
-            pre_danger.loc[pre_danger_inf, indicator] = max(1e6, pre_danger.loc[~pre_danger_inf, indicator].max())
-            danger.loc[danger_inf, indicator] = max(1e6, danger.loc[~danger_inf, indicator].max())
             percentiles_pre_danger = pre_danger[indicator].quantile([0.25, 0.5, 0.75]).values
             percentiles_danger = danger[indicator].quantile([0.25, 0.5, 0.75]).values
             for i in range(3):
