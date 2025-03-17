@@ -94,7 +94,7 @@ class train_val_test():
             self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=True)
         elif self.pretrained_encoder=='all':
             self.model.load_pretrained_encoders('highD_ArgoverseHV_SafeBaseline', 
-                                                self.path_prepared, continue_training=False)
+                                                self.path_prepared, continue_training=True)
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
