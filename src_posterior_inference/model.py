@@ -49,18 +49,29 @@ class UnifiedProximity(nn.Module):
         if encoder_selection=='all':
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
-        if 'current' in encoder_selection or 'current+acc' in encoder_selection:
-            self.CurrentEncoder = modules.CurrentEncoder(input_dims=1, output_dims=64)
+
+        # Define encoders and determine the final sequence length
+        self.final_seq_len = 0
+        if 'current' in encoder_selection:
+            self.CurrentEncoder = modules.CurrentEncoder(input_dims=12, output_dims=64)
+            self.final_seq_len += 12
+        elif 'current+acc' in encoder_selection:
+            self.CurrentEncoder = modules.CurrentEncoder(input_dims=13, output_dims=64)
+            self.final_seq_len += 13
         else:
             Warning('Current encoder must be selected.')
         if 'environment' in encoder_selection:
             self.EnvEncoder = modules.EnvEncoder(input_dims=27, output_dims=64)
+            self.final_seq_len += 4
         if 'profiles' in encoder_selection:
             self.TSEncoder = modules.TSEncoder(device, input_dims=4, output_dims=64)
-        self.AttentionDecoder = modules.AttentionDecoder(encoder_selection=self.encoder_selection,
+            self.final_seq_len += 5
+        self.AttentionDecoder = modules.AttentionDecoder(self.final_seq_len, latent_dims=64,
+                                                         encoder_selection=self.encoder_selection,
                                                          single_output=single_output,
-                                                         return_attention=return_attention)
-        self.layer_norm = nn.LayerNorm(64)
+                                                         return_attention=return_attention
+                                                         )
+        self.batch_norm = nn.BatchNorm1d(self.final_seq_len)
         self.combi_encoder = self.define_combi_encoder()
 
     def select_best_model(self, pretraining_evaluation):
@@ -103,21 +114,21 @@ class UnifiedProximity(nn.Module):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             def combi_encoder(x):
                 x_current = self.CurrentEncoder(x)
-                latent = self.layer_norm(x_current)
+                latent = self.batch_norm(x_current)
                 return latent # (batch_size, 12/13, latent_dims=64)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
                 x_current = self.CurrentEncoder(x_current)
                 x_environment = self.EnvEncoder(x_environment)
-                latent = self.layer_norm(torch.cat([x_current, x_environment], dim=1))
+                latent = self.batch_norm(torch.cat([x_current, x_environment], dim=1))
                 return latent # (batch_size, 16/17, latent_dims=64)
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
             def combi_encoder(x):
                 x_current, x_ts = x
                 x_current = self.CurrentEncoder(x_current)
                 x_ts = self.TSEncoder(x_ts)
-                latent = self.layer_norm(torch.cat([x_current, x_ts], dim=1))
+                latent = self.batch_norm(torch.cat([x_current, x_ts], dim=1))
                 return latent # (batch_size, 17/18, latent_dims=64)
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             def combi_encoder(x):
@@ -125,7 +136,7 @@ class UnifiedProximity(nn.Module):
                 x_current = self.CurrentEncoder(x_current)
                 x_environment = self.EnvEncoder(x_environment)
                 x_ts = self.TSEncoder(x_ts)
-                latent = self.layer_norm(torch.cat([x_current, x_environment, x_ts], dim=1))
+                latent = self.batch_norm(torch.cat([x_current, x_environment, x_ts], dim=1))
                 return latent # (batch_size, 21/22, latent_dims=64)
         else:
             Warning('Invalid encoder selection.')

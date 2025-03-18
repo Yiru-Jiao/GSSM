@@ -28,10 +28,10 @@ class model(nn.Module):
     def __init__(self, encoder_name):
         super(model, self).__init__()
         if encoder_name == 'current':
-            self.encoder = CurrentEncoder(input_dims=1, output_dims=64)
+            self.encoder = CurrentEncoder(input_dims=12, output_dims=64)
             self.decoder = AEDecoder(input_dims=12*64, output_dims=12)
         elif encoder_name == 'current+acc':
-            self.encoder = CurrentEncoder(input_dims=1, output_dims=64)
+            self.encoder = CurrentEncoder(input_dims=13, output_dims=64)
             self.decoder = AEDecoder(input_dims=13*64, output_dims=13)
         elif encoder_name == 'environment':
             self.encoder = EnvEncoder(input_dims=27, output_dims=64)

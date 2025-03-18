@@ -55,10 +55,11 @@ class CurrentEncoder(nn.Module):
     This encoder functions as encoding the token for each features,
     therefore the features are designed to **not interact** with each other.
     '''
-    def __init__(self, input_dims=1, output_dims=64):
+    def __init__(self, input_dims, output_dims=64):
         super(CurrentEncoder, self).__init__()
+        self.batch_norm = nn.BatchNorm1d(input_dims)
         self.feature_extractor = nn.Sequential(
-            nn.Linear(input_dims+1, 8),
+            nn.Linear(2, 8),
             nn.GELU(),
             nn.Linear(8, output_dims//2),
             nn.GELU(),
@@ -84,6 +85,7 @@ class CurrentEncoder(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 12 or 13)
+        x = self.batch_norm(x) # running normalisation over training
         features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
         noise = torch.zeros_like(features) # add reference to the features
         features = torch.cat([features, noise], dim=-1) # (batch_size, 12 or 13, 2)
@@ -216,23 +218,13 @@ class AttentionDecoder(nn.Module):
     Local interaction with CNN: (batch_size, 256, 12~22) -> (batch_size, 16, 12~22)
     Output with MLP: (batch_size, 16*(12~22)) -> (batch_size, 1)
     '''
-    def __init__(self, latent_dims=64, encoder_selection=[], single_output=None, return_attention=False):
+    def __init__(self, seq_len, latent_dims=64, encoder_selection=[], single_output=None, return_attention=False):
         super(AttentionDecoder, self).__init__()
+        self.seq_len = seq_len
         self.latent_dims = latent_dims
         self.encoder_selection = encoder_selection
         self.single_output = single_output
         self.return_attention = return_attention
-
-        # Determine the final sequence length
-        self.final_seq_len = 0
-        if 'current' in self.encoder_selection:
-            self.final_seq_len += 12
-        if 'current+acc' in self.encoder_selection:
-            self.final_seq_len += 13
-        if 'environment' in self.encoder_selection:
-            self.final_seq_len += 4
-        if 'profiles' in self.encoder_selection:
-            self.final_seq_len += 5
 
         # Define the attention blocks
         self.SelfAttention = StackedAttention([
@@ -244,13 +236,13 @@ class AttentionDecoder(nn.Module):
         ])
 
         # Define the output layers
-        self.output_cnn = nn.Sequential( # (batch_size, latent_dims*4=256, final_seq_len)
+        self.output_cnn = nn.Sequential( # (batch_size, latent_dims*4=256, seq_len)
             nn.Conv1d(self.latent_dims*4, self.latent_dims, kernel_size=3, padding=1),
             nn.GELU(),
             nn.Conv1d(self.latent_dims, 16, kernel_size=3, padding=1),
             nn.GELU(),
-            nn.Flatten(), # (batch_size, 16*final_seq_len)
-            nn.Linear(16*self.final_seq_len, 128),
+            nn.Flatten(), # (batch_size, 16*seq_len)
+            nn.Linear(16*self.seq_len, 128),
             nn.Dropout(0.1),
         )
         self.output_mu = nn.Sequential( # (batch_size, 128)
@@ -288,17 +280,17 @@ class AttentionDecoder(nn.Module):
         if self.single_output == 'intensity':
             spacing = state[:,-1,0:1].detach() # (batch_size, 1)
             state = state[:,:-1]
-        attended_state, attention_matrices = self.SelfAttention(state, attention_matrices) # (batch_size, final_seq_len, latent_dims*4=256)
-        transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, final_seq_len)
-        out = self.output_cnn(transposed_state) # (batch_size, 16, final_seq_len) -> (batch_size, 128)
+        attended_state, attention_matrices = self.SelfAttention(state, attention_matrices) # (batch_size, seq_len, latent_dims*4=256)
+        transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, seq_len)
+        out = self.output_cnn(transposed_state) # (batch_size, 16, seq_len) -> (batch_size, 128)
         mu = self.output_mu(out)
         log_var = self.output_log_var(out)
         if self.single_output is None:
             mu = mu.squeeze() # [batch_size]
             log_var = log_var.squeeze()
             if self.return_attention:
-                return mu, log_var, (attended_state, attention_matrices) # attended_state: [batch_size, final_seq_len, latent_dims=64]
-                                                           # attention_matrices: {block_i: [batch_size, final_seq_len, final_seq_len]}
+                return mu, log_var, (attended_state, attention_matrices) # attended_state: [batch_size, seq_len, latent_dims=64]
+                                                           # attention_matrices: {block_i: [batch_size, seq_len, seq_len]}
             else:
                 return mu, log_var
         elif self.single_output == 'mu':
