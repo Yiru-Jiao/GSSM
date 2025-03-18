@@ -57,7 +57,7 @@ class CurrentEncoder(nn.Module):
     '''
     def __init__(self, input_dims, output_dims=64):
         super(CurrentEncoder, self).__init__()
-        self.batch_norm = nn.BatchNorm1d(input_dims)
+        # self.batch_norm = nn.BatchNorm1d(input_dims)
         self.feature_extractor = nn.Sequential(
             nn.Linear(2, 8),
             nn.GELU(),
@@ -85,7 +85,7 @@ class CurrentEncoder(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 12 or 13)
-        x = self.batch_norm(x) # running normalisation over training
+        # x = self.batch_norm(x) # running normalisation over training
         features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
         noise = torch.zeros_like(features) # add reference to the features
         features = torch.cat([features, noise], dim=-1) # (batch_size, 12 or 13, 2)
@@ -218,11 +218,10 @@ class AttentionDecoder(nn.Module):
     Local interaction with CNN: (batch_size, 256, 12~22) -> (batch_size, 16, 12~22)
     Output with MLP: (batch_size, 16*(12~22)) -> (batch_size, 1)
     '''
-    def __init__(self, seq_len, latent_dims=64, encoder_selection=[], single_output=None, return_attention=False):
+    def __init__(self, seq_len, latent_dims=64, single_output=None, return_attention=False):
         super(AttentionDecoder, self).__init__()
         self.seq_len = seq_len
         self.latent_dims = latent_dims
-        self.encoder_selection = encoder_selection
         self.single_output = single_output
         self.return_attention = return_attention
 
@@ -244,6 +243,7 @@ class AttentionDecoder(nn.Module):
             nn.Flatten(), # (batch_size, 16*seq_len)
             nn.Linear(16*self.seq_len, 128),
             nn.Dropout(0.1),
+            nn.GELU(),
         )
         self.output_mu = nn.Sequential( # (batch_size, 128)
             nn.Linear(128, 64),
