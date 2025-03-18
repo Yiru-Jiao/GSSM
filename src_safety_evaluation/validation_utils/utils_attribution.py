@@ -71,7 +71,7 @@ class get_sample():
             environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
             environment_features = one_hot_encoder.transform(environment_features.values)
             states.append(environment_features)
-            variables.extend(['Environment'])
+            variables.extend(['Lighting', 'Weather', 'Road surface', 'Traffic density'])
         if 'profiles' in encoder_selection:
             states.append(profiles_features)
             variables.extend(['Passed 0.5s','Passed 1s','Passed 1.5s','Passed 2s','Passed 2.5s'])
