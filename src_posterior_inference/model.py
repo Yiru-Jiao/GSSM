@@ -161,29 +161,29 @@ class UnifiedProximity(nn.Module):
 
 
 class LogNormalNLL(nn.Module):
-    def __init__(self, scale=10., eps=1e-6):
+    def __init__(self, eps=1e-6):
         super(LogNormalNLL, self).__init__()
         '''
         Scaling is important in this loss as otherwise the original loss value often goes 
         too close to zero where the gradient is too small for effective learning.
         '''
-        self.scale = scale
+        self.log2pi = torch.log(torch.tensor(2*3.1415926535897932384626433832795))
         self.eps = eps
 
     def forward(self, out, y):
         mu = out[0]
         log_var = out[1]
         log_y = torch.log(torch.clamp(y, min=self.eps))
-        nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
-        loss = nll.mean() * self.scale
+        nll = 0.5 * (self.log2pi + log_var + (log_y-mu)**2 / torch.exp(log_var)) + log_y
+        loss = nll.mean()
         return loss
 
 
 class SmoothLogNormalNLL(nn.Module):
-    def __init__(self, beta=5., scale=10., eps=1e-6):
+    def __init__(self, beta=5., eps=1e-6):
         super(SmoothLogNormalNLL, self).__init__()
         self.beta = beta
-        self.scale = scale
+        self.log2pi = torch.log(torch.tensor(2*3.1415926535897932384626433832795))
         self.eps = eps
 
     def kl_divergence(self, mu1, log_var1, mu2, log_var2):
@@ -201,11 +201,9 @@ class SmoothLogNormalNLL(nn.Module):
         mu = out[0]
         log_var = out[1]
         log_y = torch.log(torch.clamp(y, min=self.eps))
-        nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
+        nll = 0.5 * (self.log2pi + log_var + (log_y-mu)**2 / torch.exp(log_var)) + log_y
 
         mu_prime, log_var_prime = inducing_out
-        # kl_divergence = 0.5 * (log_var_prime - log_var + (torch.exp(log_var)+(mu-mu_prime)**2) / torch.exp(log_var_prime) - 1)        
-        # loss = nll.mean() + self.beta*kl_divergence.mean()
         js_divergence = self.js_divergence(mu, log_var, mu_prime, log_var_prime)
-        loss = nll.mean() * self.scale + self.beta*js_divergence.mean()
+        loss = nll.mean() + self.beta*js_divergence.mean()
         return loss
