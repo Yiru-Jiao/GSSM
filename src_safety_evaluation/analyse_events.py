@@ -65,16 +65,13 @@ def main(args, path_result, path_prepared):
     
     # 2D SSMs
     for indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
-        if args.reversed_list:
-            continue
         if indicator == 'TAdv':
-            thresholds = np.unique(np.round((10**np.arange(0,2.1,0.02)-0.9)/10, 2))
-        elif indicator == 'TTC2D':
-            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.68,0.015),1))-0.9, 1)
-        elif indicator == 'ACT':
-            thresholds = np.round(np.unique(np.round(10**np.arange(0,1.91,0.018),1))-0.9, 1)
+            thresholds = np.unique(np.round(np.arange(0,1.75,0.0115)**7,2))
+        elif indicator in ['TTC2D', 'ACT']:
+            thresholds = np.unique(np.round(np.arange(0,1.94,0.0135)**7,2))
         elif indicator == 'EI':
-            thresholds = np.unique(np.round((10**np.arange(0,1.86,0.009)-0.5)/50, 2))
+            thresholds = np.round((8**np.arange(0,2.31,0.0265)-1)/50, 2)
+            thresholds = np.unique(np.sort(np.concatenate([thresholds, -thresholds[::2]*3])))
         
         if os.path.exists(path_result + f'Analyses/Warning_{indicator}.h5'):
             print(f'--- Analysis 1 with {indicator} already completed ---')
@@ -106,7 +103,7 @@ def main(args, path_result, path_prepared):
         encoder_name_list = encoder_name_list[::-1]
         pretraining_list = pretraining_list[::-1]
 
-    ssse_thresholds = np.unique(np.round(np.arange(0,5.,0.05),2))
+    ssse_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
     for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
