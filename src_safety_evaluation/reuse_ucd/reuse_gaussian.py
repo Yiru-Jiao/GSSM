@@ -77,32 +77,36 @@ def main(args, manual_seed, path_result):
     model, likelihood = define_model(100, device)
 
     # Evaluation
-    if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
-        eval_efficiency = pd.read_csv(path_save + 'EvaluationEfficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
+    if os.path.exists(path_save + f'highD_UCD.h5'):
+        results = pd.read_hdf(path_save + f'highD_UCD.h5', key='data')
+        print(f'The events has been evaluated by UCD.')
     else:
-        eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
+        if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
+            eval_efficiency = pd.read_csv(path_save + 'EvaluationEfficiency.csv', dtype={'model_name':str,'time':float,'num_targets':int,'num_moments':int})
+        else:
+            eval_efficiency = pd.DataFrame(columns=['model_name','time','num_targets','num_moments'])
+            eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
+
+        time_start = systime.time()
+        mu, sigma, max_intensity = UCD(states, model, likelihood, device)
+        time_end = systime.time()
+
+        results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
+        results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
+        results['proximity'] = spacing_list
+        results['mu'] = mu
+        results['sigma'] = sigma
+        results['intensity'] = max_intensity
+        results = results.sort_values(['event_id','target_id','time']).reset_index(drop=True)
+        results.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
+        eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, results['target_id'].nunique(), len(results)]
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
-
-    time_start = systime.time()
-    mu, sigma, max_intensity = UCD(states, model, likelihood, device)
-    time_end = systime.time()
-
-    results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
-    results[['event_id','target_id']] = results[['event_id','target_id']].astype(int)
-    results['proximity'] = spacing_list
-    results['mu'] = mu
-    results['sigma'] = sigma
-    results['intensity'] = max_intensity
-    results = results.sort_values(['event_id','target_id','time']).reset_index(drop=True)
-    results.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
-    eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, results['target_id'].nunique(), len(results)]
-    eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
-    results['mode'] = np.exp(results['mu'] - results['sigma']**2)
-    print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
-    loss_func = LogNormalNLL()
-    log_var = np.log(np.maximum(1e-6, sigma**2))
-    out = (torch.from_numpy(mu).float(), torch.from_numpy(log_var).float())
-    print(f'LogNormal NLL: {loss_func(out, torch.from_numpy(spacing_list).float()).item()}')
+        results['mode'] = np.exp(results['mu'] - results['sigma']**2)
+        print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
+        loss_func = LogNormalNLL()
+        log_var = np.log(np.maximum(1e-6, sigma**2))
+        out = (torch.from_numpy(mu).float(), torch.from_numpy(log_var).float())
+        print(f'LogNormal NLL: {loss_func(out, torch.from_numpy(spacing_list).float()).item()}')
 
     # Warning analysis
     event_data = pd.concat([pd.read_hdf(path_result + f'EventData/{event_cat}/event_data.h5', key='data') for event_cat in event_categories]).reset_index()
