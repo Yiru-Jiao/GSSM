@@ -175,8 +175,8 @@ class LogNormalNLL(nn.Module):
         log_var = out[1]
         log_y = torch.log(torch.clamp(y, min=self.eps))
         nll = 0.5 * (log_var + (log_y-mu)**2 / torch.exp(log_var))
-        loss = nll.mean()
-        return loss * self.scale
+        loss = nll.mean() * self.scale
+        return loss
 
 
 class SmoothLogNormalNLL(nn.Module):
@@ -207,5 +207,5 @@ class SmoothLogNormalNLL(nn.Module):
         # kl_divergence = 0.5 * (log_var_prime - log_var + (torch.exp(log_var)+(mu-mu_prime)**2) / torch.exp(log_var_prime) - 1)        
         # loss = nll.mean() + self.beta*kl_divergence.mean()
         js_divergence = self.js_divergence(mu, log_var, mu_prime, log_var_prime)
-        loss = nll.mean() + self.beta*js_divergence.mean()
-        return loss * self.scale
+        loss = nll.mean() * self.scale + self.beta*js_divergence.mean()
+        return loss
