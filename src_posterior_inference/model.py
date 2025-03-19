@@ -163,10 +163,6 @@ class UnifiedProximity(nn.Module):
 class LogNormalNLL(nn.Module):
     def __init__(self, eps=1e-6):
         super(LogNormalNLL, self).__init__()
-        '''
-        Scaling is important in this loss as otherwise the original loss value often goes 
-        too close to zero where the gradient is too small for effective learning.
-        '''
         self.log2pi = torch.log(torch.tensor(2*3.1415926535897932384626433832795))
         self.eps = eps
 
