@@ -74,7 +74,7 @@ def main(args, manual_seed, path_prepared, path_result):
     # Cluster representative training samples
     pipeline.create_dataloader(batch_size=1024)
     kmeans = MiniBatchKMeans(n_clusters=1024, random_state=manual_seed, batch_size=1024)
-    for batch, spacing in tqdm(pipeline.train_dataloader, total=len(pipeline.train_dataloader), ascii=True, desc='Clustering', miniters=100):
+    for batch, spacing in tqdm(pipeline.train_dataloader, total=len(pipeline.train_dataloader), ascii=True, desc='Clustering', miniters=50):
         tokens = tokenizer(batch)
         spacing = torch.cat([spacing.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
         inputs = torch.cat((tokens, spacing), dim=1).detach().numpy()
