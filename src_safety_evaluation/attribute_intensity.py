@@ -5,21 +5,18 @@ This script uses gradient to estimate the influence of features on potential con
 import os
 import sys
 import shap
+import torch
 import random
-import time as systime
-from tqdm import tqdm
+import argparse
 import numpy as np
 import pandas as pd
-from scipy.special import erf
-import torch
-import argparse
+from tqdm import tqdm
+import time as systime
 from sklearn.cluster import MiniBatchKMeans
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
-from src_data_preparation.represent_utils.coortrans import coortrans
-coortrans = coortrans()
 from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
-from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions, optimize_threshold
+from src_safety_evaluation.validation_utils.utils_evaluation import optimize_threshold
 from src_safety_evaluation.validation_utils.utils_attribution import get_sample
 
 
@@ -116,8 +113,8 @@ def main(args, manual_seed, path_prepared, path_result):
         result = result.sort_values(by='idx', ascending=False)[['event_id','target_id','time']]
         result[ig_columns] = ig_values
         result[std_columns] = std
-        print(result.head())
         results.append(result)
+
     results = pd.concat(results, axis=0)
     results.to_hdf(path_save+f'FeatureAttribution_SafeBaseline_current+acc_environment_profiles_not_pretrained.h5', key='results', mode='w')
 
