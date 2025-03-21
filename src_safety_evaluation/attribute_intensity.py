@@ -57,7 +57,7 @@ def main(args, manual_seed, path_prepared, path_result):
         # Define the model to be used for attribution
         dataset = ['SafeBaseline']
         pretrained_encoder = False
-        model_name = f'SafeBaseline_{'_'.join(encoder_selection)}_not_pretrained'
+        model_name = f"SafeBaseline_{'_'.join(encoder_selection)}_not_pretrained"
 
         pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output='intensity')
         pipeline.load_model()
