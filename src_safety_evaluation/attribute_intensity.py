@@ -52,14 +52,12 @@ def main(args, manual_seed, path_prepared, path_result):
     path_save = path_result + 'FeatureAttribution/'
     os.makedirs(path_save, exist_ok=True)
 
-    models = ['SafeBaseline_current_not_pretrained',
-              'SafeBaseline_current_environment_not_pretrained',
-              'SafeBaseline_current_environment_profiles_not_pretrained']
-    for model in models:
+    encoder_selections = [['current'], ['current', 'environment'], ['current', 'environment', 'profiles']]
+    for encoder_selection in encoder_selections:
         # Define the model to be used for attribution
         dataset = ['SafeBaseline']
-        encoder_selection = model.split('SafeBaseline_')[-1].split('_not_pretrained')[0].split('_')
         pretrained_encoder = False
+        model_name = f'SafeBaseline_{'_'.join(encoder_selection)}_not_pretrained'
 
         pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output='intensity')
         pipeline.load_model()
@@ -93,7 +91,7 @@ def main(args, manual_seed, path_prepared, path_result):
         explainer = shap.GradientExplainer(decoder, bkgd_samples, batch_size=1024)
 
         # Read events
-        warning = pd.read_hdf(path_result + f'Analyses/Warning_{model}.h5', key='results')
+        warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
         optimal_threshold = optimize_threshold(warning, 'SSSE', 'ROC')
         warning = warning[(warning['threshold']==optimal_threshold)&warning['danger_recorded']]
 
@@ -122,7 +120,7 @@ def main(args, manual_seed, path_prepared, path_result):
             results.append(result)
 
         results = pd.concat(results, axis=0)
-        results.to_hdf(path_save + f'{model}.h5', key='results', mode='w')
+        results.to_hdf(path_save + f'{model_name}.h5', key='results', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
