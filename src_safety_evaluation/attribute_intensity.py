@@ -116,7 +116,7 @@ def main(args, manual_seed, path_prepared, path_result):
         results.append(result)
 
     results = pd.concat(results, axis=0)
-    results.to_hdf(path_save+f'FeatureAttribution_SafeBaseline_current+acc_environment_profiles_not_pretrained.h5', key='results', mode='w')
+    results.to_hdf(path_save+f'SafeBaseline_current+acc_environment_profiles_not_pretrained.h5', key='results', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
