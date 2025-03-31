@@ -284,14 +284,15 @@ def define_model(num_inducing_points, device):
 
 
 class custom_dataset(Dataset):
-    def __init__(self, X):
+    def __init__(self, X, s):
         self.X = X
+        self.s = torch.from_numpy(s).float()
 
     def __len__(self): 
         return len(self.X)
 
     def __getitem__(self, idx):
-        return torch.from_numpy(self.X[idx]).float()
+        return torch.from_numpy(self.X[idx]).float(), self.s[idx]
     
 
 def lognormal_cdf(x, mu, sigma):
@@ -305,14 +306,14 @@ def extreme_cdf(x, mu, sigma, n=10):
 
 def UCD(states, model, likelihood, device):
     interaction_context, spacing_list = states
-    data_loader = DataLoader(custom_dataset(interaction_context), batch_size=1024, shuffle=False)
+    data_loader = DataLoader(custom_dataset(interaction_context, spacing_list), batch_size=1024, shuffle=False)
 
     mu_list, sigma_list, logn_list = [], [], []
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        for int_ctxt in tqdm(data_loader, desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
+        for int_ctxt, s in tqdm(data_loader, desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
             f_dist = model(int_ctxt.to(device))
             y_dist = likelihood(f_dist)
-            intensity = torch_intensity(torch.from_numpy(spacing_list).float().to(device), mu=y_dist.mean, var=y_dist.variance)
+            intensity = torch_intensity(s.to(device), mu=y_dist.mean, var=y_dist.variance)
             mu, sigma = y_dist.mean, y_dist.variance.sqrt()
             mu_list.append(mu.cpu().numpy())
             sigma_list.append(sigma.cpu().numpy())

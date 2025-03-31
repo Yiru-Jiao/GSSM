@@ -101,8 +101,9 @@ def send_x_to_device(x, device):
 
 
 class custom_dataset(Dataset): 
-    def __init__(self, X):
+    def __init__(self, X, s):
         self.X = X
+        self.s = torch.from_numpy(s).float()
         if isinstance(X, tuple):
             def get_length():
                 return len(self.X[0])
@@ -120,21 +121,21 @@ class custom_dataset(Dataset):
         return self.get_length()
 
     def __getitem__(self, idx): 
-        return self.get_item(idx)
+        return self.get_item(idx), self.s[idx]
     
 
 def GSSM(states, model, device):
     contexts, spacing_list = states
-    data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
+    data_loader = DataLoader(custom_dataset(contexts, spacing_list), batch_size=1024, shuffle=False)
 
     mu_list = []
     sigma_list = []
     logn_list = []
     with torch.no_grad():
-        for x in data_loader:
-            out = model(send_x_to_device(x, device))
+        for X, s in data_loader:
+            out = model(send_x_to_device(X, device))
             mu, log_var = out
-            logn = torch_intensity(torch.from_numpy(spacing_list).float().to(device), mu, log_var=log_var)
+            logn = torch_intensity(s.to(device), mu, log_var=log_var)
             mu_list.append(mu.cpu().numpy()) # [n_samples]
             sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
             logn_list.append(logn.cpu().numpy())
