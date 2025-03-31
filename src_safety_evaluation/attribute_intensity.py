@@ -24,6 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
+    parser.add_argument('--model', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
     args.reproduction = bool(args.reproduction)
@@ -53,11 +54,16 @@ def main(args, manual_seed, path_prepared, path_result):
     os.makedirs(path_save, exist_ok=True)
 
     encoder_selections = [['current'], ['current', 'environment'], ['current', 'environment', 'profiles']]
+    if args.model is not None:
+        encoder_selections = [encoder_selections[args.model]]
     for encoder_selection in encoder_selections:
         # Define the model to be used for attribution
         dataset = ['SafeBaseline']
         pretrained_encoder = False
         model_name = f"SafeBaseline_{'_'.join(encoder_selection)}_not_pretrained"
+        if os.path.exists(path_save + f'{model_name}.h5'):
+            print(f'{model_name} has been attributed.')
+            continue
 
         pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output='intensity')
         pipeline.load_model()
@@ -75,20 +81,26 @@ def main(args, manual_seed, path_prepared, path_result):
 
         # Cluster representative training samples
         pipeline.create_dataloader(batch_size=1024)
-        kmeans = MiniBatchKMeans(n_clusters=1024, random_state=manual_seed, batch_size=1024)
-        for batch, spacing in tqdm(pipeline.train_dataloader, total=len(pipeline.train_dataloader), ascii=True, desc='Clustering', miniters=50):
-            tokens = tokenizer(batch)
-            spacing = torch.cat([spacing.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
-            inputs = torch.cat((tokens, spacing), dim=1).detach().numpy()
-            if len(inputs)==1024:
-                kmeans = kmeans.partial_fit(inputs.reshape(inputs.shape[0], -1))
-            else:
-                print(f'Number of samples in the last batch: {len(inputs)}')
+        if os.path.exists(path_save + f'{model_name}_ref_samples.npy'):
+            print(f'{model_name}_ref_samples.npy already exists, loading ...')
+            ref_samples = np.load(path_save + f'{model_name}_ref_samples.npy')
+        else:
+            print(f'{model_name}_ref_samples.npy has not been created, clustering ...')
+            kmeans = MiniBatchKMeans(n_clusters=1024, random_state=manual_seed, batch_size=1024)
+            for batch, spacing in tqdm(pipeline.train_dataloader, total=len(pipeline.train_dataloader), ascii=True, desc='Clustering', miniters=50):
+                tokens = tokenizer(batch)
+                spacing = torch.cat([spacing.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
+                inputs = torch.cat((tokens, spacing), dim=1).detach().numpy()
+                if len(inputs)==1024:
+                    kmeans = kmeans.partial_fit(inputs.reshape(inputs.shape[0], -1))
+                else:
+                    print(f'Number of samples in the last batch: {len(inputs)}')
+            ref_samples = kmeans.cluster_centers_
+            np.save(path_save + f'{model_name}_ref_samples.npy', ref_samples)
 
-        # Define explainer, background samples are the cluster centers
-        bkgd_samples = kmeans.cluster_centers_
-        bkgd_samples = torch.from_numpy(bkgd_samples.reshape(bkgd_samples.shape[0],-1,64)).float()
-        explainer = shap.GradientExplainer(decoder, bkgd_samples, batch_size=1024)
+        # Define explainer, reference samples are the cluster centers
+        ref_samples = torch.from_numpy(ref_samples.reshape(ref_samples.shape[0],-1,64)).float()
+        explainer = shap.GradientExplainer(decoder, ref_samples, batch_size=1024)
 
         # Read events
         warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
@@ -105,7 +117,7 @@ def main(args, manual_seed, path_prepared, path_result):
             proximity = torch.cat([proximity.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
             sample_tokens = tokenizer(samples)
             sample_inputs = torch.cat((sample_tokens, proximity), dim=1)
-            ig_matrix, var = explainer.shap_values(sample_inputs, return_variances=True, rseed=manual_seed)
+            ig_matrix, var = explainer.shap_values(sample_inputs, nsamples=1024, return_variances=True, rseed=manual_seed)
             intensity = decoder(sample_inputs).squeeze().detach().numpy()
             ig_values = ig_matrix[:,:-1,:,0].sum(axis=2)
             std = np.sqrt(var[0][:,:-1,:].sum(axis=2))
