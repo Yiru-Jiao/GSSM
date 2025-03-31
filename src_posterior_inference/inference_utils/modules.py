@@ -299,6 +299,7 @@ class AttentionDecoder(nn.Module):
             return log_var
         elif self.single_output == 'intensity':
             assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
+            assert spacing.size() == log_var.size(), f'{spacing.size()} != {log_var.size()}'
             log_p = torch.log(torch.tensor(0.5))
             log_s = torch.log(torch.clamp(spacing, min=1e-6))
             squared2var = torch.sqrt(2*torch.exp(log_var))

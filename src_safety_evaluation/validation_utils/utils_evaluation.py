@@ -77,6 +77,22 @@ def extreme_cdf(x, mu, sigma, n=10):
     return (1-lognormal_cdf(x,mu,sigma))**n
 
 
+def torch_intensity(spacing, mu, log_var=None, var=None):
+    assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
+    assert spacing.size() == log_var.size(), f'{spacing.size()} != {log_var.size()}'
+    log_p = torch.log(torch.tensor(0.5))
+    log_s = torch.log(torch.clamp(spacing, min=1e-6))
+    if var is None:
+        squared2var = torch.sqrt(2*torch.exp(log_var))
+    elif log_var is None:
+        squared2var = torch.sqrt(2*var)
+    else:
+        ValueError('At least one of log_var and var should be provided.')
+    one_minus_cdf = 0.5*(1-torch.erf((log_s-mu)/squared2var))
+    max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=1e-6, max=1-1e-6))
+    return torch.log10(torch.clamp(max_intensity, min=1.))
+
+
 def send_x_to_device(x, device):
     if isinstance(x, list):
         return tuple([i.to(device) for i in x])
@@ -113,23 +129,21 @@ def GSSM(states, model, device):
 
     mu_list = []
     sigma_list = []
+    logn_list = []
     with torch.no_grad():
         for x in data_loader:
             out = model(send_x_to_device(x, device))
             mu, log_var = out
+            logn = torch_intensity(torch.from_numpy(spacing_list).float().to(device), mu, log_var=log_var)
             mu_list.append(mu.cpu().numpy()) # [n_samples]
             sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
+            logn_list.append(logn.cpu().numpy())
 
     mu = np.concatenate(mu_list)
     sigma = np.concatenate(sigma_list)
+    logn = np.concatenate(logn_list)
 
-    # 0.5 means that the probability of conflict is larger than the probability of non-conflict
-    one_minus_cdf = 1 - lognormal_cdf(spacing_list, mu, sigma)
-    one_minus_cdf = np.minimum(1-1e-6, np.maximum(1e-6, one_minus_cdf))
-    max_intensity = np.log(0.5)/np.log(one_minus_cdf) # around (0.050171666, 693146.834)
-    max_intensity = np.maximum(1, max_intensity)
-
-    return mu, sigma, np.log10(max_intensity) # (0, 5.8408)
+    return mu, sigma, logn # around (0.050171666, 693146.834) -> (0, 5.8408)
 
 
 def determine_conflicts(evaluation, conflict_indicator, threshold):
