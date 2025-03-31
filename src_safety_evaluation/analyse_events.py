@@ -178,17 +178,6 @@ def main(args, path_result, path_prepared):
     print('--- Optimal warning analysis completed ---')
     print('Analysed models:', results['model'].unique())
 
-    # '''
-    # Save the identified target by the best models in each category under corresponding optimal thresholds    
-    # '''
-    # if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
-    #     event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
-    # warning_timeliness = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')
-    # for model in warning_timeliness['model'].unique():
-    #     warning_model = warning_timeliness[warning_timeliness['model']==model]
-    #     event_meta.loc[warning_model['event_id'].values, 'target_id'] = warning_model['target_id'].values
-    # event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
-
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
