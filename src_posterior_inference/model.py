@@ -166,11 +166,11 @@ class LogNormalNLL(nn.Module):
         self.log2pi = torch.log(torch.tensor(2*3.1415926535897932384626433832795))
         self.eps = eps
 
-    def forward(self, out, y):
+    def forward(self, out, s):
         mu = out[0]
         log_var = out[1]
-        log_y = torch.log(torch.clamp(y, min=self.eps))
-        nll = 0.5 * (self.log2pi + log_var + (log_y-mu)**2 / torch.exp(log_var)) + log_y
+        log_s = torch.log(torch.clamp(s, min=self.eps))
+        nll = 0.5 * (self.log2pi + log_var + (log_s-mu)**2 / torch.exp(log_var)) + log_s
         loss = nll.mean()
         return loss
 
@@ -193,11 +193,11 @@ class SmoothLogNormalNLL(nn.Module):
         kl2 = self.kl_divergence(mu2, log_var2, mu, log_var)
         return 0.5 * (kl1 + kl2)
 
-    def forward(self, out, y, inducing_out):
+    def forward(self, out, s, inducing_out):
         mu = out[0]
         log_var = out[1]
-        log_y = torch.log(torch.clamp(y, min=self.eps))
-        nll = 0.5 * (self.log2pi + log_var + (log_y-mu)**2 / torch.exp(log_var)) + log_y
+        log_s = torch.log(torch.clamp(s, min=self.eps))
+        nll = 0.5 * (self.log2pi + log_var + (log_s-mu)**2 / torch.exp(log_var)) + log_s
 
         mu_prime, log_var_prime = inducing_out
         js_divergence = self.js_divergence(mu, log_var, mu_prime, log_var_prime)
