@@ -14,7 +14,6 @@ from torch.utils.data import Dataset, DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_posterior_inference.model import LogNormalNLL, SmoothLogNormalNLL
 from src_data_preparation.represent_utils.coortrans import coortrans
-from src_safety_evaluation.validation_utils.utils_evaluation import torch_intensity
 coortrans = coortrans()
 
 
@@ -284,15 +283,14 @@ def define_model(num_inducing_points, device):
 
 
 class custom_dataset(Dataset):
-    def __init__(self, X, s):
+    def __init__(self, X):
         self.X = X
-        self.s = torch.from_numpy(s).float()
 
     def __len__(self): 
         return len(self.X)
 
     def __getitem__(self, idx):
-        return torch.from_numpy(self.X[idx]).float(), self.s[idx]
+        return torch.from_numpy(self.X[idx]).float()
     
 
 def lognormal_cdf(x, mu, sigma):
@@ -306,21 +304,23 @@ def extreme_cdf(x, mu, sigma, n=10):
 
 def UCD(states, model, likelihood, device):
     interaction_context, spacing_list = states
-    data_loader = DataLoader(custom_dataset(interaction_context, spacing_list), batch_size=1024, shuffle=False)
+    data_loader = DataLoader(custom_dataset(interaction_context), batch_size=1024, shuffle=False)
 
-    mu_list, sigma_list, logn_list = [], [], []
+    mu_list, sigma_list = [], []
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        for int_ctxt, s in tqdm(data_loader, desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
+        for int_ctxt in tqdm(data_loader, desc='Inferring', ascii=True, dynamic_ncols=False, miniters=100):
             f_dist = model(int_ctxt.to(device))
             y_dist = likelihood(f_dist)
-            intensity = torch_intensity(s.to(device), mu=y_dist.mean, var=y_dist.variance)
-            mu, sigma = y_dist.mean, y_dist.variance.sqrt()
-            mu_list.append(mu.cpu().numpy())
-            sigma_list.append(sigma.cpu().numpy())
-            logn_list.append(intensity.cpu().numpy())
+            mu, sigma = y_dist.mean.cpu().numpy(), y_dist.variance.sqrt().cpu().numpy()
+            mu_list.append(mu)
+            sigma_list.append(sigma)
     mu = np.concatenate(mu_list)
     sigma = np.concatenate(sigma_list)
-    logn = np.concatenate(logn_list)
 
-    return mu, sigma, logn # (0, 5.8408)
+    # 0.5 means that the probability of conflict is larger than the probability of non-conflict
+    one_minus_cdf = 1 - lognormal_cdf(spacing_list, mu, sigma)
+    one_minus_cdf = np.minimum(1-1e-6, np.maximum(1e-6, one_minus_cdf))
+    max_intensity = np.log(0.5)/np.log(one_minus_cdf) # around (0.050171666, 693146.834)
+
+    return mu, sigma, max_intensity
 
