@@ -51,7 +51,7 @@ def get_model_fig(model_name):
         pretrained = 'pretrained_all'
     else:
         pretrained = 'pretrained'
-        
+
     return dataset_name, encoder_name, pretrained
 
 
@@ -172,6 +172,10 @@ def main(args, path_result, path_prepared):
             records['model'] = conflict_indicator
             results.append(records.copy())
 
+    model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
+    dataset_name_list = model_evaluation['dataset'].values
+    encoder_name_list = model_evaluation['encoder_selection'].values
+    pretraining_list = model_evaluation['pretraining'].values
     for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         if model_name in existing_models:
