@@ -16,7 +16,6 @@ from sklearn.cluster import MiniBatchKMeans
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
-from src_safety_evaluation.validation_utils.utils_evaluation import optimize_threshold
 from src_safety_evaluation.validation_utils.utils_attribution import get_sample
 
 
@@ -102,31 +101,30 @@ def main(args, manual_seed, path_prepared, path_result):
         ref_samples = torch.from_numpy(ref_samples.reshape(ref_samples.shape[0],-1,64)).float()
         explainer = shap.GradientExplainer(decoder, ref_samples, batch_size=1024)
 
-        # Read events
-        warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-        optimal_threshold = optimize_threshold(warning, 'GSSM', 'ROC')
-        warning = warning[(warning['threshold']==optimal_threshold)&warning['danger_recorded']]
+        # Read event_id and target_id pairs
+        voted_targets = pd.read_csv(path_result + 'ConflictingTarget/Voted_conflicting_target.csv')
+        voted_targets = voted_targets[voted_targets['target_id']>=0]
 
         # Compute and save gradients for each event
         results = []
-        ig_columns = [f'ig_{var}' for var in sampler.variables]
+        eg_columns = [f'eg_{var}' for var in sampler.variables]
         std_columns = [f'std_{var}' for var in sampler.variables]
-        for event_id, target_id in tqdm(warning[['event_id','target_id']].values, total=len(warning), ascii=True, desc='Attribution', miniters=10):
+        for event_id, target_id in tqdm(voted_targets[['event_id','target_id']].values, total=len(voted_targets), ascii=True, desc='Attribution', miniters=10):
             samples, proximity = sampler.get_item(event_id, target_id)
             proximity = torch.from_numpy(proximity).float()
             proximity = torch.cat([proximity.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
             sample_tokens = tokenizer(samples)
             sample_inputs = torch.cat((sample_tokens, proximity), dim=1)
-            ig_matrix, var = explainer.shap_values(sample_inputs, nsamples=1024, return_variances=True, rseed=manual_seed)
+            eg_matrix, var = explainer.shap_values(sample_inputs, nsamples=1024, return_variances=True, rseed=manual_seed)
             intensity = decoder(sample_inputs).squeeze().detach().numpy()
-            ig_values = ig_matrix[:,:-1,:,0].sum(axis=2)
+            eg_values = eg_matrix[:,:-1,:,0].sum(axis=2)
             std = np.sqrt(var[0][:,:-1,:].sum(axis=2))
-            assert ig_values.shape == std.shape
-            if np.any(np.isnan(ig_values)):
+            assert eg_values.shape == std.shape
+            if np.any(np.isnan(eg_values)):
                 Warning(f'There are NaN values in event {event_id} with target {target_id}.')
             result = event_id_list[(event_id_list['event_id']==event_id)&(event_id_list['target_id']==target_id)]
             result = result.sort_values(by='idx', ascending=False)[['event_id','target_id','time']]
-            result[ig_columns] = ig_values
+            result[eg_columns] = eg_values
             result[std_columns] = std
             result['intensity'] = intensity
             results.append(result)
