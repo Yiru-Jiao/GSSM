@@ -282,7 +282,10 @@ class train_val_test():
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                val_loss += self.compute_loss(x, y)
+                x = self.send_x_to_device(x)
+                y = y.to(self.device)
+                out = self.model(x)
+                val_loss += self.loss_func(out, y)
         self.model.train()
         return val_loss.item() / val_batch_iter
     
