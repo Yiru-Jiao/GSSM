@@ -16,7 +16,6 @@ from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluat
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--stage', type=int, default=0, help='Whether to reverse the model list (defaults to False), useful for running parallel jobs')
     parser.add_argument('--reversed_list', type=int, default=0, help='Whether to reverse the model list (defaults to False), useful for running parallel jobs')
     args = parser.parse_args()
     args.reversed_list = bool(args.reversed_list)
@@ -29,6 +28,31 @@ def fill_na_warning(results):
     results[['danger_recorded', 'safety_recorded']] = results[['danger_recorded', 'safety_recorded']].astype(bool)
     results[['safe_target_ids', 'indicator', 'model']] = results[['safe_target_ids', 'indicator', 'model']].astype(str)
     return results
+
+
+def get_model_fig(model_name):
+    dataset_name = model_name.split('_current')[0]
+
+    features = model_name.split('pretrained')[0]
+    if 'acc' in features:
+        features = features.split('current+acc_')[1]
+        features = features.split('_')
+        features = ['current+acc'] + features
+    else:
+        features = features.split('current')[1]
+        features = features.split('_')
+        features = ['current'] + features
+    features = [f for f in features if f not in ['not','']]
+    encoder_name = '_'.join(features)
+
+    if 'not_pretrained' in model_name:
+        pretrained = 'not_pretrained'
+    elif 'pretrained_all' in model_name:
+        pretrained = 'pretrained_all'
+    else:
+        pretrained = 'pretrained'
+        
+    return dataset_name, encoder_name, pretrained
 
 
 def main(args, path_result, path_prepared):
@@ -90,26 +114,18 @@ def main(args, path_result, path_prepared):
             print(f'{indicator} time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
     # GSSM
-    model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
-    dataset_name_list = model_evaluation['dataset'].values
-    encoder_name_list = model_evaluation['encoder_selection'].values
-    pretraining_list = model_evaluation['pretraining'].values
-    if args.stage > 0:
-        dataset_name_list = dataset_name_list[args.stage:]
-        encoder_name_list = encoder_name_list[args.stage:]
-        pretraining_list = pretraining_list[args.stage:]
+    evaluation_files = os.listdir(path_results)
+    evaluation_files = [f for f in evaluation_files if f.endswith('.h5') and f!='TAdv_TTC2D_ACT_EI.h5' and f!='highD_UCD.h5']
     if args.reversed_list:
-        dataset_name_list = dataset_name_list[::-1]
-        encoder_name_list = encoder_name_list[::-1]
-        pretraining_list = pretraining_list[::-1]
+        evaluation_files = evaluation_files[::-1]
 
     gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
-    for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
-        model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+    for model_name in evaluation_files:
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
             print('--- Analysis 1 with', model_name, 'already completed ---')
         else:
             print('--- Analyzing with', model_name, '---')
+            dataset_name, encoder_name, pretraining = get_model_fig(model_name)
             sub_initial_time = systime.time()
             safety_evaluation = read_evaluation('GSSM', path_results, dataset_name, encoder_name, pretraining)
             progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
