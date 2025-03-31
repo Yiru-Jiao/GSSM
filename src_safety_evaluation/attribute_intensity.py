@@ -104,7 +104,7 @@ def main(args, manual_seed, path_prepared, path_result):
 
         # Read events
         warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-        optimal_threshold = optimize_threshold(warning, 'SSSE', 'ROC')
+        optimal_threshold = optimize_threshold(warning, 'GSSM', 'ROC')
         warning = warning[(warning['threshold']==optimal_threshold)&warning['danger_recorded']]
 
         # Compute and save gradients for each event

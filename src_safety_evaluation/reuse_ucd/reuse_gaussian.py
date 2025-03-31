@@ -123,7 +123,7 @@ def main(args, manual_seed, path_result):
     ucd_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
     print('--- Analyzing ---')
     progress_bar = tqdm(ucd_thresholds, desc='UCD', ascii=True, dynamic_ncols=False, miniters=10)
-    ucd_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, results, event_data, event_meta, 'SSSE') for threshold in progress_bar)
+    ucd_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, results, event_data, event_meta, 'GSSM') for threshold in progress_bar)
     ucd_records = pd.concat(ucd_records).reset_index()
     ucd_records['indicator'] = 'UCD'
     ucd_records['model'] = 'UCD'

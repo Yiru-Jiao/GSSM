@@ -89,7 +89,7 @@ def main(args, path_result, path_prepared):
             progress_bar.close()
             print(f'{indicator} time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
-    # SSSE
+    # GSSM
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
@@ -103,7 +103,7 @@ def main(args, path_result, path_prepared):
         encoder_name_list = encoder_name_list[::-1]
         pretraining_list = pretraining_list[::-1]
 
-    ssse_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
+    gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
     for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
         model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
@@ -111,14 +111,14 @@ def main(args, path_result, path_prepared):
         else:
             print('--- Analyzing with', model_name, '---')
             sub_initial_time = systime.time()
-            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
-            progress_bar = tqdm(ssse_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
-            ssse_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'SSSE') for threshold in progress_bar)
-            ssse_records = pd.concat(ssse_records).reset_index()
-            ssse_records['indicator'] = 'SSSE'
-            ssse_records['model'] = model_name
-            ssse_records = fill_na_warning(ssse_records)
-            ssse_records.to_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results', mode='w')
+            safety_evaluation = read_evaluation('GSSM', path_results, dataset_name, encoder_name, pretraining)
+            progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
+            gssm_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'GSSM') for threshold in progress_bar)
+            gssm_records = pd.concat(gssm_records).reset_index()
+            gssm_records['indicator'] = 'GSSM'
+            gssm_records['model'] = model_name
+            gssm_records = fill_na_warning(gssm_records)
+            gssm_records.to_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results', mode='w')
             progress_bar.close()
             print(model_name, 'time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
@@ -148,8 +148,8 @@ def main(args, path_result, path_prepared):
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
             safety_evaluation = read_evaluation(conflict_indicator, path_results)
             if conflict_indicator == 'UCD':
-                optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
-                records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
+                optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'ROC')
+                records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
             else:
                 optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
                 records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
@@ -163,9 +163,9 @@ def main(args, path_result, path_prepared):
         else:
             print('--- Issuing warning', model_name, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-            safety_evaluation = read_evaluation('SSSE', path_results, dataset_name, encoder_name, pretraining)
-            optimal_threshold = optimize_threshold(conflict_warning, 'SSSE', 'ROC')
-            records = issue_warning('SSSE', optimal_threshold, safety_evaluation, event_meta)
+            safety_evaluation = read_evaluation('GSSM', path_results, dataset_name, encoder_name, pretraining)
+            optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'ROC')
+            records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
             records['model'] = model_name
             results.append(records.copy())
     if len(results) > 0:

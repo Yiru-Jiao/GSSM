@@ -1,5 +1,5 @@
 '''
-This script defines the encoders and decoder for the SSSE model.
+This script defines the encoders and decoder for the GSSM model.
 '''
 
 import os

@@ -18,7 +18,7 @@ coortrans = coortrans()
 from src_posterior_inference.model import LogNormalNLL
 from src_safety_evaluation.validation_utils.EmergencyIndex import get_EI
 from src_safety_evaluation.validation_utils.SSMsOnPlane import longitudinal_ssms, two_dimensional_ssms
-from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions, define_model, SSSE
+from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions, define_model, GSSM
 
 
 def parse_args():
@@ -140,7 +140,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results.to_hdf(path_save + f'TAdv_TTC2D_ACT_EI.h5', key='data', mode='w')
 
 
-    # SSSE models in this study
+    # GSSM models in this study
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     loss_func = LogNormalNLL()
     for model_id in range(len(model_evaluation)):
@@ -188,7 +188,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             states = [tuple(states), spacing_list]
 
         time_start = systime.time()
-        mu, sigma, max_intensity = SSSE(states, model, device)
+        mu, sigma, max_intensity = GSSM(states, model, device)
         time_end = systime.time()
 
         results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])

@@ -32,9 +32,9 @@ def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=Non
     elif indicator=='UCD':
         safety_evaluation = pd.read_hdf(path_results + f'highD_UCD.h5', key='data')
         return safety_evaluation
-    elif indicator=='SSSE':
+    elif indicator=='GSSM':
         if np.any([config is None for config in [dataset_name, encoder_name, pretraining]]):
-            print('Please specify model configuration for SSSE evaluation.')
+            print('Please specify model configuration for GSSM evaluation.')
             return None
         else:
             safety_evaluation = pd.read_hdf(path_results + f'{dataset_name}_{encoder_name}_{pretraining}.h5', key='data')
@@ -107,7 +107,7 @@ class custom_dataset(Dataset):
         return self.get_item(idx)
     
 
-def SSSE(states, model, device):
+def GSSM(states, model, device):
     contexts, spacing_list = states
     data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
 
@@ -144,7 +144,7 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
         evaluation.loc[(evaluation[conflict_indicator]>threshold), 'conflict'] = True
         return evaluation
     
-    elif conflict_indicator=='SSSE':
+    elif conflict_indicator=='GSSM':
         evaluation.loc[evaluation['intensity']>threshold, 'conflict'] = True
         evaluation['probability'] = extreme_cdf(evaluation['proximity'].values, evaluation['mu'].values, evaluation['sigma'].values, threshold)
         return evaluation
@@ -206,7 +206,7 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
 
 
 def determine_target(indicator, danger, pre_danger):
-    if indicator == 'SSSE':
+    if indicator == 'GSSM':
         indicator = 'intensity'
     if len(danger)<1: # no surrounding vehicles recorded in the danger period
         target_id = np.nan
@@ -321,7 +321,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
         if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
-        elif conflict_indicator in ['SSSE', 'EI']:
+        elif conflict_indicator in ['GSSM', 'EI']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
         statistics['combined rate'] = statistics['false negative rate']**2+statistics['false positive rate']**2
     elif curve_type=='PRC':
@@ -329,7 +329,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
         if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, True])
-        elif conflict_indicator in ['SSSE', 'EI']:
+        elif conflict_indicator in ['GSSM', 'EI']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
         statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
     statistics['combined rate'] = np.round(np.sqrt(statistics['combined rate']), 2)
