@@ -221,7 +221,7 @@ class train_val_test():
                     # re-define learning rate and its scheduler for new loss function
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
+                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=2,
                         threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                     )
                     self.lr_reduced = True
