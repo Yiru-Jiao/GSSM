@@ -14,7 +14,7 @@ import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_posterior_inference.model import LogNormalNLL
-from src_safety_evaluation.validation_utils.utils_evaluation import parallel_records
+from src_safety_evaluation.validation_utils.utils_evaluation import parallel_records, extreme_cdf
 from src_safety_evaluation.reuse_ucd.unified_conflit_detection import UCD, define_model
 from joblib import Parallel, delayed
 
@@ -125,6 +125,10 @@ def main(args, manual_seed, path_result):
     progress_bar = tqdm(ucd_thresholds, desc='UCD', ascii=True, dynamic_ncols=False, miniters=10)
     ucd_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, results, event_data, event_meta, 'GSSM') for threshold in progress_bar)
     ucd_records = pd.concat(ucd_records).reset_index()
+    ucd_records['probability'] = extreme_cdf(ucd_records['proximity'].values, 
+                                             ucd_records['mu'].values, 
+                                             ucd_records['sigma'].values, 
+                                             ucd_records['threshold'].values)
     ucd_records['indicator'] = 'UCD'
     ucd_records['model'] = 'UCD'
     progress_bar.close()

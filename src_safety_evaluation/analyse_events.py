@@ -11,7 +11,7 @@ from tqdm import tqdm
 import time as systime
 from joblib import Parallel, delayed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluation, optimize_threshold, issue_warning, parallel_records, read_events
+from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluation, optimize_threshold, issue_warning, parallel_records, read_events, extreme_cdf
 
 
 def parse_args():
@@ -131,6 +131,10 @@ def main(args, path_result, path_prepared):
             progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
             gssm_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'GSSM') for threshold in progress_bar)
             gssm_records = pd.concat(gssm_records).reset_index()
+            gssm_records['probability'] = extreme_cdf(gssm_records['proximity'].values, 
+                                                      gssm_records['mu'].values, 
+                                                      gssm_records['sigma'].values, 
+                                                      10**gssm_records['threshold'].values.astype(int))
             gssm_records['indicator'] = 'GSSM'
             gssm_records['model'] = model_name
             gssm_records = fill_na_warning(gssm_records)

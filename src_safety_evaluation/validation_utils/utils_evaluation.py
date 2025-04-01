@@ -161,7 +161,6 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
     
     elif conflict_indicator=='GSSM':
         evaluation.loc[evaluation['intensity']>threshold, 'conflict'] = True
-        evaluation['probability'] = extreme_cdf(evaluation['proximity'].values, evaluation['mu'].values, evaluation['sigma'].values, threshold)
         return evaluation
 
 
