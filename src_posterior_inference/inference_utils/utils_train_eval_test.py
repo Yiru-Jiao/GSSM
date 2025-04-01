@@ -121,7 +121,7 @@ class train_val_test():
             else: # generate fixed noise for validation and testing
                 noise_mask = torch.ones_like(x, requires_grad=False)
                 noise_mask[::2, :] *= -1
-                noise_mask[:,::2,:] *= -1
+                noise_mask[:, ::2] *= -1
                 noise = noise * self.current_ranges.unsqueeze(0) * noise_mask
             noised_x = x + noise
             # make sure the rad angles are within [-pi, pi]
@@ -135,7 +135,7 @@ class train_val_test():
             else: # generate fixed noise for validation and testing
                 noise_mask = torch.ones_like(x, requires_grad=False)
                 noise_mask[::2, :, :] *= -1
-                noise_mask[:,::2,:] *= -1
+                noise_mask[:, ::2, :] *= -1
                 noise_mask[:, :, ::2] *= -1
                 noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * noise_mask
             noised_x = x + noise
