@@ -39,21 +39,21 @@ def set_experiments(stage=[1,2,3,4]):
     if 4 in stage: # add extra features
         exp_config.extend([
             [['SafeBaseline'], ['current'], 'all'],
-            # [['SafeBaseline'], ['current+acc'], True],
-            # [['SafeBaseline'], ['current+acc'], False],
-            # [['SafeBaseline'], ['current+acc'], 'all'],
+            [['SafeBaseline'], ['current+acc'], True],
+            [['SafeBaseline'], ['current+acc'], False],
+            [['SafeBaseline'], ['current+acc'], 'all'],
             [['SafeBaseline'], ['current', 'environment'], True],
             [['SafeBaseline'], ['current', 'environment'], False],
             [['SafeBaseline'], ['current', 'environment'], 'all'],
-            # [['SafeBaseline'], ['current+acc', 'environment'], True],
-            # [['SafeBaseline'], ['current+acc', 'environment'], False],
-            # [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'environment'], True],
+            [['SafeBaseline'], ['current+acc', 'environment'], False],
+            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
             [['SafeBaseline'], ['current','environment','profiles'], False],
             [['SafeBaseline'], ['current','environment','profiles'], True],
             [['SafeBaseline'], ['current','environment','profiles'], 'all'],
-            # [['SafeBaseline'], ['current+acc','environment','profiles'], True],
-            # [['SafeBaseline'], ['current+acc','environment','profiles'], False],
-            # [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], True],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], False],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
         ])
     return exp_config
 
