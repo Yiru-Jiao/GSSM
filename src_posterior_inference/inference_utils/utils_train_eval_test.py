@@ -119,7 +119,10 @@ class train_val_test():
             if self.model.training:
                 noise = noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
-                noise = noise * self.current_ranges.unsqueeze(0) * torch.ones_like(x, requires_grad=False)
+                noise_mask = torch.ones_like(x, requires_grad=False)
+                noise_mask[::2, :] *= -1
+                noise_mask[:,::2,:] *= -1
+                noise = noise * self.current_ranges.unsqueeze(0) * noise_mask
             noised_x = x + noise
             # make sure the rad angles are within [-pi, pi]
             if x.size(1)==12:
@@ -130,7 +133,11 @@ class train_val_test():
             if self.model.training:
                 noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
-                noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.ones_like(x, requires_grad=False)
+                noise_mask = torch.ones_like(x, requires_grad=False)
+                noise_mask[::2, :, :] *= -1
+                noise_mask[:,::2,:] *= -1
+                noise_mask[:, :, ::2] *= -1
+                noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * noise_mask
             noised_x = x + noise
         return noised_x
 
@@ -182,7 +189,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=10,
+                self.optimizer, mode='min', factor=0.6, patience=10, cooldown=10,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
@@ -214,7 +221,7 @@ class train_val_test():
                     # re-define learning rate and its scheduler for new loss function
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=2,
+                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
                         threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
                     )
                     self.lr_reduced = True
@@ -282,10 +289,7 @@ class train_val_test():
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                x = self.send_x_to_device(x)
-                y = y.to(self.device)
-                out = self.model(x)
-                val_loss += self.loss_func(out, y)
+                val_loss += self.compute_loss(x, y)
         self.model.train()
         return val_loss.item() / val_batch_iter
     
