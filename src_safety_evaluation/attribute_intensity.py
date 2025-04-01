@@ -66,7 +66,7 @@ def main(args, manual_seed, path_prepared, path_result):
 
         pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output='intensity')
         pipeline.load_model()
-        tokenizer = pipeline.model.combi_encoder
+        encoder = pipeline.model.combi_encoder
         decoder = pipeline.model.AttentionDecoder
         if not pipeline.model.training:
             print('The model is correctly loaded under evaluation mode.')
@@ -87,9 +87,9 @@ def main(args, manual_seed, path_prepared, path_result):
             print(f'{model_name}_ref_samples.npy has not been created, clustering ...')
             kmeans = MiniBatchKMeans(n_clusters=1024, random_state=manual_seed, batch_size=1024)
             for batch, spacing in tqdm(pipeline.train_dataloader, total=len(pipeline.train_dataloader), ascii=True, desc='Clustering', miniters=50):
-                tokens = tokenizer(batch)
+                representations = encoder(batch)
                 spacing = torch.cat([spacing.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
-                inputs = torch.cat((tokens, spacing), dim=1).detach().numpy()
+                inputs = torch.cat((representations, spacing), dim=1).detach().numpy()
                 if len(inputs)==1024:
                     kmeans = kmeans.partial_fit(inputs.reshape(inputs.shape[0], -1))
                 else:
@@ -113,8 +113,8 @@ def main(args, manual_seed, path_prepared, path_result):
             samples, proximity = sampler.get_item(event_id, target_id)
             proximity = torch.from_numpy(proximity).float()
             proximity = torch.cat([proximity.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
-            sample_tokens = tokenizer(samples)
-            sample_inputs = torch.cat((sample_tokens, proximity), dim=1)
+            sample_representations = encoder(samples)
+            sample_inputs = torch.cat((sample_representations, proximity), dim=1)
             eg_matrix, var = explainer.shap_values(sample_inputs, nsamples=1024, return_variances=True, rseed=manual_seed)
             intensity = decoder(sample_inputs).squeeze().detach().numpy()
             eg_values = eg_matrix[:,:-1,:,0].sum(axis=2)

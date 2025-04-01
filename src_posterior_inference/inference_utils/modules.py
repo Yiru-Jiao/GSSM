@@ -52,7 +52,7 @@ class TSEncoder(nn.Module):
 
 class CurrentEncoder(nn.Module):
     '''
-    This encoder functions as encoding the token for each features,
+    This encoder functions as encoding the representation for each features,
     therefore the features are designed to **not interact** with each other.
     '''
     def __init__(self, input_dims, output_dims=64):
@@ -95,8 +95,8 @@ class CurrentEncoder(nn.Module):
 
 class EnvEncoder(nn.Module):
     '''
-    This encoder needs to extract the environment features as one single token,
-    therefore the features are designed to **interact** with each other.
+    This encoder extracts the environment features into 4 representations,
+    within each the features are designed to **interact** with each other.
     '''
     def __init__(self, input_dims=27, output_dims=64):
         super(EnvEncoder, self).__init__()
