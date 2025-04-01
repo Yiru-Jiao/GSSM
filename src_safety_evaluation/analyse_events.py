@@ -115,7 +115,7 @@ def main(args, path_result, path_prepared):
 
     # GSSM
     evaluation_files = os.listdir(path_results)
-    evaluation_files = [f for f in evaluation_files if f.endswith('.h5') and f!='TAdv_TTC2D_ACT_EI.h5' and f!='highD_UCD.h5']
+    evaluation_files = [f[:-3] for f in evaluation_files if f.endswith('.h5') and f!='TAdv_TTC2D_ACT_EI.h5' and f!='highD_UCD.h5']
     if args.reversed_list:
         evaluation_files = evaluation_files[::-1]
 
