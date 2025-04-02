@@ -159,7 +159,7 @@ def determine_conflicts(evaluation, conflict_indicator, threshold):
         evaluation.loc[(evaluation[conflict_indicator]>threshold), 'conflict'] = True
         return evaluation
     
-    elif conflict_indicator=='GSSM':
+    elif conflict_indicator in ['GSSM', 'UCD']:
         evaluation.loc[evaluation['intensity']>threshold, 'conflict'] = True
         return evaluation
 
@@ -220,7 +220,7 @@ def is_target_recorded(danger, pre_danger, target_id, indicator):
 
 
 def determine_target(indicator, danger, pre_danger):
-    if indicator == 'GSSM':
+    if indicator in ['GSSM', 'UCD']:
         indicator = 'intensity'
     if len(danger)<1: # no surrounding vehicles recorded in the danger period
         target_id = np.nan
@@ -335,7 +335,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
         if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
-        elif conflict_indicator in ['GSSM', 'EI']:
+        elif conflict_indicator in ['GSSM', 'EI', 'UCD']:
             statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
         statistics['combined rate'] = statistics['false negative rate']**2+statistics['false positive rate']**2
     elif curve_type=='PRC':
@@ -343,7 +343,7 @@ def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=Fal
         statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
         if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, True])
-        elif conflict_indicator in ['GSSM', 'EI']:
+        elif conflict_indicator in ['GSSM', 'EI', 'UCD']:
             statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
         statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
     statistics['combined rate'] = np.round(np.sqrt(statistics['combined rate']), 2)
