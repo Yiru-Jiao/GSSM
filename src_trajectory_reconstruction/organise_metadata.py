@@ -7,17 +7,17 @@ import os
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import shutil
 
 path_raw = './RawData/SHRP2/'
 path_raw_honda = './RawData/SHRP2/HondaDataSupport/'
 path_raw_das = './RawData/SHRP2/DriverAssistanceSystems/'
 path_processed = './ProcessedData/SHRP2/'
-os.makedirs(path_processed, exist_ok=True)
+os.makedirs(path_raw + 'FileToUse/', exist_ok=True)
 
 
 # Set of Driving Assistance Systems
-os.makedirs(path_raw + 'CleanedMetaReferences/', exist_ok=True)
-if not os.path.exists(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv'):
+if not os.path.exists(path_raw + 'FileToUse/metadata_timeseries_video_DriverAssistanceSystems.csv'):
     path_timeseries = path_raw_das + 'Videos_And_TimeSeriesData/'
     print('Scaning files in Videos_And_TimeSeriesData/ ...')
     filename_list = os.listdir(path_timeseries)
@@ -47,11 +47,11 @@ if not os.path.exists(path_raw + 'CleanedMetaReferences/metadata_timeseries_vide
         else:
             id_count += 1
             summary_df.loc[id_count, columns] = values
-    summary_df.to_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv', index=False)
+    summary_df.to_csv(path_raw + 'FileToUse/metadata_timeseries_video_DriverAssistanceSystems.csv', index=False)
 
 
 # Set of Honda Data Support
-if not os.path.exists(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_HondaDataSupport.csv'):
+if not os.path.exists(path_raw + 'FileToUse/metadata_timeseries_video_HondaDataSupport.csv'):
     summary_df = pd.DataFrame([], columns=['event_id', 'time_series', 'video_front', 'video_rear', 'video_hands'])
     id_count = 0
 
@@ -85,7 +85,7 @@ if not os.path.exists(path_raw + 'CleanedMetaReferences/metadata_timeseries_vide
             else:
                 id_count += 1
                 summary_df.loc[id_count, columns] = values
-    summary_df.to_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_HondaDataSupport.csv', index=False)
+    summary_df.to_csv(path_raw + 'FileToUse/metadata_timeseries_video_HondaDataSupport.csv', index=False)
 
 
 # Define vehicle dimensions, the values are estimated by Microsoft Copilot
@@ -138,8 +138,8 @@ def define_vehicle_dimension():
 
 # Combine metadata from both Honda Data Support and Driving Assistance Systems
 print('Loading metadata...')
-meta_das = pd.read_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_DriverAssistanceSystems.csv') # 41,102 events
-meta_honda = pd.read_csv(path_raw + 'CleanedMetaReferences/metadata_timeseries_video_HondaDataSupport.csv') # 41,325 events
+meta_das = pd.read_csv(path_raw + 'FileToUse/metadata_timeseries_video_DriverAssistanceSystems.csv') # 41,102 events
+meta_honda = pd.read_csv(path_raw + 'FileToUse/metadata_timeseries_video_HondaDataSupport.csv') # 41,325 events
 
 meta_both = meta_das[['event_id','time_series']].merge(meta_honda[['event_id','time_series']], on='event_id', how='outer', suffixes=('_das','_honda'))
 meta_both['file_dir'] = path_raw_honda + 'Time Series Export/'
@@ -150,8 +150,19 @@ meta_both.loc[condition,'file2use'] = meta_both.loc[condition,'time_series_das']
 meta_both = meta_both.set_index('event_id')  # 41,404 events
 
 
+# Move the files to use to FileToUse folder
+print('Moving files to FileToUse folder...')
+os.makedirs(path_raw + 'FileToUse/TimeSeries/', exist_ok=True)
+for event_id in tqdm(meta_both.index.values, desc='Moving files'):
+    original_path = meta_both.loc[event_id,'file_dir'] + meta_both.loc[event_id,'file2use']
+    if os.path.exists(original_path):
+        new_path = path_raw + 'FileToUse/TimeSeries/' + meta_both.loc[event_id,'file2use']
+        if not os.path.exists(new_path):
+            shutil.copyfile(original_path, new_path)
+
+
 # Categorise events
-events = pd.read_csv(path_raw_honda + 'InsightTables_csv/Event_Table.csv')
+events = pd.read_csv(path_raw + 'FileToUse/InsightTables/Event_Table.csv')
 severity = events[['eventID','eventSeverity1','eventSeverity2']].set_index('eventID')
 categories = {'SafeBaseline': (severity['eventSeverity1'].isin(['Balanced-Sample Baseline', 'Additional Baseline'])), 
               'Crash': (severity['eventSeverity1']=='Crash')&(severity['eventSeverity2']=='Not Applicable'),
@@ -207,7 +218,7 @@ meta_both[['first','second']] = vehicles_involved.loc[meta_both.index.values][['
 
 # Vehicle dimensions, note that the `other` target may not be involved in a secondary event
 vehicle_dimension = define_vehicle_dimension()
-ego_vehicle = pd.read_csv(path_raw_honda + 'InsightTables_csv/VehicleDetailTable.csv')
+ego_vehicle = pd.read_csv(path_raw + 'FileToUse/InsightTables/VehicleDetailTable.csv')
 ego_vehicle['width'] = ego_vehicle['classification'].map(vehicle_dimension['width'])
 ego_vehicle['length'] = ego_vehicle['classification'].map(vehicle_dimension['length'])
 meta_both[['ego_width','ego_length']] = ego_vehicle.set_index('eventID').loc[meta_both.index.values][['width','length']].values

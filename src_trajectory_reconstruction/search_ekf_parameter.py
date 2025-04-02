@@ -221,7 +221,7 @@ def main(args):
             for event_id in progress_bar:
                 ## read time series data
                 try:
-                    sample = pd.read_csv(meta_both.loc[event_id]['file_dir'] + meta_both.loc[event_id]['file2use'], on_bad_lines='warn')
+                    sample = pd.read_csv(path_raw + 'FileToUse/TimeSeries/' + meta_both.loc[event_id]['file2use'], on_bad_lines='warn')
                 except:
                     # print(f'Error reading {event_id}, skip')
                     continue

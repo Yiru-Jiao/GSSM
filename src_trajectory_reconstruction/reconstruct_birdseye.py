@@ -112,7 +112,7 @@ for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
 
         ## read time series data
         try:
-            sample = pd.read_csv(meta_both.loc[event_id]['file_dir'] + meta_both.loc[event_id]['file2use'], on_bad_lines='warn')
+            sample = pd.read_csv(path_raw + 'FileToUse/TimeSeries/' + meta_both.loc[event_id]['file2use'], on_bad_lines='warn')
         except:
             meta_both, data_save = act_before_continue(meta_both, event_id, 0, 0, 'file reading error', 
                                                        data_save, separate_chunk, save_checkpoint, chunk_id)
