@@ -428,8 +428,8 @@ def evaluate(indicator, threshold, safety_evaluation, event_data, event_meta, vo
     event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end']].copy()
-    initial_columns = ['true_warning', 'safety_recorded', 'safe_target_ids', 'num_false_warning', 'num_true_non_warning', 'false_warning']
-    initial_vlaues = [np.nan, False, 'none', np.nan, np.nan, np.nan]
+    initial_columns = ['danger_recorded', 'true_warning', 'safety_recorded', 'safe_target_ids', 'num_false_warning', 'num_true_non_warning', 'false_warning']
+    initial_vlaues = [True, np.nan, False, 'none', np.nan, np.nan, np.nan]
     for event_id in event_ids:
         event = safety_evaluation.loc[event_id]
         records.loc[event_id, initial_columns] = initial_vlaues
