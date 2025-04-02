@@ -421,24 +421,68 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
     return records
 
 
-# def encode_get_attention(states, model, device):
-#     contexts, spacing_list = states
-#     data_loader = DataLoader(custom_dataset(contexts), batch_size=1024, shuffle=False)
+def evaluate(indicator, threshold, safety_evaluation, event_data, event_meta, voted_targets):
+    safety_evaluation = safety_evaluation.sort_values(['target_id','time']).set_index('event_id')
+    event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
+    event_meta = event_meta[event_meta['duration_enough']&(event_meta['conflict']!='none')]
+    event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
-#     mu_list = []
-#     sigma_list = []
-#     attended_states = []
-#     attention_matrices = {}
-#     with torch.no_grad():
-#         for x in data_loader:
-#             out = model(send_x_to_device(x, device))
-#             mu, log_var, hidden_states = out
-#         mu_list.append(mu.cpu().numpy()) # (n_samples, 1)
-#         sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
-#         attended_states.append(hidden_states[0].cpu().numpy())
-#         attention_matrices = {key: value.cpu().numpy() for key, value in hidden_states[1].items()}
+    records = event_meta[['danger_start', 'danger_end']].copy()
+    initial_columns = ['true_warning', 'safety_recorded', 'safe_target_ids', 'num_false_warning', 'num_true_non_warning', 'false_warning']
+    initial_vlaues = [np.nan, False, 'none', np.nan, np.nan, np.nan]
+    for event_id in event_ids:
+        event = safety_evaluation.loc[event_id]
+        records.loc[event_id, initial_columns] = initial_vlaues
 
-#     mu = np.concatenate(mu_list, axis=0)
-#     sigma = np.concatenate(sigma_list, axis=0)
+        danger = event[(event['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
+                       (event['time']<=event_meta.loc[event_id, 'danger_end']/1000)].reset_index().set_index('target_id')
 
-#     return mu, sigma, attended_states, attention_matrices
+        # Determine the conflicting target and warning
+        target_id = voted_targets.loc[event_id, 'target_id']
+        target_danger = danger.loc[[target_id]]
+        records.loc[event_id, 'target_id'] = target_id
+        target_danger = determine_conflicts(target_danger, indicator, threshold)
+        if target_danger['conflict'].sum()>5: # at least warning for 0.5 second
+            records.loc[event_id, 'true_warning'] = 1
+        else:
+            records.loc[event_id, 'true_warning'] = 0
+
+        # Determine safety period for the conflicting target
+        '''
+        the beginning of a non-target vehicle in an event before start_timestamp with no hard braking
+        * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
+        * start: 1.5 seconds after the target is detected
+        * end: considering 2~5 seconds after start, at least 3 seconds before conflict start_timestamp
+        '''
+        targets = event[event['target_id']!=target_id]
+        targets_period = targets[targets['time']<(event_meta.loc[event_id, 'start_timestamp']/1000-3.)]
+        if len(targets_period) < 35:
+            # later there will be a filter of 35 time moments per target, so here it is meaningless if less than 35
+            records.loc[event_id, 'safety_recorded'] = False
+            continue
+        safety_recorded = False
+        target_ids = []
+        false_warnings = 0
+        targets_period = targets_period.reset_index().set_index(['event_id', 'target_id', 'time'])
+        for target_id in targets_period.index.get_level_values('target_id').unique():
+            target_period = targets_period.loc[(event_id, target_id)]
+            if len(target_period)<35:
+                # a potential target in safety for at least 2 seconds after start (i.e. 15+20)
+                continue
+            target_period = target_period.iloc[15:65]
+            no_hard_braking = (event_data.loc[(event_id, target_id, target_period.index), 'acc_ego'].min()>-1.5)
+            if no_hard_braking:
+                safety_recorded = True
+                target_ids.append(target_id)
+                target_period = determine_conflicts(target_period, indicator, threshold)
+                if np.any(target_period['conflict']):
+                    false_warnings += 1
+        true_non_warnings = len(target_ids) - false_warnings
+
+        if safety_recorded:
+            records.loc[event_id, ['safety_recorded', 'num_false_warning', 'num_true_non_warning']] = [True, false_warnings, true_non_warnings]
+            records.loc[event_id, 'safe_target_ids'] = ','.join([str(i) for i in target_ids])
+            records.loc[event_id, 'false_warning'] = 1 if false_warnings>0 else 0
+
+    records['threshold'] = threshold
+    return records

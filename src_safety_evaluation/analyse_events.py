@@ -61,7 +61,7 @@ def main(args, path_result, path_prepared):
 
     # Read data for all event categories
     path_events = path_result + 'EventData/'
-    path_results = path_result + 'EventEvaluation/'
+    path_eval = path_result + 'EventEvaluation/'
     event_meta, event_data = read_events(path_events)
     if os.path.exists(path_result + 'Analyses/EventMeta.csv'):
         event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
@@ -102,7 +102,7 @@ def main(args, path_result, path_prepared):
         else:
             print(f'--- Analyzing with {indicator} ---')
             sub_initial_time = systime.time()
-            safety_evaluation = read_evaluation(indicator, path_results)
+            safety_evaluation = read_evaluation(indicator, path_eval)
             progress_bar = tqdm(thresholds, desc=indicator, ascii=True, dynamic_ncols=False, miniters=10)
             records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, indicator) for threshold in progress_bar)
             records = pd.concat(records).reset_index()
@@ -114,7 +114,7 @@ def main(args, path_result, path_prepared):
             print(f'{indicator} time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
     # GSSM
-    evaluation_files = os.listdir(path_results)
+    evaluation_files = os.listdir(path_eval)
     evaluation_files = [f[:-3] for f in evaluation_files if f.endswith('.h5') and f!='TAdv_TTC2D_ACT_EI.h5' and f!='highD_UCD.h5']
     if args.reversed_list:
         evaluation_files = evaluation_files[::-1]
@@ -127,7 +127,7 @@ def main(args, path_result, path_prepared):
             print('--- Analyzing with', model_name, '---')
             dataset_name, encoder_name, pretraining = get_model_fig(model_name)
             sub_initial_time = systime.time()
-            safety_evaluation = read_evaluation('GSSM', path_results, dataset_name, encoder_name, pretraining)
+            safety_evaluation = read_evaluation('GSSM', path_eval, dataset_name, encoder_name, pretraining)
             progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
             gssm_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'GSSM') for threshold in progress_bar)
             gssm_records = pd.concat(gssm_records).reset_index()
@@ -162,7 +162,7 @@ def main(args, path_result, path_prepared):
         else:
             print('--- Issuing warning', conflict_indicator, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
-            safety_evaluation = read_evaluation(conflict_indicator, path_results)
+            safety_evaluation = read_evaluation(conflict_indicator, path_eval)
             if conflict_indicator == 'UCD':
                 optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'ROC')
                 records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
@@ -183,7 +183,7 @@ def main(args, path_result, path_prepared):
         else:
             print('--- Issuing warning', model_name, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-            safety_evaluation = read_evaluation('GSSM', path_results, dataset_name, encoder_name, pretraining)
+            safety_evaluation = read_evaluation('GSSM', path_eval, dataset_name, encoder_name, pretraining)
             optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'ROC')
             records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
             records['model'] = model_name
