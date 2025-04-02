@@ -147,6 +147,7 @@ meta_both['file2use'] = meta_both['time_series_honda']
 condition = meta_both['time_series_honda'].isnull()
 meta_both.loc[condition,'file_dir'] = path_raw_das + 'Videos_And_TimeSeriesData/'
 meta_both.loc[condition,'file2use'] = meta_both.loc[condition,'time_series_das']
+meta_both[['file_dir','file2use']] = meta_both[['file_dir','file2use']].astype(str)
 meta_both = meta_both.set_index('event_id')  # 41,404 events
 
 
