@@ -303,7 +303,7 @@ def main(args):
     cpu_number = os.cpu_count()
     if cpu_number<32:
         '''
-        With 64 CPUs, the search takes around 11 hours
+        With 64 CPUs, the search takes around 26 hours
         '''
         print(f'Number of CPUs: {cpu_number}, may not be efficient enough for grid search.')
         sys.exit(0)
@@ -407,4 +407,3 @@ if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
     main(args)
-    
