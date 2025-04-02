@@ -192,8 +192,8 @@ def main(args, path_result, path_prepared):
         results = pd.concat(results).reset_index()
         results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
         results['danger_recorded'] = results['danger_recorded'].astype(bool)
-    if len(existing_models) > 0:
-        results = pd.concat([results, existing_results]).reset_index(drop=True)
+        if len(existing_models) > 0:
+            results = pd.concat([results, existing_results]).reset_index(drop=True)
     results.to_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results', mode='w')
     print('--- Optimal warning analysis completed ---')
     print('Analysed models:', results['model'].unique())
