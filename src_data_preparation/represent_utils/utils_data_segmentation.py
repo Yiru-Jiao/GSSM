@@ -60,7 +60,7 @@ class ContextSegmenter(coortrans):
         self.dataset = dataset
         self.current_feature_size = 14
         if self.dataset=='SafeBaseline':
-            self.events = pd.read_csv('./RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
+            self.events = pd.read_csv('./RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')
             self.environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
             self.one_hot_encoder = self.create_categorical_encoder(self.environment_feature_names)
         context_set = self.segment_data()

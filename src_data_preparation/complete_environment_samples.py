@@ -18,7 +18,7 @@ def main(path_prepared):
 
     # Generate "complete" environment features
     print('Generating downsampled environment features...')
-    events = pd.read_csv('./RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
+    events = pd.read_csv('./RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')
     environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
     categorical_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
     events.loc[events['surfaceCondition']=='Other','surfaceCondition'] = 'Unknown'

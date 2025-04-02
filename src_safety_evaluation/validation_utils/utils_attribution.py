@@ -52,7 +52,7 @@ class get_sample():
 
         # Define one-hot encoder for environment features
         if 'environment' in encoder_selection:
-            events = pd.read_csv('./RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
+            events = pd.read_csv('./RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')
             environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
             one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 

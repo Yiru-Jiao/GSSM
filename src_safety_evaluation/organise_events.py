@@ -179,6 +179,6 @@ if __name__ == '__main__':
     # Load metadata and event information
     meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
     meta_both = meta_both.set_index('event_id')
-    events = pd.read_csv('RawData/SHRP2/HondaDataSupport/InsightTables_csv/Event_Table.csv').set_index('eventID')
+    events = pd.read_csv('RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')
     
     main(meta_both, events)

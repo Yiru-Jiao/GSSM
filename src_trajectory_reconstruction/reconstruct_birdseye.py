@@ -9,6 +9,7 @@ import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from reconstruction_utils.utils_ego_sur import *
 
+path_raw = './RawData/SHRP2/'
 path_raw_honda = './RawData/SHRP2/HondaDataSupport/'
 path_raw_das = './RawData/SHRP2/DriverAssistanceSystems/'
 path_processed = './ProcessedData/SHRP2/'
@@ -16,7 +17,7 @@ path_processed = './ProcessedData/SHRP2/'
 
 # Load metadata and event information
 meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
-events = pd.read_csv(path_raw_honda + 'InsightTables_csv/Event_Table.csv')
+events = pd.read_csv(path_raw + 'FileToUse/InsightTables/Event_Table.csv')
 meta_both = meta_both.set_index('event_id')
 events = events.set_index('eventID')
 

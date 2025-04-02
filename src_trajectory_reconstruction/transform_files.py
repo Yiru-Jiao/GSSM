@@ -8,12 +8,14 @@ import pandas as pd
 import warnings
 
 path_raw_honda = './RawData/SHRP2/HondaDataSupport/'
+path_file2use = './RawData/SHRP2/FileToUse/'
+os.makedirs(path_file2use, exist_ok=True)
 
 
 print('Converting .xlsx files to .csv files...')
 
 path_xlsx = path_raw_honda + 'Insight Tables/'
-path_csv = path_raw_honda + 'InsightTables_csv/'
+path_csv = path_file2use + 'InsightTables/'
 os.makedirs(path_csv, exist_ok=True)
 warnings.simplefilter(action='ignore', category=FutureWarning) # suppress FutureWarnings by this line
 warnings.simplefilter(action='ignore', category=UserWarning) # suppress UserWarnings by this line
