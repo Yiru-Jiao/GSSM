@@ -34,7 +34,7 @@ def main(path_result, path_prepared):
     os.makedirs(path_result + 'Conflicts/Results/', exist_ok=True)
     _, event_data = read_events(path_events)
     event_meta = pd.read_csv(path_result + 'Analyses/EventMeta.csv', index_col=0)
-    voted_targets = event_meta[['duration_enough','event_category','conflict']]
+    voted_targets = event_meta[['duration_enough','event_category','conflict']].copy()
 
     # Record the identified target by all used SSMs under corresponding optimal thresholds
     warning_timeliness = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')

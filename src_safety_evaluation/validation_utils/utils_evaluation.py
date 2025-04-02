@@ -424,7 +424,7 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
 def evaluate(indicator, threshold, safety_evaluation, event_data, event_meta, voted_targets):
     safety_evaluation = safety_evaluation.sort_values(['target_id','time']).set_index('event_id')
     event_data = event_data.reset_index().set_index(['event_id', 'target_id', 'time'])
-    event_meta = event_meta[event_meta['duration_enough']&(event_meta['conflict']!='none')]
+    event_meta = event_meta.loc[voted_targets.index.values]
     event_ids = np.intersect1d(event_meta.index.values, safety_evaluation.index.unique())
 
     records = event_meta[['danger_start', 'danger_end']].copy()
