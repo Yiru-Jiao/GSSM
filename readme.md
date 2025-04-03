@@ -26,19 +26,35 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 **!! Rerun for the final round before submission !!**
 
 ### Bird's eye trajectory reconstruction
-`/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
+- **Transform .xlsx to .csv:** `/src_trajectory_reconstruction/transform_files.py`
+- **Meta data:** `/src_trajectory_reconstruction/organise_metadata.py`
+- **EKF:** `/src_trajectory_reconstruction/search_ekf_parameter.py`
+- **Reconstruct:** `/src_trajectory_reconstruction/reconstruct_birdseye.py`
 
 ### Training data preparation
-`src_data_preparation/prepare_highD.py`, `src_data_preparation/prepare_argoverse.py`, `src_data_preparation/complete_environment_samples.py`, `src_data_preparation/segment_datasets.py`
+- **:** `src_data_preparation/prepare_highD.py`
+- **:** `src_data_preparation/prepare_argoverse.py`
+- **:** `src_data_preparation/complete_environment_samples.py`
+- **:** `src_data_preparation/segment_datasets.py`
 
 ### Encoder pretraining
-`src_encoder_pretraining/ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
+- **:** `src_encoder_pretraining/ae_train_eval.py`
+- **:** `src_encoder_pretraining/clt_search_hyperparameter.py`
+- **:** `src_encoder_pretraining/clt_train_eval.py`,
 
 ### Posterior inference
-`src_safety_evaluation/reuse_ucd/train_gaussian.py`, `src_posterior_inference/pi_train_eval.py`
+- **:** `src_safety_evaluation/reuse_ucd/train_gaussian.py`
+- **:** `src_posterior_inference/pi_train_eval.py`
 
-### Safety evaluation
-`src_safety_evaluation/organise_events.py`, `src_safety_evaluation/evaluate_safety.py`, `src_safety_evaluation/analyse_events.py`, `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`
+### Test data preparation and first-stage safety evaluation
+- **:** `src_safety_evaluation/organise_events.py`
+- **:** `src_safety_evaluation/evaluate_safety.py`
+- **:** `src_safety_evaluation/analyse_events.py`
+- **:** `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`
+
+### Second-stage safety evaluation and result analysis
+- **:** `src_safety_evaluation/vote_conflicting_target.py`
+- **:** `src_safety_evaluation/attribute_intensity.py`
 
 ## Copyright
 ### Citation
