@@ -96,10 +96,18 @@ def main(args, manual_seed, path_prepared):
         else:
             pipeline.train_model(epochs, initial_lr, lr_schedule=True, verbose=5)
             val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
-        model_size = sum(p.numel() for p in pipeline.model.parameters())
+        model_size = dict()
+        model_size['whole_model'] = sum(p.numel() for p in pipeline.model.parameters() if p.requires_grad)
+        model_size['current_encoder'] = sum(p.numel() for p in pipeline.model.CurrentEncoder.parameters() if p.requires_grad)
+        if 'environment' in encoder_selection:
+            model_size['environment_encoder'] = sum(p.numel() for p in pipeline.model.EnvEncoder.parameters() if p.requires_grad)
+        if 'profiles' in encoder_selection:
+            model_size['profiles_encoder'] = sum(p.numel() for p in pipeline.model.TSEncoder.spclt_model.net.parameters() if p.requires_grad)
+        model_size['attention_decoder'] = sum(p.numel() for p in pipeline.model.AttentionDecoder.parameters() if p.requires_grad)
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
-        columns = ['dataset', 'encoder_selection', 'pretraining', 'val_loss', 'model_size']
-        evaluation.loc[len(evaluation), columns] = [dataset_name, encoder_name, pretraining, val_loss, model_size]
+        columns = ['dataset', 'encoder_selection', 'pretraining', 'val_loss'] + list(model_size.keys())
+        values = [dataset_name, encoder_name, pretraining, val_loss] + list(model_size.values())
+        evaluation.loc[len(evaluation), columns] = values
         evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'pretraining'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
