@@ -9,7 +9,7 @@ from sklearn.preprocessing import OneHotEncoder
 from represent_utils.coortrans import coortrans
 
 
-def read_dataset(dataset, path_processed):
+def read_dataset(dataset, path_processed, manual_seed):
     if dataset=='highD':
         data_both = pd.concat([pd.read_hdf(path_processed+'highD/lane_changing/lc_0'+str(loc_id)+'.h5', key='data') for loc_id in range(1,7)], ignore_index=True)
         data_both['event_id'] = data_both['track_id_ego']
@@ -37,7 +37,7 @@ def read_dataset(dataset, path_processed):
         veh_dimensions.loc[veh_dimensions['ego_width'].isna(), 'ego_width'] = np.nanmean(veh_dimensions['ego_width'].values)
         data_both[['length_ego','width_ego']] = veh_dimensions.loc[data_both['event_id'].values, ['ego_length','ego_width']].values
         veh_dimensions = veh_dimensions[~veh_dimensions['target_length'].isna()].reset_index()
-        random_dimensions = np.random.choice(veh_dimensions.index, data_both['event_id'].nunique(), replace=True)
+        random_dimensions = np.random.RandomState(manual_seed).choice(veh_dimensions.index, data_both['event_id'].nunique(), replace=True)
         random_dimensions = pd.DataFrame(veh_dimensions.loc[random_dimensions, ['target_length','target_width']].values,
                                          columns=['random_length','random_width'], index=data_both['event_id'].unique())
         data_both[['length_sur','width_sur']] = random_dimensions.loc[data_both['event_id'].values, ['random_length','random_width']].values
@@ -51,13 +51,14 @@ def read_dataset(dataset, path_processed):
 
 
 class ContextSegmenter(coortrans):
-    def __init__(self, data, initial_scene_id, dataset):
+    def __init__(self, data, initial_scene_id, dataset, manual_seed):
         super().__init__()
         self.target_ids = data['target_id'].unique()
         data = data.sort_values(['target_id','time']).set_index(['target_id','time'])
         self.data = data
         self.initial_scene_id = initial_scene_id
         self.dataset = dataset
+        self.manual_seed = manual_seed
         self.current_feature_size = 14
         if self.dataset=='SafeBaseline':
             self.events = pd.read_csv('./RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')
@@ -85,10 +86,11 @@ class ContextSegmenter(coortrans):
         current_features_set = []
         event_id_list = []
         scene_id = self.initial_scene_id
+        random_ends = np.random.RandomState(self.manual_seed).randint(1, 6, size=len(self.target_ids))
 
         for id_count, target_id in tqdm(enumerate(self.target_ids), desc='Target', total=len(self.target_ids), ascii=True, dynamic_ncols=False, miniters=100):
-            df = self.data.loc(axis=0)[target_id, :]
-            if len(df)<50: # skip if the target was detected for less than 5 seconds
+            df = self.data.loc(axis=0)[target_id, :].reset_index()
+            if len(df)<35: # skip if the target was detected for less than 3.5 seconds
                 continue
             else:
                 event_id = df['event_id'].iloc[0]
@@ -96,15 +98,17 @@ class ContextSegmenter(coortrans):
             df_view_ego = self.transform_coor(df, 'ego')
             df_view_relative = self.transform_coor(df, 'relative')
             if self.dataset=='highD' or self.dataset=='ArgoverseAV':
-                indices_end = np.arange(len(df)-1, 25, -15)
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -15)
             elif self.dataset=='SafeBaseline':
-                indices_end = np.arange(len(df)-1, 25, -20)
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -20)
             elif self.dataset=='ArgoverseHV':
-                indices_end = np.arange(len(df)-1, 25, -45)
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -45)
 
             for idx_end in indices_end:
-                # sample 2.5-second scenes every 1 second
-                profiles = df.iloc[idx_end-25:idx_end][['acc_ego','v_ego']]
+                # sample 2.5-second scenes
+                df['psi_ego'] = self.angle(0, 1, df['hx_ego'], df['hy_ego'])
+                df['yaw_ego'] = np.gradient(df['psi_ego'], df['time'])
+                profiles = df.iloc[idx_end-25:idx_end][['yaw_ego','v_ego']]
                 profiles['v_ego'] = abs(profiles['v_ego'])
                 profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
                 profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values

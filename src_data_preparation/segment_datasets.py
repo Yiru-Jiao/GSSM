@@ -10,7 +10,7 @@ import numpy as np
 from represent_utils.utils_data_segmentation import ContextSegmenter, read_dataset
 
 
-def main(path_prepared, path_processed):
+def main(path_prepared, path_processed, manual_seed):
     initial_time = systime.time()
     print(f'Available cores for parallel processing: {multiprocessing.cpu_count()}')
 
@@ -22,7 +22,7 @@ def main(path_prepared, path_processed):
             continue
 
         print('Loading data...')
-        data_both = read_dataset(dataset, path_processed)
+        data_both = read_dataset(dataset, path_processed, manual_seed)
         # Separate all the events into train (80%) and val (20%) sets, the test set will be (near-)crashes in SHRP2
         '''
         highD: 236,685 train scenes (min. dist. 1.36 m) + 57,939 val scenes (min. dist. 2.95 m)
@@ -41,7 +41,7 @@ def main(path_prepared, path_processed):
         initial_scene_id = 0
         for data, suffix in zip([data_train, data_val], ['train', 'val']):
             print('Segmenting ' + dataset + ' ' + suffix + ' set...')
-            segmenter = ContextSegmenter(data, initial_scene_id, dataset)
+            segmenter = ContextSegmenter(data, initial_scene_id, dataset, manual_seed)
             print(f'{suffix} current examples:', segmenter.current_features_set.iloc[:5].to_string(), '\n', segmenter.current_features_set.describe().to_string())
             print(f'{suffix} profiles examples:', segmenter.profiles_set.iloc[:5].to_string(), '\n', segmenter.profiles_set.describe().to_string())
             segmenter.profiles_set.to_hdf(path_save + f'profiles_{dataset}_{suffix}.h5', key='profiles')
@@ -69,4 +69,4 @@ if __name__ == '__main__':
     os.makedirs('./PreparedData/Segments/', exist_ok=True)
     path_prepared = './PreparedData/Segments/'
     path_processed = './ProcessedData/'
-    main(path_prepared, path_processed)
+    main(path_prepared, path_processed, manual_seed)

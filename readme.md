@@ -29,8 +29,7 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 `/src_trajectory_reconstruction/transform_files.py`, `/src_trajectory_reconstruction/organise_metadata.py`, `/src_trajectory_reconstruction/search_ekf_parameter.py`, `/src_trajectory_reconstruction/reconstruct_birdseye.py`
 
 ### Training data preparation
-`src_data_preparation/prepare_highD.py`, `src_data_preparation/prepare_INT.ipynb`, `src_data_preparation/prepare_argoverse.py`
-`src_data_preparation/segment_datasets.py`, `src_data_preparation/complete_environment_samples.py`
+`src_data_preparation/prepare_highD.py`, `src_data_preparation/prepare_argoverse.py`, `src_data_preparation/complete_environment_samples.py`, `src_data_preparation/segment_datasets.py`
 
 ### Encoder pretraining
 `src_encoder_pretraining/ae_train_eval.py`, `src_encoder_pretraining/clt_search_hyperparameter.py`, `src_encoder_pretraining/clt_train_eval.py`,
