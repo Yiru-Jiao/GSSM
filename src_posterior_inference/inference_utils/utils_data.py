@@ -90,7 +90,7 @@ class DataOrganiser(Dataset):
             X_profiles = pd.concat(X_profiles)
             X_profiles = X_profiles.sort_values(['scene_id', 'time']).reset_index(drop=True)
             assert np.all(X_current['scene_id'].values==X_profiles['scene_id'].drop_duplicates().values)
-            X_profiles = X_profiles[['acc_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
+            X_profiles = X_profiles[['yaw_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
             self.data.append(torch.from_numpy(X_profiles).float())
 
         if np.any(X_current['s']<=1e-6): # the spacing must be larger than 0

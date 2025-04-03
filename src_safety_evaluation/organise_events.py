@@ -160,7 +160,7 @@ def main(meta_both, events):
                                                                    'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
                                                                    'psi_sur','acc_ego','rho'])
         current_features['s'] = spacing_list
-        profiles_features = pd.DataFrame(profiles_features.reshape(-1, 4), columns=['acc_ego','v_ego','vx_sur','vy_sur'])
+        profiles_features = pd.DataFrame(profiles_features.reshape(-1, 4), columns=['yaw_ego','v_ego','vx_sur','vy_sur'])
         print(f'--------------------- Variables in {event_cat} ---------------------')
         print(data.columns.to_list(), '\n')
         print('Current features:\n', current_features.describe().to_string(), '\n')

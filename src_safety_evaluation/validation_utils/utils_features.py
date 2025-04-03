@@ -38,7 +38,7 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
 
 
 def segment_data(df, veh_dimensions):
-    df = df.copy()
+    df = df.reset_index()
     df['vx_ego'] = df['v_ego']*df['hx_ego']
     df['vy_ego'] = df['v_ego']*df['hy_ego']
     df['vx_sur'] = df['v_sur']*df['hx_sur']
@@ -50,7 +50,9 @@ def segment_data(df, veh_dimensions):
     current_features_set = []
     spacing_set = []
     for idx_end in indices_end:
-        profiles = df.iloc[idx_end-25:idx_end][['acc_ego','v_ego']]
+        df['psi_ego'] = coortrans.angle(0, 1, df['hx_ego'], df['hy_ego'])
+        df['yaw_ego'] = np.gradient(df['psi_ego'], df['time'])
+        profiles = df.iloc[idx_end-25:idx_end][['yaw_ego','v_ego']]
         profiles['v_ego'] = abs(profiles['v_ego'])
         profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
         profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values
