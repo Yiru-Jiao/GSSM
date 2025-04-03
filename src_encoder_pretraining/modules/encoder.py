@@ -23,13 +23,13 @@ class LSTMEncoder(nn.Module):
         # in total 5 time blocks, each for the passed 0.5, 1, 1.5, 2, 2.5 seconds
         for i, lstm in enumerate(self.LSTMs):
             sub_x = x[:, -(i+1)*5:, :] # (batch_size, [5, 10, 15, 20, 25], feature_dims)
-            h0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims).to(x.device)
-            c0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims).to(x.device)
-            _, (sub_hidden, _) = lstm(sub_x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dims)
+            h0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims//2).to(x.device)
+            c0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims//2).to(x.device)
+            _, (sub_hidden, _) = lstm(sub_x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dims//2)
             if i==0:
-                hidden = sub_hidden[-1].unsqueeze(1) # (batch_size, 1, hidden_dims)
+                hidden = sub_hidden[-1].unsqueeze(1) # (batch_size, 1, hidden_dims//2)
             else:
-                hidden = torch.cat((hidden, sub_hidden[-1].unsqueeze(1)), dim=1) # (batch_size, [2, 3, 4, 5], hidden_dims)
+                hidden = torch.cat((hidden, sub_hidden[-1].unsqueeze(1)), dim=1) # (batch_size, [2, 3, 4, 5], hidden_dims//2)
         out = self.linear(hidden) # (batch_size, 5, hidden_dims)
         # nn.Linear() applies to the last dimension, therefore the 5 time blocks are still independently processed
         return out
