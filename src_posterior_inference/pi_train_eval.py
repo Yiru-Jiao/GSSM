@@ -62,7 +62,9 @@ def main(args, manual_seed, path_prepared):
     if os.path.exists(path_prepared + 'PosteriorInference/evaluation.csv'):
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     else:
-        evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'pretraining', 'val_loss', 'model_size'])
+        evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'pretraining', 'val_loss',
+                                           'whole_model', 'current_encoder', 'environment_encoder', 
+                                           'profiles_encoder', 'attention_decoder'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     for dataset, encoder_selection, pretrained_encoder in zip(datasets, encoder_combinations, pretraining_flag):
         dataset_name = '_'.join(dataset)
@@ -74,7 +76,7 @@ def main(args, manual_seed, path_prepared):
         elif pretrained_encoder=='all':
             pretraining = 'pretrained_all'
 
-        initial_lr = 0.0002
+        initial_lr = 0.0001
         batch_size = 512
         epochs = 300
         
@@ -106,7 +108,7 @@ def main(args, manual_seed, path_prepared):
         model_size['attention_decoder'] = sum(p.numel() for p in pipeline.model.AttentionDecoder.parameters() if p.requires_grad)
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
         columns = ['dataset', 'encoder_selection', 'pretraining', 'val_loss'] + list(model_size.keys())
-        values = [dataset_name, encoder_name, pretraining, val_loss] + list(model_size.values())
+        values = [dataset_name, encoder_name, pretraining, val_loss] + [int(model_size[key]) for key in model_size.keys()]
         evaluation.loc[len(evaluation), columns] = values
         evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'pretraining'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
