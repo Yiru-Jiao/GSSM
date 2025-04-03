@@ -25,10 +25,10 @@ def main(path_prepared, path_processed, manual_seed):
         data_both = read_dataset(dataset, path_processed, manual_seed)
         # Separate all the events into train (80%) and val (20%) sets, the test set will be (near-)crashes in SHRP2
         '''
-        highD: 236,685 train scenes (min. dist. 1.36 m) + 57,939 val scenes (min. dist. 2.95 m)
-        SafeBaseline: 219,016 train scenes (min. dist. 1.83 m) + 54,101 val scenes (min. dist. 2.34 m)
-        ArgoverseHV: 244,444 train scenes (min. dist. 0.29 m) + 60,918 val scenes (min. dist. 0.22 m)
-        ArgoverseAV: 232,164 train scenes (min. dist. 1.33 m) + 58,009 val scenes (min. dist. 1.73 m)
+        highD: 232,976 train scenes (min. dist. 0.07 m) + 57,059 val scenes (min. dist. 2.86 m)
+        SafeBaseline: 226,466 train scenes (min. dist. 2.07 m) + 55,917 val scenes (min. dist. 2.59 m)
+        ArgoverseHV: 267,728 train scenes (min. dist. 0.04 m) + 66,574 val scenes (min. dist. 0.20 m)
+        ArgoverseAV: 240,330 train scenes (min. dist. 0.62 m) + 60,128 val scenes (min. dist. 1.41 m)
         '''
         event_ids = data_both['event_id'].unique()
         len_event_ids = len(event_ids)
