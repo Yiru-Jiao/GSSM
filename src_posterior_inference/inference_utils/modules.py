@@ -8,6 +8,7 @@ import glob
 import torch
 from torch import nn
 import pandas as pd
+from collections import OrderedDict
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_encoder_pretraining.clt_model import spclt
 from src_encoder_pretraining.ssrl_utils.utils_general import load_tuned_hyperparameters, configure_model
@@ -57,20 +58,24 @@ class CurrentEncoder(nn.Module):
     '''
     def __init__(self, input_dims, output_dims=64):
         super(CurrentEncoder, self).__init__()
-        # self.batch_norm = nn.BatchNorm1d(input_dims)
-        self.feature_extractor = nn.Sequential(
-            nn.Linear(2, 8),
-            nn.GELU(),
-            nn.Linear(8, output_dims//2),
-            nn.GELU(),
-            nn.Linear(output_dims//2, output_dims),
-            nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-        )
+        self.feature_extractor = self.order_layers(10, output_dims)
+
+    # Define an layer-ordered MLP
+    def order_layers(self, num_layers, output_dims):
+        ordered_layers = OrderedDict()
+        ordered_layers['linear0'] = nn.Linear(2, 8)
+        ordered_layers['gelu0'] = nn.GELU()
+        ordered_layers['linear1'] = nn.Linear(8, output_dims//2)
+        ordered_layers['gelu1'] = nn.GELU()
+        ordered_layers['linear2'] = nn.Linear(output_dims//2, output_dims)
+        ordered_layers['dropout2'] = nn.Dropout(0.2)
+        ordered_layers['gelu2'] = nn.GELU()
+        for i in range(3, num_layers-1):
+            ordered_layers[f'linear{i}'] = nn.Linear(output_dims, output_dims)
+            ordered_layers[f'dropout{i}'] = nn.Dropout(0.2)
+            ordered_layers[f'gelu{i}'] = nn.GELU()
+        ordered_layers[f'linear{num_layers-1}'] = nn.Linear(output_dims, output_dims)
+        return nn.Sequential(ordered_layers)
 
     # Load a pretrained model
     def load(self, model_selection, device, path_prepared, continue_training=False):
@@ -85,7 +90,6 @@ class CurrentEncoder(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 12 or 13)
-        # x = self.batch_norm(x) # running normalisation over training
         features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
         noise = torch.zeros_like(features) # add reference to the features
         features = torch.cat([features, noise], dim=-1) # (batch_size, 12 or 13, 2)
@@ -101,18 +105,23 @@ class EnvEncoder(nn.Module):
     def __init__(self, input_dims=27, output_dims=64):
         super(EnvEncoder, self).__init__()
         self.feature_extractor = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(indim, output_dims//2),
-                nn.GELU(),
-                nn.Linear(output_dims//2, output_dims),
-                nn.Dropout(0.2),
-                nn.GELU(),
-                nn.Linear(output_dims, output_dims),
-                nn.Dropout(0.2),
-                nn.GELU(),
-                nn.Linear(output_dims, output_dims),
-            ) for indim in [5, 8, 7, 7]
+            self.order_layers(6, indim, output_dims) for indim in [5, 8, 7, 7]
         ]) # 4 different blocks for the 4 different categorical features
+
+    # Define an layer-ordered MLP
+    def order_layers(self, num_layers, input_dims, output_dims):
+        ordered_layers = OrderedDict()
+        ordered_layers['linear0'] = nn.Linear(input_dims, output_dims//2)
+        ordered_layers['gelu0'] = nn.GELU()
+        ordered_layers['linear1'] = nn.Linear(output_dims//2, output_dims)
+        ordered_layers['dropout1'] = nn.Dropout(0.2)
+        ordered_layers['gelu1'] = nn.GELU()
+        for i in range(2, num_layers-1):
+            ordered_layers[f'linear{i}'] = nn.Linear(output_dims, output_dims)
+            ordered_layers[f'dropout{i}'] = nn.Dropout(0.2)
+            ordered_layers[f'gelu{i}'] = nn.GELU()
+        ordered_layers[f'linear{num_layers-1}'] = nn.Linear(output_dims, output_dims)
+        return nn.Sequential(ordered_layers)
 
     # Load a pretrained model
     def load(self, model_selection, device, path_prepared, continue_training=False):
@@ -229,8 +238,9 @@ class AttentionDecoder(nn.Module):
         self.SelfAttention = StackedAttention([
             (self.latent_dims, self.latent_dims),
             (self.latent_dims, self.latent_dims),
-            (self.latent_dims, self.latent_dims*4),
-            (self.latent_dims*4, self.latent_dims*4),
+            (self.latent_dims, self.latent_dims*2),
+            (self.latent_dims*2, self.latent_dims*2),
+            (self.latent_dims*2, self.latent_dims*4),
             (self.latent_dims*4, self.latent_dims*4),
         ])
 
