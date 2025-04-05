@@ -89,7 +89,7 @@ class ContextSegmenter(coortrans):
         random_ends = np.random.RandomState(self.manual_seed).randint(1, 6, size=len(self.target_ids))
 
         for id_count, target_id in tqdm(enumerate(self.target_ids), desc='Target', total=len(self.target_ids), ascii=True, dynamic_ncols=False, miniters=100):
-            df = self.data.loc(axis=0)[target_id, :].reset_index()
+            df = self.data.loc(axis=0)[target_id, :].copy()
             if len(df)<35: # skip if the target was detected for less than 3.5 seconds
                 continue
             else:
