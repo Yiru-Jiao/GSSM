@@ -74,7 +74,10 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     # Load dataset
-    for dataset in ['SafeBaseline','highD_ArgoverseHV_SafeBaseline']:
+    dataset_list = ['SafeBaseline', 'highD_ArgoverseHV_SafeBaseline']
+    if args.reversed_list:
+        dataset_list = dataset_list[::-1]
+    for dataset in dataset_list:
         print(f'---- Loading {dataset} data ----')
         if '_' in dataset:
             train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
