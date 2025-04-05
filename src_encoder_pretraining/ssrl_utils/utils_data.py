@@ -54,8 +54,23 @@ def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
 
 def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
     if feature == 'profiles':
-        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles') for dataset in datasets])
-        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles') for dataset in datasets])
+        train_data = []
+        val_data = []
+        train_scene_ids = 0
+        val_scene_ids = 0
+        for dataset in datasets:
+            train_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles')
+            train_df['scene_id'] = train_df['scene_id'] + train_scene_ids
+            train_scene_ids = train_df['scene_id'].max() + 1
+            train_data.append(train_df)
+            val_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles')
+            val_df['scene_id'] = val_df['scene_id'] + val_scene_ids
+            val_scene_ids = val_df['scene_id'].max() + 1
+            val_data.append(val_df)
+        train_data = pd.concat(train_data)
+        train_data = train_data.sort_values(['scene_id', 'time']).reset_index(drop=True)
+        val_data = pd.concat(val_data)
+        val_data = val_data.sort_values(['scene_id', 'time']).reset_index(drop=True)
         train_X = train_data[['yaw_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
         val_X = val_data[['yaw_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
         assert train_X.ndim == 3 and val_X.ndim == 3
