@@ -108,7 +108,7 @@ class ContextSegmenter(coortrans):
                 # sample 2.5-second scenes
                 df['psi_ego'] = self.angle(0, 1, df['hx_ego'], df['hy_ego']) # [-pi, pi]
                 df['yaw_ego'] = np.gradient(np.unwrap(df['psi_ego']), df['time'])
-                profiles = df.iloc[idx_end-25:idx_end][['yaw_ego','v_ego']]
+                profiles = df.iloc[idx_end-25:idx_end][['target_id','time','yaw_ego','v_ego']]
                 profiles['v_ego'] = abs(profiles['v_ego'])
                 profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
                 profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values
