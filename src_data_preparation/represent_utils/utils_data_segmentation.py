@@ -89,7 +89,7 @@ class ContextSegmenter(coortrans):
         random_ends = np.random.RandomState(self.manual_seed).randint(1, 6, size=len(self.target_ids))
 
         for id_count, target_id in tqdm(enumerate(self.target_ids), desc='Target', total=len(self.target_ids), ascii=True, dynamic_ncols=False, miniters=100):
-            df = self.data.loc(axis=0)[target_id, :].copy()
+            df = self.data.loc(axis=0)[target_id, :].reset_index()
             if len(df)<35: # skip if the target was detected for less than 3.5 seconds
                 continue
             else:
@@ -117,6 +117,7 @@ class ContextSegmenter(coortrans):
                 if profiles.isna().sum().sum()>0 or df.iloc[idx_end].isna().sum()>0:
                     continue
                 profiles['scene_id'] = scene_id
+                profiles = profiles.set_index(['target_id','time'])
 
                 current_features = np.zeros(self.current_feature_size+1)
                 vx_ego, vy_ego, vx_sur, vy_sur = df.iloc[idx_end][['vx_ego','vy_ego','vx_sur','vy_sur']].values

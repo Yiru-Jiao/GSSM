@@ -38,7 +38,7 @@ def read_data(event_cat, single_file=True, path_processed=path_processed):
 
 
 def segment_data(df, veh_dimensions):
-    df = df.copy()
+    df = df.reset_index().sort_values('time')
     df['vx_ego'] = df['v_ego']*df['hx_ego']
     df['vy_ego'] = df['v_ego']*df['hy_ego']
     df['vx_sur'] = df['v_sur']*df['hx_sur']
