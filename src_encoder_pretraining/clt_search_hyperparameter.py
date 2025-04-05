@@ -2,7 +2,7 @@
 This script searches the hyperparameters for the contrastive learning training of the profile encoder.
 
 Search strategy:
-Fix `lr`=0.001 and `bs`=8 (as learned in our previous research), 
+Fix `lr`=0.0001 and `bs`=8 (as learned in our previous research), 
 the training score is the contrastive learning loss (without regularization)
 
 - SoftCLT (use soft labels, no regularizer):

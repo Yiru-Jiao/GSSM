@@ -38,7 +38,7 @@ class trainer():
             dist_metric = self.dist_metric,
             device = device,
             batch_size = self.batch_size,
-            lr = 0.001,
+            lr = 0.0001,
             weight_lr = self.weight_lr,
             loss_config = dict(
                 tau_inst = self.tau_inst,

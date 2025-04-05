@@ -45,7 +45,7 @@ def parse_args():
     args.iters = None
     args.epochs = 50
     args.batch_size = 8
-    args.lr = 0.001
+    args.lr = 0.0001
     args.weight_lr = 0.01
 
     return args

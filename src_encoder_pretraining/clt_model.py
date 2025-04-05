@@ -18,7 +18,7 @@ import src_encoder_pretraining.ssrl_utils.utils_data as datautils
 class spclt():
     def __init__(self,
         input_dims=4, output_dims=64,
-        dist_metric='DTW', device='cpu', lr=0.001, weight_lr=0.05, batch_size=8,
+        dist_metric='DTW', device='cpu', lr=0.0001, weight_lr=0.05, batch_size=8,
         after_iter_callback=None, after_epoch_callback=None,
         regularizer_config={'reserve': None, 'topology': 0.0, 'geometry': 0.0},
         loss_config=None,

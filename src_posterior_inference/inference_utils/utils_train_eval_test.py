@@ -161,7 +161,7 @@ class train_val_test():
         else:
             return loss
 
-    def train_model(self, num_epochs=300, initial_lr=0.001, lr_schedule=True, verbose=0):
+    def train_model(self, num_epochs=300, initial_lr=0.0001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
         self.lr_reduced = False
