@@ -111,6 +111,7 @@ def main(args, manual_seed, path_prepared):
         values = [dataset_name, encoder_name, pretraining, val_loss] + [int(model_size[key]) for key in model_size.keys()]
         evaluation.loc[len(evaluation), columns] = values
         evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'pretraining'])
+        evaluation[list(model_size.keys())] = evaluation[list(model_size.keys())].astype(int)
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)

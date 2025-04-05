@@ -48,9 +48,9 @@ This offers a workflow to repeat the experiments in the paper. More detailed ins
 
 ### Test data preparation and first-stage safety evaluation
 - **:** `src_safety_evaluation/organise_events.py`
+- **:** `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`
 - **:** `src_safety_evaluation/evaluate_safety.py`
 - **:** `src_safety_evaluation/analyse_events.py`
-- **:** `src_safety_evaluation/reuse_ucd/reuse_gaussian.py`
 
 ### Second-stage safety evaluation and result analysis
 - **:** `src_safety_evaluation/vote_conflicting_target.py`

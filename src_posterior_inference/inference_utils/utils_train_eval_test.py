@@ -81,10 +81,10 @@ class train_val_test():
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.single_output, self.return_attention)
         if self.pretrained_encoder==True:
-            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=True)
+            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=False)
         elif self.pretrained_encoder=='all':
             self.model.load_pretrained_encoders('highD_ArgoverseHV_SafeBaseline', 
-                                                self.path_prepared, continue_training=True)
+                                                self.path_prepared, continue_training=False)
 
     def create_dataloader(self, batch_size):
         self.batch_size = batch_size
@@ -208,6 +208,9 @@ class train_val_test():
                 if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.5:
                     # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
                     sys.stderr.write('\n Learning rate is reduced twice so the loss will involve KL divergence since now...')
+                    # make the frozen parameters trainable
+                    for param in self.model.parameters():
+                        param.requires_grad = True
                     # re-define learning rate and its scheduler for new loss function
                     self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
