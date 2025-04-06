@@ -33,18 +33,21 @@ def set_experiments(stage=[1,2,3,4]):
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
-            [['SafeBaseline'], ['current'], 'all'],
             [['SafeBaseline'], ['current+acc'], False],
-            [['SafeBaseline'], ['current+acc'], 'all'],
             [['SafeBaseline'], ['current', 'environment'], False],
-            [['SafeBaseline'], ['current', 'environment'], 'all'],
             [['SafeBaseline'], ['current+acc', 'environment'], False],
-            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
             [['SafeBaseline'], ['current','environment','profiles'], False],
-            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
             [['SafeBaseline'], ['current+acc','environment','profiles'], False],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
         ])
+    if 4 in stage: # add extra features, pretrained encoders
+        exp_config.extend([
+            [['SafeBaseline'], ['current'], 'all'],
+            [['SafeBaseline'], ['current+acc'], 'all'],
+            [['SafeBaseline'], ['current', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
+        ])        
     return exp_config
 
 
