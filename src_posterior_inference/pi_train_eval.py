@@ -99,17 +99,17 @@ def main(args, manual_seed, path_prepared):
             pipeline.train_model(epochs, initial_lr, lr_schedule=True, verbose=5)
             val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
         model_size = dict()
-        model_size['whole_model'] = sum(p.numel() for p in pipeline.model.parameters() if p.requires_grad)
-        model_size['current_encoder'] = sum(p.numel() for p in pipeline.model.CurrentEncoder.parameters() if p.requires_grad)
+        model_size['whole_model'] = sum(p.numel() for p in pipeline.model.parameters())
+        model_size['current_encoder'] = sum(p.numel() for p in pipeline.model.CurrentEncoder.parameters())
         if 'environment' in encoder_selection:
-            model_size['environment_encoder'] = sum(p.numel() for p in pipeline.model.EnvEncoder.parameters() if p.requires_grad)
+            model_size['environment_encoder'] = sum(p.numel() for p in pipeline.model.EnvEncoder.parameters())
         else:
             model_size['environment_encoder'] = 0
         if 'profiles' in encoder_selection:
-            model_size['profiles_encoder'] = sum(p.numel() for p in pipeline.model.TSEncoder.spclt_model.net.parameters() if p.requires_grad)
+            model_size['profiles_encoder'] = sum(p.numel() for p in pipeline.model.TSEncoder.spclt_model.net.parameters())
         else:
             model_size['profiles_encoder'] = 0
-        model_size['attention_decoder'] = sum(p.numel() for p in pipeline.model.AttentionDecoder.parameters() if p.requires_grad)
+        model_size['attention_decoder'] = sum(p.numel() for p in pipeline.model.AttentionDecoder.parameters())
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
         columns = ['dataset', 'encoder_selection', 'pretraining', 'val_loss'] + list(model_size.keys())
         values = [dataset_name, encoder_name, pretraining, val_loss] + [int(model_size[key]) for key in model_size.keys()]
