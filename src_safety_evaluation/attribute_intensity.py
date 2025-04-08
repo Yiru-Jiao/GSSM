@@ -102,7 +102,7 @@ def main(args, manual_seed, path_prepared, path_result):
         explainer = shap.GradientExplainer(decoder, ref_samples, batch_size=1024)
 
         # Read event_id and target_id pairs
-        voted_targets = pd.read_csv(path_result + 'ConflictingTarget/Voted_conflicting_target.csv')
+        voted_targets = pd.read_csv(path_result + 'Conflicts/Voted_conflicting_target.csv')
         voted_targets = voted_targets[voted_targets['target_id']>=0]
 
         # Compute and save gradients for each event
