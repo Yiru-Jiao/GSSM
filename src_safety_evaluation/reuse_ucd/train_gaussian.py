@@ -1,5 +1,5 @@
 '''
-This script reuses the UCD model to train a SVGP model with the highD dataset.
+This script reuses the UCD model to train a SVGP model with the SafeBaseline dataset.
 '''
 
 import os
@@ -56,7 +56,7 @@ def main(args, manual_seed, model_path):
         print('Model already trained. Exiting...')
     else:
         pipeline = train_val_test(device, num_inducing_points, 
-                                  path_input='PreparedData/Segments/highD/',
+                                  path_input='PreparedData/Segments/SafeBaseline/',
                                   path_output=model_path)
         pipeline.create_dataloader(batch_size, beta)
         print('Training...')
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     manual_seed = 131
-    model_path = 'PreparedData/PosteriorInference/highD/ucd/'
+    model_path = 'PreparedData/PosteriorInference/SafeBaseline/ucd/'
     os.makedirs(model_path, exist_ok=True)
 
     main(args, manual_seed, model_path)

@@ -35,7 +35,7 @@ class DataOrganiser(Dataset):
         return int_ctxt, cur_spac
 
     def read_data(self,):
-        features = pd.read_hdf(self.path_input + 'current_features_highD_' + self.dataset + '.h5', key='features')
+        features = pd.read_hdf(self.path_input + 'current_features_SafeBaseline_' + self.dataset + '.h5', key='features')
         self.idx_list = features['scene_id'].values
         features = features.set_index('scene_id')
         variables = ['l_ego','l_sur','combined_width',
@@ -267,7 +267,7 @@ def define_model(num_inducing_points, device):
     likelihood = gpytorch.likelihoods.GaussianLikelihood()
 
     ## Load trained model
-    model_path = 'PreparedData/PosteriorInference/highD/ucd/'
+    model_path = 'PreparedData/PosteriorInference/SafeBaseline/ucd/'
     existing_files = os.listdir(model_path)
     model_file = [file for file in existing_files if 'model_' in file]
     likelihood_file = [file for file in existing_files if 'likelihood_' in file]

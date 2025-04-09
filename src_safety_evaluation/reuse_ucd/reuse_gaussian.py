@@ -77,8 +77,8 @@ def main(args, manual_seed, path_result):
     model, likelihood = define_model(100, device)
 
     # Evaluation
-    if os.path.exists(path_save + f'highD_UCD.h5'):
-        results = pd.read_hdf(path_save + f'highD_UCD.h5', key='data')
+    if os.path.exists(path_save + f'SafeBaseline_UCD.h5'):
+        results = pd.read_hdf(path_save + f'SafeBaseline_UCD.h5', key='data')
         print(f'The events has been evaluated by UCD.')
     else:
         if os.path.exists(path_save + 'EvaluationEfficiency.csv'):
@@ -98,7 +98,7 @@ def main(args, manual_seed, path_result):
         results['sigma'] = sigma
         results['intensity'] = max_intensity
         results = results.sort_values(['event_id','target_id','time']).reset_index(drop=True)
-        results.to_hdf(path_save + f'highD_UCD.h5', key='data', mode='w')
+        results.to_hdf(path_save + f'SafeBaseline_UCD.h5', key='data', mode='w')
         eval_efficiency.loc[len(eval_efficiency)] = ['UCD', time_end-time_start, results['target_id'].nunique(), len(results)]
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
         results['mode'] = np.exp(results['mu'] - results['sigma']**2)
