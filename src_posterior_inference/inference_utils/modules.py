@@ -156,7 +156,7 @@ class AttentionBlock(nn.Module):
         self.linear_v = nn.Sequential(
             nn.Linear(input_dims, input_dims),
         )
-        self.dropout = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(0.2)
         self.layer_norm = nn.LayerNorm(input_dims)
 
     def forward(self, x): # x: (batch_size, seq_len, input_dims)
@@ -180,10 +180,10 @@ class FeedForwardBlock(nn.Module):
         self.output_dims = output_dims
         self.mlp = nn.Sequential(
             nn.Linear(input_dims, output_dims),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
         )
         self.layer_norm = nn.LayerNorm(output_dims)
@@ -252,24 +252,24 @@ class AttentionDecoder(nn.Module):
             nn.GELU(),
             nn.Flatten(), # (batch_size, 16*seq_len)
             nn.Linear(16*self.seq_len, 128),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
         )
         self.output_mu = nn.Sequential( # (batch_size, 128)
             nn.Linear(128, 64),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(64, 16),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
-            nn.Linear(16, 1),
+            nn.Linear(16, 2),
         )
         self.output_log_var = nn.Sequential( # (batch_size, 128)
             nn.Linear(128, 64),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(64, 16),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(16, 1),
         )
