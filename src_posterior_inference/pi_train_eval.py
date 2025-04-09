@@ -88,7 +88,11 @@ def main(args, manual_seed, path_prepared):
             continue
         else:
             print(f"Start training {dataset_name}, {encoder_name}, {pretraining}")
-        pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder)
+        try:
+            pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder)
+        except:
+            print(f"Failed to initialize the pipeline for {dataset_name}, {encoder_name}, {pretraining}")
+            continue
         pipeline.create_dataloader(batch_size)
         if os.path.exists(pipeline.path_output + f'loss_log.csv'):
             print(f"Loading trained model: {dataset_name}, {encoder_name}, {pretraining}")
