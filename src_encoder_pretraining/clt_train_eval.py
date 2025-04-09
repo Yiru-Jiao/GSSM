@@ -74,7 +74,7 @@ def main(args):
     knn_metrics = ['mean_shared_neighbours', 'mean_dist_mrre', 'mean_trustworthiness', 'mean_continuity'] # kNN-based, averaged over various k
     
     # Load dataset
-    dataset_list = ['SafeBaseline', 'highD_ArgoverseHV_SafeBaseline']
+    dataset_list = ['SafeBaseline', 'SafeBaseline_ArgoverseHV_highD']
     if args.reversed_list:
         dataset_list = dataset_list[::-1]
     for dataset in dataset_list:
