@@ -262,7 +262,7 @@ class AttentionDecoder(nn.Module):
             nn.Linear(64, 16),
             nn.Dropout(0.2),
             nn.GELU(),
-            nn.Linear(16, 2),
+            nn.Linear(16, 1),
         )
         self.output_log_var = nn.Sequential( # (batch_size, 128)
             nn.Linear(128, 64),
