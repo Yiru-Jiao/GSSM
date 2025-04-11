@@ -22,39 +22,27 @@ from src_posterior_inference.inference_utils.utils_train_eval_test import train_
 from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions
 
 
-def create_categorical_encoder(events, environment_feature_names):
-    categorical_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-    events.loc[events['surfaceCondition']=='Other','surfaceCondition'] = 'Unknown'
-    data2fit = events[environment_feature_names].fillna('Unknown')
-    data2fit = data2fit.loc[(data2fit!='Unknown').all(axis=1)]
-    categorical_encoder.fit(data2fit.values)
-    return categorical_encoder
-
-
 class get_sample(): 
     def __init__(self, encoder_selection, path_result):
         event_categories = sorted(os.listdir(path_result + 'EventData/'))
         profiles_features = []
         current_features = []
+        environment_features = []
         spacing_list = []
         event_id_list = []
         for event_cat in event_categories:
             event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
             profiles_features.append(event_featurs['profiles'])
             current_features.append(event_featurs['current'])
+            environment_features.append(event_featurs['environment'])
             spacing_list.append(event_featurs['spacing'])
             event_id_list.append(event_featurs['event_id'])
         profiles_features = np.concatenate(profiles_features, axis=0)
         current_features = np.concatenate(current_features, axis=0)
+        environment_features = np.concatenate(environment_features, axis=0)
         self.spacing_list = np.concatenate(spacing_list, axis=0)
         event_id_list = np.concatenate(event_id_list, axis=0)
         self.num_samples = event_id_list.shape[0]
-
-        # Define one-hot encoder for environment features
-        if 'environment' in encoder_selection:
-            events = pd.read_csv('./RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')
-            environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
-            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
 
         states = []
         variables = []
@@ -68,8 +56,6 @@ class get_sample():
                               'Squared ego speed','Squared sur speed','Squared relative speed','Relative speed',
                               'Relative heading','Ego acceleration','2D spacing direction'])
         if 'environment' in encoder_selection:
-            environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
-            environment_features = one_hot_encoder.transform(environment_features.values)
             states.append(environment_features)
             variables.extend(['Lighting', 'Weather', 'Road surface', 'Traffic density'])
         if 'profiles' in encoder_selection:

@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import torch
 import argparse
-from sklearn.preprocessing import OneHotEncoder
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
@@ -29,15 +28,6 @@ def parse_args():
     args = parser.parse_args()
     args.reproduction = bool(args.reproduction)
     return args
-
-
-def create_categorical_encoder(events, environment_feature_names):
-    categorical_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-    events.loc[events['surfaceCondition']=='Other','surfaceCondition'] = 'Unknown'
-    data2fit = events[environment_feature_names].fillna('Unknown')
-    data2fit = data2fit.loc[(data2fit!='Unknown').all(axis=1)]
-    categorical_encoder.fit(data2fit.values)
-    return categorical_encoder
 
 
 def evaluate(eval_func, model, eval_config, eval_efficiency, results, path_save):
@@ -86,16 +76,19 @@ def main(args, events, manual_seed, path_prepared, path_result):
 
     profiles_features = []
     current_features = []
+    environment_features = []
     spacing_list = []
     event_id_list = []
     for event_cat in event_categories:
         event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
         profiles_features.append(event_featurs['profiles'])
         current_features.append(event_featurs['current'])
+        environment_features.append(event_featurs['environment'])
         spacing_list.append(event_featurs['spacing'])
         event_id_list.append(event_featurs['event_id'])
     profiles_features = np.concatenate(profiles_features, axis=0)
     current_features = np.concatenate(current_features, axis=0)
+    environment_features = np.concatenate(environment_features, axis=0)
     spacing_list = np.concatenate(spacing_list, axis=0)
     event_id_list = np.concatenate(event_id_list, axis=0)
 
@@ -162,11 +155,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
             print(f'The events has been evaluated by {model_name}.')
             continue
 
-        # Define one-hot encoder for environment features
-        if 'environment' in encoder_selection:
-            environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
-            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
-
         # Define and load trained model
         model = define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention=False)
 
@@ -176,8 +164,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
         if encoder_selection[0]=='current+acc':
             states.append(current_features)
         if 'environment' in encoder_selection:
-            environment_features = events.loc[event_id_list[:,0], environment_feature_names].fillna('Unknown')
-            environment_features = one_hot_encoder.transform(environment_features.values)
             states.append(environment_features)
         if 'profiles' in encoder_selection:
             states.append(profiles_features)

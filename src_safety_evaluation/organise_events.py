@@ -8,6 +8,7 @@ import time as systime
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_safety_evaluation.validation_utils.utils_evaluation import set_veh_dimensions
 from src_safety_evaluation.validation_utils.utils_features import read_data, get_context_representations
@@ -19,11 +20,21 @@ path_result = 'ResultData/'
 os.makedirs(path_result, exist_ok=True)
 
 
+def create_categorical_encoder(events, environment_feature_names):
+    categorical_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+    events.loc[events['surfaceCondition']=='Other','surfaceCondition'] = 'Unknown'
+    data2fit = events[environment_feature_names].fillna('Unknown')
+    data2fit = data2fit.loc[(data2fit!='Unknown').all(axis=1)]
+    categorical_encoder.fit(data2fit.values)
+    return categorical_encoder
+
+
 def main(meta_both, events):
     initial_time = systime.time()
     meta_both = meta_both[(meta_both['event_category']!='SafeBaseline')&
                           (meta_both['ego_reconstructed'].astype(bool))&
                           (meta_both['surrounding_reconstructed'].astype(bool))]
+    environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
     
     path_save = path_result + 'EventData/'
     os.makedirs(path_save, exist_ok=True)
@@ -110,6 +121,8 @@ def main(meta_both, events):
             # Save data
             event_meta = event_meta.drop(columns=['time_series_das', 'time_series_honda', 'file_dir', 'file2use', 'ego_reconstructed', 'surrounding_reconstructed', 'note'])
             event_meta.to_csv(path_save + f'{event_cat}/event_meta.csv')
+            environment = events.loc[event_meta.index, environment_feature_names].fillna('Unknown')
+            environment.to_csv(path_save + f'{event_cat}/environment.csv')
             data.to_hdf(path_save + f'{event_cat}/event_data.h5', key='data', mode='w')
 
 
@@ -120,6 +133,7 @@ def main(meta_both, events):
             event_featurs = np.load(path_result + f'EventData/{event_cat}/event_features.npz')
             profiles_features = event_featurs['profiles']
             current_features = event_featurs['current']
+            environment_features = event_featurs['environment']
             spacing_list = event_featurs['spacing']
             event_id_list = event_featurs['event_id']
         else:
@@ -129,6 +143,7 @@ def main(meta_both, events):
 
             profiles_features = []
             current_features = []
+            environment_features = []
             spacing_list = []
             event_id_list = []
             # Organise features for events with enough duration and recorded conflicts
@@ -139,19 +154,22 @@ def main(meta_both, events):
                 if len(df)<30:  # skip if the target was detected for less than 3 seconds
                     continue
                 segmented_features = get_context_representations(df, veh_dimensions.loc[df['event_id'].values[0]])
-                profiles_features.append(segmented_features[0]) # will need normalisation when being used
-                current_features.append(segmented_features[1]) # will need normalisation when being used
+                profiles_features.append(segmented_features[0])
+                current_features.append(segmented_features[1])
                 spacing_list.append(segmented_features[2])
                 event_id_list.append(segmented_features[3])
             profiles_features = np.concatenate(profiles_features, axis=0)
             current_features = np.concatenate(current_features, axis=0)
             spacing_list = np.concatenate(spacing_list, axis=0)
             event_id_list = np.concatenate(event_id_list, axis=0)
+            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
+            environment_features = one_hot_encoder.transform(environment.loc[event_id_list[:,0]].values)
 
             assert profiles_features.shape[0] == len(spacing_list) and profiles_features.shape[1] == 25
             np.savez(path_save + f'{event_cat}/event_features.npz', 
                      profiles = profiles_features, 
-                     current = current_features, 
+                     current = current_features,
+                     environment = environment_features,
                      spacing = spacing_list, 
                      event_id = event_id_list)
             
