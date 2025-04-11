@@ -30,7 +30,7 @@ def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=Non
         safety_evaluation = pd.read_hdf(path_results + f'TAdv_TTC2D_ACT_EI.h5', key='data')
         return safety_evaluation
     elif indicator=='UCD':
-        safety_evaluation = pd.read_hdf(path_results + f'highD_UCD.h5', key='data')
+        safety_evaluation = pd.read_hdf(path_results + f'SafeBaseline_UCD.h5', key='data')
         return safety_evaluation
     elif indicator=='GSSM':
         if np.any([config is None for config in [dataset_name, encoder_name, pretraining]]):
