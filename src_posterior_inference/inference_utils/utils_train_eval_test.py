@@ -210,12 +210,12 @@ class train_val_test():
                 self.scheduler.step(val_loss)
                 if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
                     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
-                    sys.stderr.write('\n Learning rate is reduced so the loss will involve KL divergence since now...')
+                    sys.stderr.write('\n Learning rate is reduced so the frozen parameters are all activated since now ...')
                     # make the frozen parameters trainable
                     if self.pretrained_encoder != False:
                         for param in self.model.parameters():
                             param.requires_grad = True
-                        # re-define learning rate and its scheduler for new loss function
+                        # re-define the optimizer and scheduler for the whole model
                         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                             self.optimizer, mode='min', factor=0.6, patience=5, cooldown=0,
