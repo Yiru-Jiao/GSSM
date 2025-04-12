@@ -35,7 +35,8 @@ def main(meta_both, events):
                           (meta_both['ego_reconstructed'].astype(bool))&
                           (meta_both['surrounding_reconstructed'].astype(bool))]
     environment_feature_names = ['lighting','weather','surfaceCondition','trafficDensity']
-    
+    one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
+
     path_save = path_result + 'EventData/'
     os.makedirs(path_save, exist_ok=True)
     for event_cat in meta_both['event_category'].value_counts().index.values[::-1]:
@@ -162,7 +163,6 @@ def main(meta_both, events):
             current_features = np.concatenate(current_features, axis=0)
             spacing_list = np.concatenate(spacing_list, axis=0)
             event_id_list = np.concatenate(event_id_list, axis=0)
-            one_hot_encoder = create_categorical_encoder(events, environment_feature_names)
             environment_features = one_hot_encoder.transform(environment.loc[event_id_list[:,0]].values)
 
             assert profiles_features.shape[0] == len(spacing_list) and profiles_features.shape[1] == 25
