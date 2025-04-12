@@ -167,7 +167,7 @@ class train_val_test():
     def train_model(self, num_epochs=300, initial_lr=0.0001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
-        self.lr_reduced = True
+        self.lr_reduced = False
         # Move model and loss function to device
         self.model = self.model.to(self.device)
         self.lognorm_nll = LogNormalNLL().to(self.device)
