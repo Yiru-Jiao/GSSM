@@ -147,18 +147,18 @@ class train_val_test():
         inducing_out = self.model(inducing_points)
         return inducing_out
 
-    def compute_loss(self, x, y, return_out=False):
-        if not self.lr_reduced:
+    def compute_loss(self, x, y, return_out=False, smoothed=True):
+        if not smoothed:
             x = self.send_x_to_device(x)
             y = y.to(self.device)
             out = self.model(x)
-            loss = self.loss_func(out, y)
+            loss = self.lognorm_nll(out, y)
         else:
             inducing_out = self.get_inducing_out(x)
             x = self.send_x_to_device(x)
             y = y.to(self.device)
             out = self.model(x)
-            loss = self.later_loss_func(out, y, inducing_out)
+            loss = self.smooth_lognorm_nll(out, y, inducing_out)
         if return_out:
             return loss, out
         else:
@@ -167,11 +167,11 @@ class train_val_test():
     def train_model(self, num_epochs=300, initial_lr=0.0001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
-        self.lr_reduced = False
+        self.lr_reduced = True
         # Move model and loss function to device
         self.model = self.model.to(self.device)
-        self.loss_func = LogNormalNLL().to(self.device)
-        self.later_loss_func = SmoothLogNormalNLL(beta=5).to(self.device)
+        self.lognorm_nll = LogNormalNLL().to(self.device)
+        self.smooth_lognorm_nll = SmoothLogNormalNLL(beta=5).to(self.device)
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
@@ -182,7 +182,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=10,
+                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
@@ -206,20 +206,21 @@ class train_val_test():
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop()
-            if lr_schedule and epoch_n>5: # Start learning rate scheduler after 5 epochs
+            if lr_schedule and epoch_n>25: # Start learning rate scheduler after 25 epochs
                 self.scheduler.step(val_loss)
-                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.5:
-                    # we use self.initial_lr*0.5 rather than 0.6 to avoid missing due to float precision
-                    sys.stderr.write('\n Learning rate is reduced twice so the loss will involve KL divergence since now...')
+                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
+                    # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
+                    sys.stderr.write('\n Learning rate is reduced so the loss will involve KL divergence since now...')
                     # make the frozen parameters trainable
-                    for param in self.model.parameters():
-                        param.requires_grad = True
-                    # re-define learning rate and its scheduler for new loss function
-                    self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
-                    self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=5, cooldown=2,
-                        threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
-                    )
+                    if self.pretrained_encoder != False:
+                        for param in self.model.parameters():
+                            param.requires_grad = True
+                        # re-define learning rate and its scheduler for new loss function
+                        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
+                        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                            self.optimizer, mode='min', factor=0.6, patience=5, cooldown=0,
+                            threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
+                        )
                     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
@@ -248,9 +249,7 @@ class train_val_test():
         val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                self.lr_reduced = False
-                gau_loss, out = self.compute_loss(x, y, return_out=True)
-                self.lr_reduced = True
+                gau_loss, out = self.compute_loss(x, y, return_out=True, smoothed=False)
                 smooth_gau_loss = self.compute_loss(x, y)
                 mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
                 mu_list.append(mu.cpu().numpy())
@@ -304,5 +303,5 @@ class train_val_test():
         final_model = glob.glob(self.path_save+'model_final*')[0]
         self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))        
         self.model = self.model.to(self.device)
-        self.loss_func = LogNormalNLL().to(self.device)
+        self.lognorm_nll = LogNormalNLL().to(self.device)
         self.model.eval()
