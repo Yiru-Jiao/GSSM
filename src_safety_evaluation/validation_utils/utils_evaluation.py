@@ -403,14 +403,22 @@ def issue_warning(indicator, optimal_threshold, safety_evaluation, event_meta):
         records.loc[event_id, ['25th_danger','50th_danger','75th_danger']] = indicator_values[1]
         target = determine_conflicts(event.loc[target_id], indicator, optimal_threshold)
 
-        # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
+        # Locate the warning moment: the last safe->unsafe transition moment before impact timestamp
         warning = target[target['time']<=event_meta.loc[event_id, 'impact_timestamp']/1000]['conflict'].astype(int).values
-        warning_change = warning[1:] - warning[:-1] # 1: safe->unsafe, -1: unsafe->safe, 0: no change
-        first_warning = np.where(warning_change>0.5)[0]
-        if len(first_warning)>0:
-            records.loc[event_id,'first_warning_timestamp'] = target.iloc[first_warning[-1]+1]['time']*1000
-        else: # no warning before impact
-            records.loc[event_id,'first_warning_timestamp'] = np.nan
+        if np.all(warning==1): # warning all the time
+            records.loc[event_id,'warning_timestamp'] = target.iloc[0]['time']*1000
+        elif np.all(warning==0): # no warning at all
+            records.loc[event_id,'warning_timestamp'] = np.nan
+        else: # warning at some time moments
+            warning_change = warning[1:] - warning[:-1] # 1: safe->unsafe, -1: unsafe->safe, 0: no change
+            shift_moments = np.where(warning_change>0.5)[0]
+            if len(shift_moments)>0:
+                records.loc[event_id,'warning_timestamp'] = target.iloc[shift_moments[-1]+1]['time']*1000
+            else: # no shift from safe to unsafe before impact
+                if warning[0]==1: # warning from the beginning
+                    records.loc[event_id,'warning_timestamp'] = target.iloc[0]['time']*1000
+                else: # there shouldn't be other cases, but just in case
+                    records.loc[event_id,'warning_timestamp'] = np.nan
 
         # Calculate the warning period: the percentage of warning time moments within [danger_start, danger_end]
         target_danger = target[(target['time']>=event_meta.loc[event_id, 'danger_start']/1000)&
@@ -447,16 +455,24 @@ def evaluate(indicator, threshold, safety_evaluation, event_data, event_meta, vo
         else:
             records.loc[event_id, 'true_warning'] = 0
 
-        # Locate the first warning moment: the last safe->unsafe transition moment before impact timestamp
+        # Locate the warning moment: the last safe->unsafe transition moment before impact timestamp
         target = determine_conflicts(event[event['target_id']==target_id], indicator, threshold)
         impact_time = event_meta.loc[event_id, 'impact_timestamp']/1000
         warning = target[target['time']<=impact_time]['conflict'].astype(int).values
-        warning_change = warning[1:] - warning[:-1] # 1: safe->unsafe, -1: unsafe->safe, 0: no change
-        first_warning = np.where(warning_change>0.5)[0]
-        if len(first_warning)>0:
-            records.loc[event_id,'first_warning_time'] = target.iloc[first_warning[-1]+1]['time']
-        else: # no warning before impact
-            records.loc[event_id,'first_warning_time'] = np.nan
+        if np.all(warning==1): # warning all the time
+            records.loc[event_id,'warning_timestamp'] = target.iloc[0]['time']*1000
+        elif np.all(warning==0): # no warning at all
+            records.loc[event_id,'warning_timestamp'] = np.nan
+        else: # warning at some time moments
+            warning_change = warning[1:] - warning[:-1] # 1: safe->unsafe, -1: unsafe->safe, 0: no change
+            shift_moments = np.where(warning_change>0.5)[0]
+            if len(shift_moments)>0:
+                records.loc[event_id,'warning_timestamp'] = target.iloc[shift_moments[-1]+1]['time']*1000
+            else: # no shift from safe to unsafe before impact
+                if warning[0]==1: # warning from the beginning
+                    records.loc[event_id,'warning_timestamp'] = target.iloc[0]['time']*1000
+                else: # there shouldn't be other cases, but just in case
+                    records.loc[event_id,'warning_timestamp'] = np.nan
         records.loc[event_id, 'impact_time'] = impact_time
         records.loc[event_id, 'reaction_time'] = event_meta.loc[event_id, 'reaction_timestamp']/1000
 
