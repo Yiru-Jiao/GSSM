@@ -78,10 +78,10 @@ def main(args, path_result, path_prepared):
     - danger: the period when an (near)crash happens as manually annotated by SHRP2
               * start: after start_timestamp or within 4.5 seconds before impact_timestamp
               * end: 0.5 second after impact_timestamp and before end_timestamp
-    - safety: the beginning in an event before start_timestamp with no hard braking
+    - safety: for each object other than the conflicting target, before impact_timestamp with no hard braking
               * no hard braking, i.e., acceleration > -1.5 m/s^2 in the period
-              * start: first evaluatable timestamp in the event
-              * end: 0.5~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
+              * start: 1.5 seconds after an object is detected
+              * end: 2~5 seconds after the first timestamp, at least 3 seconds before start_timestamp
     The target has largest intensity/EI (or smallest TAdv/TTC2D/ACT) during danger period is 
     considered as the conflicting target, and the safe period is determined for other vehicles than the target.
     Then conflct detection are implemented with different indicators under various thresholds.
