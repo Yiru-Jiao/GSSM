@@ -96,7 +96,7 @@ def main(args):
         else:
             train_data, _ = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles')
     
-        dist_metric = 'DTW'
+        dist_metric = 'EUC'
         sim_mat = None # to be computed per batch during training
         
         # Set result-saving directory

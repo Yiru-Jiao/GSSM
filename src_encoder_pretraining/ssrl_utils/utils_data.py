@@ -31,7 +31,7 @@ def normalize_TS(TS):
     return TS
 
 
-def compute_sim_mat(data, dist_metric='DTW', min_=0, max_=1):
+def compute_sim_mat(data, dist_metric='EUC', min_=0, max_=1):
     if data.ndim == 3: # (n_instance, n_timestamps, n_features)
         if data.shape[2] == 1:
             multivariate = False
@@ -84,9 +84,23 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
             variables = ['l_ego','l_sur','combined_width',
                          'vy_ego','vx_sur','vy_sur','v_ego2','v_sur2','delta_v2','delta_v',
                          'psi_sur','rho']
-        train_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features') for dataset in datasets])
-        val_data = pd.concat([pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features') for dataset in datasets])
-
+        train_data = []
+        val_data = []
+        train_scene_ids = 0
+        val_scene_ids = 0
+        for dataset in datasets:
+            train_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features')
+            train_df['scene_id'] = train_df['scene_id'] + train_scene_ids
+            train_scene_ids = train_df['scene_id'].max() + 1
+            train_data.append(train_df)
+            val_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features')
+            val_df['scene_id'] = val_df['scene_id'] + val_scene_ids
+            val_scene_ids = val_df['scene_id'].max() + 1
+            val_data.append(val_df)
+        train_data = pd.concat(train_data)
+        train_data = train_data.sort_values('scene_id').reset_index(drop=True)
+        val_data = pd.concat(val_data)
+        val_data = val_data.sort_values('scene_id').reset_index(drop=True)
         train_X = train_data[variables].values
         val_X = val_data[variables].values
 

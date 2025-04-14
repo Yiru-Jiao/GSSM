@@ -63,7 +63,7 @@ def get_DTW(X_tr, multivariate=False, verbose=False):
     return dist_mat
 
 
-def save_sim_mat(X_tr, multivariate=False, dist_metric='DTW', min_ = 0, max_ = 1):
+def save_sim_mat(X_tr, multivariate=False, dist_metric='EUC', min_ = 0, max_ = 1):
     if dist_metric=='DTW':
         dist_mat = get_DTW(X_tr, multivariate)
     elif dist_metric=='COS':

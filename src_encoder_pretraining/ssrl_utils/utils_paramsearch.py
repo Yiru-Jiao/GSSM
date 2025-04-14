@@ -16,7 +16,7 @@ manual_seed = 131
 
 # Define trainer
 class trainer():
-    def __init__(self, dist_metric='DTW', tau_inst=0, tau_temp=0, temporal_hierarchy=None, 
+    def __init__(self, dist_metric='EUC', tau_inst=0, tau_temp=0, temporal_hierarchy=None, 
                  bandwidth=1., batch_size=8, weight_lr=0.05):
         self.dist_metric = dist_metric
         self.tau_inst = tau_inst

@@ -19,7 +19,7 @@ class TSEncoder(nn.Module):
         super(TSEncoder, self).__init__()
         self.input_dims = input_dims
         self.output_dims = output_dims
-        self.dist_metric = 'DTW'
+        self.dist_metric = 'EUC'
         self.spclt_model = spclt(self.input_dims, self.output_dims,
                                  dist_metric=self.dist_metric, device=device)
 
