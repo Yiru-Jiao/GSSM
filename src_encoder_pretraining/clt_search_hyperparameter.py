@@ -117,7 +117,7 @@ def main(args):
                         'temporal_hierarchy': [None, 'linear', 'exponential'],
                         'bandwidth': [0.25, 1., 9., 25., 49.], # used in geometry regularizer only
                         'batch_size': [8],
-                        'weight_lr': [0.005, 0.01, 0.05]}
+                        'weight_lr': [0.001, 0.01, 0.05]}
         print(f"--- batch_size search space: {search_space['batch_size']} ---")
 
         # Initialize the best_param_log
