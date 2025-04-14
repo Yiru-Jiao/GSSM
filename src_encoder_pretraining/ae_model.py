@@ -76,7 +76,7 @@ class autoencoder():
     def loss_func_ggeo(self, input, target): # used for current encoder
         loss_ae = torch.sqrt(((input - target) ** 2).mean())
         loss_ae = 0.5 * torch.exp(-self.loss_log_vars[0]) * loss_ae*(1-torch.exp(-loss_ae)) + 0.5 * self.loss_log_vars[0]
-        loss_ggeo = ggeo_loss(self, input, 0.25)
+        loss_ggeo = ggeo_loss(self, input, 1.)
         loss_ggeo = 0.5 * torch.exp(-self.loss_log_vars[1]) * loss_ggeo*(1-torch.exp(-loss_ggeo)) + 0.5 * self.loss_log_vars[1]
         return loss_ae + loss_ggeo
 
