@@ -55,7 +55,7 @@ def main(args, path_result, path_prepared):
         # Record the identified target by all used SSMs under corresponding optimal thresholds
         warning_timeliness = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')
         models = warning_timeliness['model'].unique()
-        models = [model for model in models if 'ArgoverseAV' not in model and model != 'UCD']
+        models = [model for model in models if model != 'UCD']
         for model in models:
             warning_model = warning_timeliness[warning_timeliness['model']==model]
             voted_targets.loc[warning_model['event_id'].values, model] = warning_model['target_id'].values

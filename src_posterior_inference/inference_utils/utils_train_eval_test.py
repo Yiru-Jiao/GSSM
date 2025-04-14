@@ -17,19 +17,21 @@ from torch.utils.data import DataLoader
 
 def set_experiments(stage=[1,2,3,4]):
     exp_config = []
-    if 1 in stage: # single dataset, current only, no encoder pretraining
+    if 1 in stage: # single dataset, current only
         exp_config.extend([
             [['SafeBaseline'], ['current'], False],
+            [['SafeBaseline'], ['current'], True],
             [['highD'], ['current'], False],
+            [['highD'], ['current'], True],
             [['ArgoverseHV'], ['current'], False],
-            [['ArgoverseAV'], ['current'], False],
+            [['ArgoverseHV'], ['current'], True],
         ])
     if 2 in stage: # multiple datasets, current only
         exp_config.extend([
-            [['SafeBaseline','ArgoverseHV'], ['current'], True],
             [['SafeBaseline','ArgoverseHV'], ['current'], False],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current'], True],
+            [['SafeBaseline','ArgoverseHV'], ['current'], True],
             [['SafeBaseline','ArgoverseHV','highD'], ['current'], False],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current'], True],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([

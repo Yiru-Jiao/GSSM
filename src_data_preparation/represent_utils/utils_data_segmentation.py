@@ -44,9 +44,6 @@ def read_dataset(dataset, path_processed, manual_seed):
     elif dataset=='ArgoverseHV':
         data_both = pd.read_hdf(path_processed+'Argoverse/argo_hv.h5', key='data')
         data_both['event_id'] = data_both['log_id']
-    elif dataset=='ArgoverseAV':
-        data_both = pd.read_hdf(path_processed+'Argoverse/argo_av.h5', key='data')
-        data_both['event_id'] = data_both['log_id']
     return data_both
 
 
@@ -97,12 +94,12 @@ class ContextSegmenter(coortrans):
 
             df_view_ego = self.transform_coor(df, 'ego')
             df_view_relative = self.transform_coor(df, 'relative')
-            if self.dataset=='highD' or self.dataset=='ArgoverseAV':
-                indices_end = np.arange(len(df)-random_ends[id_count], 25, -15)
+            if self.dataset=='highD':
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -10)
             elif self.dataset=='SafeBaseline':
-                indices_end = np.arange(len(df)-random_ends[id_count], 25, -20)
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -10)
             elif self.dataset=='ArgoverseHV':
-                indices_end = np.arange(len(df)-random_ends[id_count], 25, -45)
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -30)
 
             for idx_end in indices_end:
                 # sample 2.5-second scenes
@@ -113,7 +110,7 @@ class ContextSegmenter(coortrans):
                 profiles['vx_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vx_sur'].values
                 profiles['vy_sur'] = df_view_ego.iloc[idx_end-25:idx_end]['vy_sur'].values
 
-                # skip if there is no missing value in the profiles or df
+                # skip if there is missing value in the profiles or df
                 if profiles.isna().sum().sum()>0 or df.iloc[idx_end].isna().sum()>0:
                     continue
                 profiles['scene_id'] = scene_id
