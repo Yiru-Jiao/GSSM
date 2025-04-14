@@ -76,7 +76,7 @@ def main(args, manual_seed, path_prepared):
         elif pretrained_encoder=='all':
             pretraining = 'pretrained_all'
 
-        initial_lr = 0.00015
+        initial_lr = 0.0001
         batch_size = 512
         epochs = 300
         
