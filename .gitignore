@@ -2,6 +2,7 @@
 **/__pycache__
 !**/*.md
 RawData/**/*.*
+ProcessedData/**/*.*
 !src_trajectory_reconstruction/**/*.py
 !src_trajectory_reconstruction/**/*.ipynb
 !src_data_preparation/**/*.py
