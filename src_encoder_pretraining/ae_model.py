@@ -106,7 +106,7 @@ class autoencoder():
             # define scheduler
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer, mode='min', factor=0.6, patience=4, cooldown=6,
-                threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
+                threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**30
                 )
             val_loss_log = np.zeros(n_epochs) * np.nan
 

@@ -40,10 +40,10 @@ def set_experiments(stage=[1,2,3,4]):
         ])
     if 4 in stage: # add extra features, pretrained encoders
         exp_config.extend([
-            # [['SafeBaseline'], ['current'], 'all'],
-            # [['SafeBaseline'], ['current+acc'], 'all'],
-            # [['SafeBaseline'], ['current', 'environment'], 'all'],
-            # [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            [['SafeBaseline'], ['current'], 'all'],
+            [['SafeBaseline'], ['current+acc'], 'all'],
+            [['SafeBaseline'], ['current', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
             # [['SafeBaseline'], ['current','environment','profiles'], 'all'],
             # [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
         ])        
@@ -184,7 +184,7 @@ class train_val_test():
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer, mode='min', factor=0.6, patience=5, cooldown=0,
-                threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
+                threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**30
             )
 
         if self.verbose > 0:
@@ -220,7 +220,7 @@ class train_val_test():
                 #         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
                 #         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 #             self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
-                #             threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
+                #             threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**30
                 #         )
                 #     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss

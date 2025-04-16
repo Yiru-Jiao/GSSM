@@ -158,7 +158,7 @@ class train_val_test():
 
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.6, patience=10, cooldown=15,
-            threshold=1e-3, threshold_mode='rel', min_lr=self.initial_lr*0.6**15
+            threshold=1e-3, threshold_mode='rel', min_lr=self.initial_lr*0.6**30
         )
 
         progress_bar = tqdm(range(num_epochs), desc='Epoch', ascii=True, dynamic_ncols=False, miniters=5)

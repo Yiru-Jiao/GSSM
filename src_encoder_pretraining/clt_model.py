@@ -155,13 +155,13 @@ class spclt():
             # define scheduler
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer, mode='min', factor=0.6, patience=4, cooldown=0,
-                threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**15
+                threshold=1e-3, threshold_mode='rel', min_lr=self.lr*0.6**30
                 )
             
             if self.regularizer_config['reserve'] is not None:
                 self.scheduler_weight = torch.optim.lr_scheduler.ReduceLROnPlateau(
                     self.optimizer_weight, mode='min', factor=0.6, patience=4, cooldown=1,
-                    threshold=1e-3, threshold_mode='rel', min_lr=self.weight_lr*0.6**15
+                    threshold=1e-3, threshold_mode='rel', min_lr=self.weight_lr*0.6**30
                     )
                 def scheduler_step(val_loss, regularizer_loss):
                     self.scheduler.step(val_loss)
