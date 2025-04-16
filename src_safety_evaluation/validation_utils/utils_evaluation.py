@@ -25,7 +25,7 @@ def read_events(path_events, meta_only=False):
         return event_meta, event_data
 
 
-def read_evaluation(indicator, path_results, model_name):
+def read_evaluation(indicator, path_results, model_name=None):
     if indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
         safety_evaluation = pd.read_hdf(f'{path_results}TAdv_TTC2D_ACT_EI.h5', key='data')
         return safety_evaluation

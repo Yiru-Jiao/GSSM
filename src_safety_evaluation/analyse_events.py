@@ -183,7 +183,7 @@ def main(args, path_result, path_prepared):
         else:
             print('--- Issuing warning', model_name, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-            safety_evaluation = read_evaluation('GSSM', path_eval, dataset_name, encoder_name, pretraining)
+            safety_evaluation = read_evaluation('GSSM', path_eval, model_name)
             optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'ROC')
             records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
             records['model'] = model_name
