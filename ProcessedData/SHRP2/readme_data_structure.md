@@ -1,12 +1,25 @@
-## Data dictionary
-The file structure under this directory `./ProcessedData/SHRP2/Event/` where `Event` can be `Crash`, `NearCrash`, etc., is as follows:
-- `plots_ego_ekf.pdf` where the plots of trajectory reconstruction for all events in the category using Extended Kalman Filter are stored,
+# Data dictionary
+## Data structure
+The structure of data in this folder is as follows:
+```
+----- Parent folder
+  |-- readme_data_structure.md
+  |-- ekf_parameters.csv
+  |-- metadata_birdseye.csv
+  |-- event_counts.csv
+  |-- Event/
+  |..
+```
+where `Event` can be `Crash`, `NearCrash`, etc., and are catogarised events. More specifically about the .csv files, `ekf_parameters.csv` saves the parameters used in the extended Kalman filter (EKF) for trajectory reconstruction, `metadata_birdseye.csv` contains the metadata of the recorded events, and `event_counts.csv` concludes the number of events in each category. 
+
+The data structure inside each `Event` folder is as follows:
+- `plots_ego_ekf.pdf` where the plots of trajectory reconstruction for all events in the category using EKF are stored,
 - `Ego_birdseye.h5` where the reconstructed ego vehicles' trajectories are stored,
 - `Surrounding_birdseye.h5` where the reconstructed surrounding vehicles' trajectories are stored.
 
-An exception is the `./ProcessedData/SHRP2/SafeBaseline/` directory where the data are separated into 5 chuncks due to its large amount. Each chunk is marked by a suffix like `_0`~`_4` for plots (e.g., `plots_ego_ekf_0.pdf`), ego vehicle trajectories (e.g., `Ego_birdseye_1.h5`), and surrounding vehicle trajectories (e.g., `Surrounding_birdseye_2.h5`).
+An exception is the `./SafeBaseline/` directory where the data are separated into 5 chuncks due to its large amount. Each chunk is marked by a suffix like `_0`~`_4` for plots (e.g., `plots_ego_ekf_0.pdf`), ego vehicle trajectories (e.g., `Ego_birdseye_1.h5`), and surrounding vehicle trajectories (e.g., `Surrounding_birdseye_2.h5`).
 
-### Ego vehicle trajectory
+## Ego vehicle trajectory
 The data in `Ego_birdseye.h5` is organised as a pandas dataframe with the following columns:
 | Data nature   | Column name      | Data type | Description|
 |---------------|------------------|-----------|------------|
@@ -29,9 +42,9 @@ The data in `Ego_birdseye.h5` is organised as a pandas dataframe with the follow
 | Processed     | 'event'          | int       | Wether the current moment is in an event, i.e., crash or near-crash (0: False, 1: True)|
 
 
-### Surrounding vehicle trajectories
+## Surrounding vehicle trajectories
 
-Similarly but differently, the data in `Surrounding_birdseye.h5` is organised as a pandas dataframe with the following columns:
+Similarly yet differently, the data in `Surrounding_birdseye.h5` is organised as a pandas dataframe with the following columns:
 | Data nature   | Column name  | Data type | Description|
 |---------------|--------------|-----------|------------|
 | Raw           | 'event_id'   | int       | Index of events, consistent with `Ego_birdseye.h5` and video index|
