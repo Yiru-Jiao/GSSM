@@ -49,7 +49,7 @@ def main(args, manual_seed, path_prepared):
 
     if args.stage is None:
         # exp_config = set_experiments(stage=[1,2,3,4])
-        exp_config = set_experiments(stage=[1,3,2])
+        exp_config = set_experiments(stage=[3,4])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -140,7 +140,7 @@ def main(args, manual_seed, path_prepared):
             evaluation.loc[len(evaluation), columns] = values
             if mixrate<=1:
                 evaluation.loc[len(evaluation)-1, 'mixrate'] = mixrate
-            evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'pretraining'])
+            evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'pretraining', 'mixrate'])
             evaluation[list(model_size.keys())] = evaluation[list(model_size.keys())].astype(int)
             evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
             pipeline = [] # Clear the pipeline to free up memory
