@@ -26,9 +26,9 @@ def set_experiments(stage=[1,2,3,4]):
     if 2 in stage: # multiple datasets, current only
         exp_config.extend([
             [['SafeBaseline','ArgoverseHV'], ['current'], False],
-            [['SafeBaseline','ArgoverseHV'], ['current'], True],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current'], False],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current'], True],
+            [['SafeBaseline','highD'], ['current'], False],
+            # [['SafeBaseline','ArgoverseHV','highD'], ['current'], False],
+            # [['SafeBaseline','ArgoverseHV','highD'], ['current'], True],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
@@ -40,12 +40,12 @@ def set_experiments(stage=[1,2,3,4]):
         ])
     if 4 in stage: # add extra features, pretrained encoders
         exp_config.extend([
-            [['SafeBaseline'], ['current'], 'all'],
-            [['SafeBaseline'], ['current+acc'], 'all'],
-            [['SafeBaseline'], ['current', 'environment'], 'all'],
-            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
-            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
+            # [['SafeBaseline'], ['current'], 'all'],
+            # [['SafeBaseline'], ['current+acc'], 'all'],
+            # [['SafeBaseline'], ['current', 'environment'], 'all'],
+            # [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            # [['SafeBaseline'], ['current','environment','profiles'], 'all'],
+            # [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
         ])        
     return exp_config
 
@@ -83,15 +83,17 @@ class train_val_test():
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.single_output, self.return_attention)
         if self.pretrained_encoder==True:
-            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=False)
+            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=True)
         elif self.pretrained_encoder=='all':
             self.model.load_pretrained_encoders('SafeBaseline_ArgoverseHV_highD', 
-                                                self.path_prepared, continue_training=False)
+                                                self.path_prepared, continue_training=True)
 
-    def create_dataloader(self, batch_size):
+    def create_dataloader(self, batch_size, mixrate=2, random_seed=131):
         self.batch_size = batch_size
-        self.train_dataloader = DataLoader(DataOrganiser('train', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=True)
-        self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared), batch_size=self.batch_size, shuffle=False)
+        self.train_dataloader = DataLoader(DataOrganiser('train', self.dataset, self.encoder_selection, self.path_prepared, 
+                                                         mixrate, random_seed), batch_size=self.batch_size, shuffle=True)
+        self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared, 
+                                                       mixrate, random_seed), batch_size=self.batch_size, shuffle=False)
         self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
         if 'profiles' in self.encoder_selection:
             self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
@@ -166,7 +168,7 @@ class train_val_test():
     def train_model(self, num_epochs=300, initial_lr=0.0001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
-        self.lr_reduced = False
+        # self.lr_reduced = False
         # Move model and loss function to device
         self.model = self.model.to(self.device)
         self.lognorm_nll = LogNormalNLL().to(self.device)
@@ -181,7 +183,7 @@ class train_val_test():
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
+                self.optimizer, mode='min', factor=0.6, patience=5, cooldown=0,
                 threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
             )
 
@@ -207,20 +209,20 @@ class train_val_test():
             val_loss = self.val_loop()
             if lr_schedule and epoch_n>25: # Start learning rate scheduler after 25 epochs
                 self.scheduler.step(val_loss)
-                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
-                    # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
-                    # make the frozen parameters trainable
-                    if self.pretrained_encoder != False:
-                        sys.stderr.write('\n Learning rate is reduced so the frozen parameters are all activated since now ...')
-                        for param in self.model.parameters():
-                            param.requires_grad = True
-                        # re-define the optimizer and scheduler for the whole model
-                        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
-                        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                            self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
-                            threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
-                        )
-                    self.lr_reduced = True
+                # if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
+                #     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
+                #     # make the frozen parameters trainable
+                #     if self.pretrained_encoder != False:
+                #         sys.stderr.write('\n Learning rate is reduced so the frozen parameters are all activated since now ...')
+                #         for param in self.model.parameters():
+                #             param.requires_grad = True
+                #         # re-define the optimizer and scheduler for the whole model
+                #         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
+                #         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                #             self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
+                #             threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**15
+                #         )
+                #     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
@@ -287,7 +289,7 @@ class train_val_test():
         self.model.train()
         return val_loss.item() / val_batch_iter
     
-    def load_model(self, batch_size=None, initial_lr=None):
+    def load_model(self, mixrate=2):
         if 'path_output' not in self.__dict__:
             if self.pretrained_encoder==False:
                 self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}/'
@@ -295,8 +297,8 @@ class train_val_test():
                 self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}/'
             elif self.pretrained_encoder=='all':
                 self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained_all/{self.encoder_name}/'
-        if batch_size is not None and initial_lr is not None:
-            self.path_save = self.path_output + f'bs={batch_size}-initlr={initial_lr}/'
+        if mixrate<=1:
+            self.path_save = f'{self.path_output}mixed{mixrate}/'
         else:
             self.path_save = self.path_output
         final_model = glob.glob(self.path_save+'model_final*')[0]

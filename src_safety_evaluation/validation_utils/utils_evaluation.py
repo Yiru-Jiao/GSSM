@@ -25,20 +25,16 @@ def read_events(path_events, meta_only=False):
         return event_meta, event_data
 
 
-def read_evaluation(indicator, path_results, dataset_name=None, encoder_name=None, pretraining=None):
+def read_evaluation(indicator, path_results, model_name):
     if indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
-        safety_evaluation = pd.read_hdf(path_results + f'TAdv_TTC2D_ACT_EI.h5', key='data')
+        safety_evaluation = pd.read_hdf(f'{path_results}TAdv_TTC2D_ACT_EI.h5', key='data')
         return safety_evaluation
     elif indicator=='UCD':
-        safety_evaluation = pd.read_hdf(path_results + f'SafeBaseline_UCD.h5', key='data')
+        safety_evaluation = pd.read_hdf(f'{path_results}SafeBaseline_UCD.h5', key='data')
         return safety_evaluation
     elif indicator=='GSSM':
-        if np.any([config is None for config in [dataset_name, encoder_name, pretraining]]):
-            print('Please specify model configuration for GSSM evaluation.')
-            return None
-        else:
-            safety_evaluation = pd.read_hdf(path_results + f'{dataset_name}_{encoder_name}_{pretraining}.h5', key='data')
-            return safety_evaluation
+        safety_evaluation = pd.read_hdf(f'{path_results}{model_name}.h5', key='data')
+        return safety_evaluation
 
 
 def set_veh_dimensions(event_meta, avg_width, avg_length):
@@ -50,11 +46,11 @@ def set_veh_dimensions(event_meta, avg_width, avg_length):
     return veh_dimensions
 
 
-def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output=None, return_attention=False):
+def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, mixrate=2, single_output=None, return_attention=False):
     # Define the model
     pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output, return_attention)
     # Load trained model
-    pipeline.load_model()
+    pipeline.load_model(mixrate)
     print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}-{pipeline.pretrained_encoder}')
     return pipeline.model
 

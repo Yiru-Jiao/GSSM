@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 
 
 class DataOrganiser(Dataset):
-    def __init__(self, split, dataset, encoder_selection, path_prepared):
+    def __init__(self, split, dataset, encoder_selection, path_prepared, mixrate=2, random_seed=131):
         super(DataOrganiser, self).__init__()
         self.split = split
         self.dataset = dataset
@@ -19,6 +19,8 @@ class DataOrganiser(Dataset):
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
         self.path_prepared = path_prepared
+        self.mixrate = mixrate
+        self.random_seed = random_seed
         self.data = self.read_data()
         self.combine_features = self.define_combine_features()
 
@@ -43,6 +45,12 @@ class DataOrganiser(Dataset):
 
     def read_data(self,):
         print(f'Reading data for {self.dataset} {self.encoder_selection} {self.split}...')
+        mixrate_dict = {'SafeBaseline': 2, 'ArgoverseHV': 2, 'highD': 2}
+        if len(self.dataset)==2 and self.mixrate<1:
+            mixrate_dict[self.dataset[1]] = self.mixrate
+        elif len(self.dataset)==3:
+            mixrate_dict['ArgoverseHV'] = 0.4
+            mixrate_dict['highD'] = 0.4
         self.data = []
         X_current = []
         scene_id = 0
@@ -50,7 +58,14 @@ class DataOrganiser(Dataset):
             x_current = pd.read_hdf(f'{self.path_prepared}Segments/{dataset}/current_features_{dataset}_{self.split}.h5', key='features')
             x_current['scene_id'] = x_current['scene_id'] + scene_id
             scene_id = x_current['scene_id'].max() + 1
-            X_current.append(x_current)
+            if mixrate_dict[dataset] >= 1:
+                X_current.append(x_current)
+            else:
+                mixrate = mixrate_dict[dataset]
+                scene_ids = x_current['scene_id'].unique()
+                scene_ids = np.random.RandomState(self.random_seed).choice(scene_ids, int(len(scene_ids)*mixrate), replace=False)
+                X_current.append(x_current[x_current['scene_id'].isin(scene_ids)])
+
         X_current = pd.concat(X_current, ignore_index=True)
         X_current = X_current.sort_values('scene_id').reset_index(drop=True)
         self.scene_ids = X_current['scene_id'].values

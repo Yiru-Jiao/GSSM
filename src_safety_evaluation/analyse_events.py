@@ -127,7 +127,7 @@ def main(args, path_result, path_prepared):
             print('--- Analyzing with', model_name, '---')
             dataset_name, encoder_name, pretraining = get_model_fig(model_name)
             sub_initial_time = systime.time()
-            safety_evaluation = read_evaluation('GSSM', path_eval, dataset_name, encoder_name, pretraining)
+            safety_evaluation = read_evaluation('GSSM', path_eval, model_name)
             progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
             gssm_records = Parallel(n_jobs=-1)(delayed(parallel_records)(threshold, safety_evaluation, event_data, event_meta, 'GSSM') for threshold in progress_bar)
             gssm_records = pd.concat(gssm_records).reset_index()

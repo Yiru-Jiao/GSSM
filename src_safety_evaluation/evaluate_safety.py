@@ -142,6 +142,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
         encoder_selection = encoder_name.split('_')
         pretraining = model_evaluation.iloc[model_id]['pretraining']
+        mixrate = model_evaluation.iloc[model_id]['mixrate']
         if pretraining=='not_pretrained':
             pretrained_encoder = False
         elif pretraining=='pretrained':
@@ -149,6 +150,10 @@ def main(args, events, manual_seed, path_prepared, path_result):
         elif pretraining=='pretrained_all':
             pretrained_encoder = 'all'
         model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+        if mixrate<=1:
+            model_name = f'{model_name}_mixed{mixrate}'
+        else:
+            mixrate = 2
         print(f'--- Evaluating {model_name} ---')
 
         if os.path.exists(path_save + f'{model_name}.h5'):
@@ -156,7 +161,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             continue
 
         # Define and load trained model
-        model = define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, return_attention=False)
+        model = define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, mixrate, return_attention=False)
 
         states = []
         if encoder_selection[0]=='current':
@@ -186,6 +191,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         results = results.sort_values(['target_id','time']).reset_index(drop=True)
         results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
         eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, results['target_id'].nunique(), len(results)]
+        eval_efficiency = eval_efficiency.sort_values('model_name')
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
         results['mode'] = np.exp(results['mu'] - results['sigma']**2)
         print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
