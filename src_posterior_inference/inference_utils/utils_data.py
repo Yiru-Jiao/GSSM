@@ -44,13 +44,14 @@ class DataOrganiser(Dataset):
         return combine_features
 
     def read_data(self,):
-        print(f'Reading data for {self.dataset} {self.encoder_selection} {self.split}...')
         mixrate_dict = {'SafeBaseline': 2, 'ArgoverseHV': 2, 'highD': 2}
         if len(self.dataset)==2 and self.mixrate<1:
             mixrate_dict[self.dataset[1]] = self.mixrate
         elif len(self.dataset)==3:
             mixrate_dict['ArgoverseHV'] = 0.4
             mixrate_dict['highD'] = 0.4
+        print(f'Reading data for {self.dataset} {self.encoder_selection} {self.split}...')
+        print(f'Mixrate: {mixrate_dict}')
         self.data = []
         X_current = []
         scene_id = 0
