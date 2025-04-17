@@ -65,7 +65,7 @@ def main(args, manual_seed, path_prepared):
     else:
         evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'pretraining', 'val_loss',
                                            'whole_model', 'current_encoder', 'environment_encoder', 
-                                           'profiles_encoder', 'attention_decoder'])
+                                           'profiles_encoder', 'attention_decoder', 'mixrate'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
     for dataset, encoder_selection, pretrained_encoder in zip(datasets, encoder_combinations, pretraining_flag):
         dataset_name = '_'.join(dataset)
