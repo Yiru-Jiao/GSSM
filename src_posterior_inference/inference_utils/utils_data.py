@@ -45,7 +45,7 @@ class DataOrganiser(Dataset):
 
     def read_data(self,):
         mixrate_dict = {'SafeBaseline': 2, 'ArgoverseHV': 2, 'highD': 2}
-        if len(self.dataset)==2 and self.mixrate<1:
+        if len(self.dataset)==2 and self.mixrate<=1:
             mixrate_dict[self.dataset[1]] = self.mixrate
         elif len(self.dataset)==3:
             mixrate_dict['ArgoverseHV'] = 0.4
