@@ -40,10 +40,10 @@ def set_experiments(stage=[1,2,3,4]):
         ])
     if 4 in stage: # add extra features, pretrained encoders
         exp_config.extend([
-            [['SafeBaseline'], ['current'], 'all'],
-            [['SafeBaseline'], ['current+acc'], 'all'],
-            [['SafeBaseline'], ['current', 'environment'], 'all'],
-            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            # [['SafeBaseline'], ['current'], 'all'],
+            # [['SafeBaseline'], ['current+acc'], 'all'],
+            # [['SafeBaseline'], ['current', 'environment'], 'all'],
+            # [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
             # [['SafeBaseline'], ['current','environment','profiles'], 'all'],
             # [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
         ])        
@@ -238,6 +238,11 @@ class train_val_test():
             # Early stopping if validation loss converges
             if (epoch_n>60) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
+                break
+
+            # Force a stop if the learning rate is too low
+            if (epoch_n>60) and (self.optimizer.param_groups[0]['lr'] < 1e-7):
+                print(f'Learning rate is too low and training stops early at Epoch {epoch_n}.')
                 break
 
         progress_bar.close()

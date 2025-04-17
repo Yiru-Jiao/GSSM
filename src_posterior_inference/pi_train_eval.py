@@ -49,7 +49,7 @@ def main(args, manual_seed, path_prepared):
 
     if args.stage is None:
         # exp_config = set_experiments(stage=[1,2,3,4])
-        exp_config = set_experiments(stage=[3,4])
+        exp_config = set_experiments(stage=[1,2,3])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -79,7 +79,7 @@ def main(args, manual_seed, path_prepared):
 
         initial_lr = 0.0001
         batch_size = 512
-        epochs = 300
+        epochs = 150
 
         if len(dataset)==2 and encoder_name=='current' and pretrained_encoder==False:
             # Set mixrates for the multi-dataset training
