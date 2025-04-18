@@ -302,11 +302,11 @@ class train_val_test():
                 self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}/'
             elif self.pretrained_encoder=='all':
                 self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained_all/{self.encoder_name}/'
-        if mixrate<=1:
-            self.path_save = f'{self.path_output}mixed{mixrate}/'
-        else:
-            self.path_save = self.path_output
-        final_model = glob.glob(self.path_save+'model_final*')[0]
+        if mixrate<=1 and 'mixed' not in self.path_output:
+            self.path_output = f'{self.path_output}mixed{mixrate}/'
+        print(os.listdir(self.path_output))
+        final_model = [f for f in os.listdir(self.path_output) if f.endswith('.pth')][0]
+        final_model = os.path.join(self.path_output, final_model)
         self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))        
         self.model = self.model.to(self.device)
         self.lognorm_nll = LogNormalNLL().to(self.device)
