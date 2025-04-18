@@ -52,21 +52,29 @@ def compute_sim_mat(data, dist_metric='EUC', min_=0, max_=1):
     return sim_mat
 
 
-def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
+def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles', random_seed=131):
+    mixrate_dict = {'SafeBaseline': 1, 'ArgoverseHV': 0.2, 'highD': 0.9}
     if feature == 'profiles':
         train_data = []
         val_data = []
-        train_scene_ids = 0
-        val_scene_ids = 0
+        train_scene_id = 0
+        val_scene_id = 0
         for dataset in datasets:
+            mixrate = mixrate_dict[dataset]
             train_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles')
-            train_df['scene_id'] = train_df['scene_id'] + train_scene_ids
-            train_scene_ids = train_df['scene_id'].max() + 1
-            train_data.append(train_df)
+            train_df['scene_id'] = train_df['scene_id'] + train_scene_id
+            train_scene_id = train_df['scene_id'].max() + 1
+            train_scene_ids = train_df['scene_id'].unique()
+            if mixrate<1:
+                train_scene_ids = np.random.RandomState(random_seed).choice(train_scene_ids, int(len(train_scene_ids)*mixrate), replace=False)
+            train_data.append(train_df[train_df['scene_id'].isin(train_scene_ids)])
             val_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_val.h5', key='profiles')
-            val_df['scene_id'] = val_df['scene_id'] + val_scene_ids
-            val_scene_ids = val_df['scene_id'].max() + 1
-            val_data.append(val_df)
+            val_df['scene_id'] = val_df['scene_id'] + val_scene_id
+            val_scene_id = val_df['scene_id'].max() + 1
+            val_scene_ids = val_df['scene_id'].unique()
+            if mixrate<1:
+                val_scene_ids = np.random.RandomState(random_seed).choice(val_scene_ids, int(len(val_scene_ids)*mixrate), replace=False)
+            val_data.append(val_df[val_df['scene_id'].isin(val_scene_ids)])
         train_data = pd.concat(train_data)
         train_data = train_data.sort_values(['scene_id', 'time']).reset_index(drop=True)
         val_data = pd.concat(val_data)
@@ -86,17 +94,24 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles'):
                          'psi_sur','rho']
         train_data = []
         val_data = []
-        train_scene_ids = 0
-        val_scene_ids = 0
+        train_scene_id = 0
+        val_scene_id = 0
         for dataset in datasets:
+            mixrate = mixrate_dict[dataset]
             train_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features')
-            train_df['scene_id'] = train_df['scene_id'] + train_scene_ids
-            train_scene_ids = train_df['scene_id'].max() + 1
-            train_data.append(train_df)
+            train_df['scene_id'] = train_df['scene_id'] + train_scene_id
+            train_scene_id = train_df['scene_id'].max() + 1
+            train_scene_ids = train_df['scene_id'].unique()
+            if mixrate<1:
+                train_scene_ids = np.random.RandomState(random_seed).choice(train_scene_ids, int(len(train_scene_ids)*mixrate), replace=False)
+            train_data.append(train_df[train_df['scene_id'].isin(train_scene_ids)])
             val_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_val.h5', key='features')
-            val_df['scene_id'] = val_df['scene_id'] + val_scene_ids
-            val_scene_ids = val_df['scene_id'].max() + 1
-            val_data.append(val_df)
+            val_df['scene_id'] = val_df['scene_id'] + val_scene_id
+            val_scene_id = val_df['scene_id'].max() + 1
+            val_scene_ids = val_df['scene_id'].unique()
+            if mixrate<1:
+                val_scene_ids = np.random.RandomState(random_seed).choice(val_scene_ids, int(len(val_scene_ids)*mixrate), replace=False)
+            val_data.append(val_df[val_df['scene_id'].isin(val_scene_ids)])
         train_data = pd.concat(train_data)
         train_data = train_data.sort_values('scene_id').reset_index(drop=True)
         val_data = pd.concat(val_data)
