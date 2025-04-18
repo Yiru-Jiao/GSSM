@@ -207,7 +207,7 @@ class train_val_test():
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop()
-            if lr_schedule and epoch_n>15: # Start learning rate scheduler after 15 epochs
+            if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
                 self.scheduler.step(val_loss)
                 # if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
                 #     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
@@ -236,12 +236,12 @@ class train_val_test():
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
-            if (epoch_n>20) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
+            if (epoch_n>50) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
             # Force a stop if the learning rate is too low
-            if (epoch_n>20) and (self.optimizer.param_groups[0]['lr'] < 1e-7):
+            if (epoch_n>50) and (self.optimizer.param_groups[0]['lr'] < 1e-6):
                 print(f'Learning rate is too low and training stops early at Epoch {epoch_n}.')
                 break
 

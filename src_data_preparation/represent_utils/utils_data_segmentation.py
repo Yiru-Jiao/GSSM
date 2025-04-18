@@ -95,11 +95,11 @@ class ContextSegmenter(coortrans):
             df_view_ego = self.transform_coor(df, 'ego')
             df_view_relative = self.transform_coor(df, 'relative')
             if self.dataset=='highD':
-                indices_end = np.arange(len(df)-random_ends[id_count], 25, -10)
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -8)
             elif self.dataset=='SafeBaseline':
                 indices_end = np.arange(len(df)-random_ends[id_count], 25, -10)
             elif self.dataset=='ArgoverseHV':
-                indices_end = np.arange(len(df)-random_ends[id_count], 25, -30)
+                indices_end = np.arange(len(df)-random_ends[id_count], 25, -25)
 
             for idx_end in indices_end:
                 # sample 2.5-second scenes
