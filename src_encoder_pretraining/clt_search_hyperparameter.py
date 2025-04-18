@@ -92,9 +92,9 @@ def main(args):
     for dataset in ['SafeBaseline_ArgoverseHV_highD']:
         print(f'---- Loading {dataset} data ----')
         if '_' in dataset:
-            train_data, _ = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
+            train_data, _ = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles', random_seed=manual_seed)
         else:
-            train_data, _ = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles')
+            train_data, _ = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles', random_seed=manual_seed)
     
         dist_metric = 'EUC'
         sim_mat = None # to be computed per batch during training

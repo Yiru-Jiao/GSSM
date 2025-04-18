@@ -88,7 +88,7 @@ def main(args):
             eval_results.to_csv(results_dir, index=False)
         
         print(f'---- Training and evaluating with datasets: {datasets} ----')
-        train_data, test_data = datautils.load_data(datasets, dataset_dir=path_prepared, feature=args.encoder_name)
+        train_data, test_data = datautils.load_data(datasets, dataset_dir=path_prepared, feature=args.encoder_name, random_seed=args.seed)
         if 'current' in args.encoder_name:
             if test_data.shape[0]>10000:
                 test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error

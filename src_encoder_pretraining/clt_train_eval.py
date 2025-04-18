@@ -80,9 +80,9 @@ def main(args):
     for dataset in dataset_list:
         print(f'---- Loading {dataset} data ----')
         if '_' in dataset:
-            train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles')
+            train_data, test_data = datautils.load_data(dataset.split('_'), dataset_dir=path_prepared, feature='profiles', random_seed=args.seed)
         else:
-            train_data, test_data = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles')
+            train_data, test_data = datautils.load_data([dataset], dataset_dir=path_prepared, feature='profiles', random_seed=args.seed)
         if test_data.shape[0] > 10000:
             test_data = test_data[np.random.choice(test_data.shape[0], 10000, replace=False)] # reduce test data size to avoid memory error
         train_sim_mat = None # to be computed per batch during training
