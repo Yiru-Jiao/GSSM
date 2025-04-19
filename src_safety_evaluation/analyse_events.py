@@ -174,8 +174,12 @@ def main(args, path_result, path_prepared):
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
     pretraining_list = model_evaluation['pretraining'].values
-    for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
-        model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+    mixrate_list = model_evaluation['mixrate'].values
+    for dataset_name, encoder_name, pretraining, mixrate in zip(dataset_name_list, encoder_name_list, pretraining_list, mixrate_list):
+        if np.isnan(mixrate):
+            model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+        else:
+            model_name = f'{dataset_name}_{encoder_name}_{pretraining}_mixed{mixrate}'
         if model_name in existing_models:
             print('--- Optimal warning analysis with', model_name, 'already completed ---')
         else:
