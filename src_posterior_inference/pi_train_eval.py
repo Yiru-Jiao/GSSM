@@ -48,8 +48,7 @@ def main(args, manual_seed, path_prepared):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     if args.stage is None:
-        # exp_config = set_experiments(stage=[1,2,3,4])
-        exp_config = set_experiments(stage=[1,2,3])
+        exp_config = set_experiments(stage=[1,2,3,4])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
