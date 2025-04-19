@@ -27,8 +27,7 @@ def set_experiments(stage=[1,2,3,4]):
         exp_config.extend([
             [['SafeBaseline','ArgoverseHV'], ['current'], False],
             [['SafeBaseline','highD'], ['current'], False],
-            # [['SafeBaseline','ArgoverseHV','highD'], ['current'], False],
-            # [['SafeBaseline','ArgoverseHV','highD'], ['current'], True],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current'], False],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
@@ -40,12 +39,12 @@ def set_experiments(stage=[1,2,3,4]):
         ])
     if 4 in stage: # add extra features, pretrained encoders
         exp_config.extend([
-            # [['SafeBaseline'], ['current'], 'all'],
-            # [['SafeBaseline'], ['current+acc'], 'all'],
-            # [['SafeBaseline'], ['current', 'environment'], 'all'],
-            # [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
-            # [['SafeBaseline'], ['current','environment','profiles'], 'all'],
-            # [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
+            [['SafeBaseline'], ['current'], 'all'],
+            [['SafeBaseline'], ['current+acc'], 'all'],
+            [['SafeBaseline'], ['current', 'environment'], 'all'],
+            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
+            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
+            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
         ])        
     return exp_config
 
