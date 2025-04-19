@@ -147,20 +147,24 @@ def main(args, path_result, path_prepared):
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
     pretraining_list = model_evaluation['pretraining'].values
+    mixrate_list = model_evaluation['mixrate'].values
     if args.reversed_list:
         dataset_name_list = dataset_name_list[::-1]
         encoder_name_list = encoder_name_list[::-1]
         pretraining_list = pretraining_list[::-1]
 
     gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
-    for dataset_name, encoder_name, pretraining in zip(dataset_name_list, encoder_name_list, pretraining_list):
-        model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+    for dataset_name, encoder_name, pretraining, mixrate in zip(dataset_name_list, encoder_name_list, pretraining_list, mixrate_list):
+        if np.isnan(mixrate):
+            model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+        else:
+            model_name = f'{dataset_name}_{encoder_name}_{pretraining}_mixed{mixrate}'
         if os.path.exists(path_result + f'Conflicts/Results/RiskEval_{model_name}.h5'):
             print('--- Evaluation with', model_name, 'already completed ---')
         else:
             print('--- Evaluating with', model_name, '---')
             sub_initial_time = systime.time()
-            safety_evaluation = read_evaluation('GSSM', path_eval, dataset_name, encoder_name, pretraining)
+            safety_evaluation = read_evaluation('GSSM', path_eval, model_name)
             progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
             gssm_records = Parallel(n_jobs=-1)(delayed(evaluate)('GSSM', threshold, safety_evaluation, event_data, event_meta, voted_targets) for threshold in progress_bar)
             gssm_records = pd.concat(gssm_records).reset_index()
