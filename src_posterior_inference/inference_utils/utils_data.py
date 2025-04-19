@@ -49,7 +49,7 @@ class DataOrganiser(Dataset):
             mixrate_dict[self.dataset[1]] = self.mixrate
         elif len(self.dataset)==3:
             mixrate_dict['ArgoverseHV'] = 0.2
-            mixrate_dict['highD'] = 0.9
+            mixrate_dict['highD'] = 0.6
         print(f'Reading data for {self.dataset} {self.encoder_selection} {self.split}...')
         print(f'Mixrate: {mixrate_dict}')
         self.data = []

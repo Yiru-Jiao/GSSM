@@ -53,7 +53,7 @@ def compute_sim_mat(data, dist_metric='EUC', min_=0, max_=1):
 
 
 def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles', random_seed=131):
-    mixrate_dict = {'SafeBaseline': 1, 'ArgoverseHV': 0.2, 'highD': 0.9}
+    mixrate_dict = {'SafeBaseline': 1, 'ArgoverseHV': 0.2, 'highD': 0.6}
     if feature == 'profiles':
         train_data = []
         val_data = []
@@ -61,6 +61,7 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles', rando
         val_scene_id = 0
         for dataset in datasets:
             mixrate = mixrate_dict[dataset]
+            print(f'Dataset: {dataset}, mixrate: {mixrate}')
             train_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/profiles_{dataset}_train.h5', key='profiles')
             train_df['scene_id'] = train_df['scene_id'] + train_scene_id
             train_scene_id = train_df['scene_id'].max() + 1
@@ -98,6 +99,7 @@ def load_data(datasets, dataset_dir='./PreparedData/', feature='profiles', rando
         val_scene_id = 0
         for dataset in datasets:
             mixrate = mixrate_dict[dataset]
+            print(f'Dataset: {dataset}, mixrate: {mixrate}')
             train_df = pd.read_hdf(f'{dataset_dir}Segments/{dataset}/current_features_{dataset}_train.h5', key='features')
             train_df['scene_id'] = train_df['scene_id'] + train_scene_id
             train_scene_id = train_df['scene_id'].max() + 1
