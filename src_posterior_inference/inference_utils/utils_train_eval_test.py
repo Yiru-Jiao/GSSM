@@ -66,12 +66,10 @@ class train_val_test():
         encoder_name = '_'.join(encoder_selection)
         self.encoder_name = encoder_name
         if not return_attention:
-            if pretrained_encoder==False:
-                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/not_pretrained/{encoder_name}/'
-            elif pretrained_encoder==True:
+            if pretrained_encoder:
                 self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained/{encoder_name}/'
-            elif pretrained_encoder=='all':
-                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained_all/{encoder_name}/'
+            else:
+                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/not_pretrained/{encoder_name}/'
             os.makedirs(self.path_output, exist_ok=True)
         self.encoder_selection = encoder_selection
         self.pretrained_encoder = pretrained_encoder
@@ -81,9 +79,7 @@ class train_val_test():
 
     def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.single_output, self.return_attention)
-        if self.pretrained_encoder==True:
-            self.model.load_pretrained_encoders(self.dataset_name, self.path_prepared, continue_training=True)
-        elif self.pretrained_encoder=='all':
+        if self.pretrained_encoder:
             self.model.load_pretrained_encoders('SafeBaseline_ArgoverseHV_highD', 
                                                 self.path_prepared, continue_training=True)
 
@@ -211,7 +207,7 @@ class train_val_test():
                 # if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
                 #     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
                 #     # make the frozen parameters trainable
-                #     if self.pretrained_encoder != False:
+                #     if self.pretrained_encoder:
                 #         sys.stderr.write('\n Learning rate is reduced so the frozen parameters are all activated since now ...')
                 #         for param in self.model.parameters():
                 #             param.requires_grad = True
@@ -295,12 +291,10 @@ class train_val_test():
     
     def load_model(self, mixrate=2):
         if 'path_output' not in self.__dict__:
-            if self.pretrained_encoder==False:
-                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}/'
-            elif self.pretrained_encoder==True:
+            if self.pretrained_encoder:
                 self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}/'
-            elif self.pretrained_encoder=='all':
-                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained_all/{self.encoder_name}/'
+            else:
+                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}/'
         if mixrate<=1 and 'mixed' not in self.path_output:
             self.path_output = f'{self.path_output}mixed{mixrate}/'
         final_model = [f for f in os.listdir(self.path_output) if f.endswith('.pth')][0]

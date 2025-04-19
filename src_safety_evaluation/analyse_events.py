@@ -47,8 +47,6 @@ def get_model_fig(model_name):
 
     if 'not_pretrained' in model_name:
         pretrained = 'not_pretrained'
-    elif 'pretrained_all' in model_name:
-        pretrained = 'pretrained_all'
     else:
         pretrained = 'pretrained'
 

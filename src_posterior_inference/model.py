@@ -87,7 +87,7 @@ class UnifiedProximity(nn.Module):
         best_model = pretraining_evaluation.sort_values(by='avg_order').iloc[0]
         return best_model
 
-    def load_pretrained_encoders(self, dataset_name, path_prepared='PreparedData/', continue_training=False):
+    def load_pretrained_encoders(self, dataset_name, path_prepared='PreparedData/', continue_training=True):
         if 'current' in self.encoder_selection:
             path_encoder = path_prepared + f'EncoderPretraining/current_autoencoder/{dataset_name}/'
             pretraining_evaluation = pd.read_csv(path_encoder + 'evaluation.csv')

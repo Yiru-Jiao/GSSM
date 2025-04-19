@@ -147,8 +147,6 @@ def main(args, events, manual_seed, path_prepared, path_result):
             pretrained_encoder = False
         elif pretraining=='pretrained':
             pretrained_encoder = True
-        elif pretraining=='pretrained_all':
-            pretrained_encoder = 'all'
         model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         if mixrate<=1:
             model_name = f'{model_name}_mixed{mixrate}'

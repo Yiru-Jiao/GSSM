@@ -69,18 +69,16 @@ def main(args, manual_seed, path_prepared):
     for dataset, encoder_selection, pretrained_encoder in zip(datasets, encoder_combinations, pretraining_flag):
         dataset_name = '_'.join(dataset)
         encoder_name = '_'.join(encoder_selection)
-        if pretrained_encoder==False:
-            pretraining = 'not_pretrained'
-        elif pretrained_encoder==True:
+        if pretrained_encoder:
             pretraining = 'pretrained'
-        elif pretrained_encoder=='all':
-            pretraining = 'pretrained_all'
+        else:
+            pretraining = 'not_pretrained'
 
         initial_lr = 0.0001
-        batch_size = 512
+        batch_size = 512 if pretrained_encoder==False else 1024
         epochs = 150
 
-        if len(dataset)==2 and encoder_name=='current' and pretrained_encoder==False:
+        if len(dataset)==2 and encoder_name=='current' and not pretrained_encoder:
             # Set mixrates for the multi-dataset training
             mixrates = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
             if args.reversed_list:
