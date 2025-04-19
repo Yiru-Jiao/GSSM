@@ -59,7 +59,7 @@ def main(args, path_result, path_prepared):
         for model in models:
             if model=='UCD':
                 continue
-            if 'not_pretrained' not in model:
+            if model not in ['TAdv', 'TTC2D', 'ACT', 'EI'] and 'not_pretrained' not in model:
                 continue
             if 'mixed' in model:
                 if 'ArgoverseHV' in model:
