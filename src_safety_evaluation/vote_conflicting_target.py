@@ -70,7 +70,7 @@ def main(args, path_result, path_prepared):
                         continue
             models2use.append(model)
         models = models2use
-        print(f'Models to use ({len(models)}):', models)
+        print(f'Models to use ({len(models)}):\n', models)
         for model in models:
             warning_model = warning_timeliness[warning_timeliness['model']==model]
             voted_targets.loc[warning_model['event_id'].values, model] = warning_model['target_id'].values
