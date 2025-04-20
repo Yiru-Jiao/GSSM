@@ -152,6 +152,7 @@ def main(args, path_result, path_prepared):
         dataset_name_list = dataset_name_list[::-1]
         encoder_name_list = encoder_name_list[::-1]
         pretraining_list = pretraining_list[::-1]
+        mixrate_list = mixrate_list[::-1]
 
     gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
     for dataset_name, encoder_name, pretraining, mixrate in zip(dataset_name_list, encoder_name_list, pretraining_list, mixrate_list):
