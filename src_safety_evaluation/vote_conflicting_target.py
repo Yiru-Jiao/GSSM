@@ -160,6 +160,12 @@ def main(args, path_result, path_prepared):
             model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         else:
             model_name = f'{dataset_name}_{encoder_name}_{pretraining}_mixed{mixrate}'
+            if 'ArgoverseHV' in model_name:
+                if '0.2' not in model_name:
+                    continue
+            elif 'highD' in model_name:
+                if '0.6' not in model_name:
+                    continue
         if os.path.exists(path_result + f'Conflicts/Results/RiskEval_{model_name}.h5'):
             print('--- Evaluation with', model_name, 'already completed ---')
         else:
