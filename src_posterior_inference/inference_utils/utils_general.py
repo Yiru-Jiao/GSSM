@@ -4,7 +4,6 @@ This script includes general utility functions that are used in the training and
 
 import os
 import numpy as np
-import pandas as pd
 import torch
 import random
 
