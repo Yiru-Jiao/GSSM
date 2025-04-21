@@ -25,6 +25,9 @@ def get_statistics(warning, return_statistics=False):
     
 
 def area_curve(xaxis, yaxis, threshold):
+    condition = (xaxis>0)&(yaxis>0)
+    xaxis = xaxis[condition]
+    yaxis = yaxis[condition]
     sorted_indices = np.argsort(xaxis)
     xaxis = xaxis[sorted_indices]
     yaxis = yaxis[sorted_indices]
