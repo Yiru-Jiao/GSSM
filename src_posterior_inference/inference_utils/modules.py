@@ -3,52 +3,53 @@ This script defines the encoders and decoder for the GSSM model.
 '''
 
 import os
-import sys
 import glob
 import torch
 from torch import nn
-import pandas as pd
 from collections import OrderedDict
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from src_encoder_pretraining.clt_model import spclt
-from src_encoder_pretraining.ssrl_utils.utils_general import load_tuned_hyperparameters, configure_model
 
+
+class LSTM(nn.Module):
+    def __init__(self, input_dims=4, hidden_dims=64, num_layers=2):
+        super(LSTM, self).__init__()
+        self.hidden_dims = hidden_dims
+        self.num_layers = num_layers
+        self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims//2, num_layers, batch_first=True) for _ in range(5)])
+        self.linear = nn.Sequential(
+            nn.Linear(hidden_dims//2, hidden_dims),
+            nn.Dropout(0.2),
+            nn.GELU(),
+            nn.Linear(hidden_dims, hidden_dims),
+        )
+
+    def forward(self, x): # x: (batch_size, 25, feature_dims=4)
+        # in total 5 time blocks, each for the passed 0.5, 1, 1.5, 2, 2.5 seconds
+        for i, lstm in enumerate(self.LSTMs):
+            sub_x = x[:, -(i+1)*5:, :] # (batch_size, [5, 10, 15, 20, 25], feature_dims)
+            h0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims//2).to(x.device)
+            c0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims//2).to(x.device)
+            _, (sub_hidden, _) = lstm(sub_x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dims//2)
+            if i==0:
+                hidden = sub_hidden[-1].unsqueeze(1) # (batch_size, 1, hidden_dims//2)
+            else:
+                hidden = torch.cat((hidden, sub_hidden[-1].unsqueeze(1)), dim=1) # (batch_size, [2, 3, 4, 5], hidden_dims//2)
+        out = self.linear(hidden) # (batch_size, 5, hidden_dims)
+        # nn.Linear() applies to the last dimension, therefore the 5 time blocks are still independently processed
+        return out
+    
 
 class TSEncoder(nn.Module):
-    def __init__(self, device, input_dims=4, output_dims=64):
+    '''
+    This encoder extracts the time series features into 5 representations,
+    within each the features are designed to **interact** with each other.
+    '''
+    def __init__(self, input_dims=4, output_dims=64):
         super(TSEncoder, self).__init__()
-        self.input_dims = input_dims
-        self.output_dims = output_dims
-        self.dist_metric = 'EUC'
-        self.spclt_model = spclt(self.input_dims, self.output_dims,
-                                 dist_metric=self.dist_metric, device=device)
+        self.net = LSTM(input_dims, output_dims, num_layers=2)
 
-    # Load a pretrained model
-    def load(self, model_selection, device, path_prepared, continue_training=False):
-        tuned_params_dir = f'{path_prepared}representation_hyperparameters.csv'
-        if os.path.exists(tuned_params_dir):
-            tuned_params = pd.read_csv(tuned_params_dir, index_col=0)
-        else:
-            print(f'****** {tuned_params_dir} not found ******')
-        self = load_tuned_hyperparameters(self, tuned_params, model_selection)
-        self.repr_dims = self.output_dims
-        self.lr = 0.0001 # this learning rate will not be used in posterior inference, but required for configuring spclt
-        model_config = configure_model(self, self.input_dims, device)
-        self.spclt_model = spclt(**model_config)
-
-        run_dir = f'{path_prepared}trained_models/'
-        save_dir = os.path.join(run_dir, f'{model_selection}')
-        existing_models = glob.glob(f'{save_dir}/*_net.pth')
-        best_model = 'model' + existing_models[0].split('model')[-1].split('_net')[0]
-        self.spclt_model.load(f'{save_dir}/{best_model}')
-        print(f'Pretrained encoder for profiles loaded: {model_selection}/{best_model}')
-        if not continue_training:
-            for param in self.spclt_model.net.parameters():
-                param.requires_grad = False
-        
     def forward(self, x):
-        out = self.spclt_model.encode(x)
-        return out #(batch_size, 5, repr_dims=64)
+        out = self.net(x)
+        return out #(batch_size, 5, 64)
 
 
 class CurrentEncoder(nn.Module):
@@ -76,18 +77,6 @@ class CurrentEncoder(nn.Module):
             ordered_layers[f'gelu{i}'] = nn.GELU()
         ordered_layers[f'linear{num_layers-1}'] = nn.Linear(output_dims, output_dims)
         return nn.Sequential(ordered_layers)
-
-    # Load a pretrained model
-    def load(self, model_selection, device, path_prepared, continue_training=False):
-        run_dir = f'{path_prepared}trained_models/'
-        save_dir = os.path.join(run_dir, f'{model_selection}')
-        best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
-        state_dict = torch.load(best_model, map_location=device, weights_only=True)
-        self.load_state_dict(state_dict)
-        print(f"Pretrained encoder for current features loaded: {best_model.split('trained_models/')[-1]}")
-        if not continue_training:
-            for param in self.parameters():
-                param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 12 or 13)
         features = x.unsqueeze(-1) #(batch_size, 12 or 13, 1)
@@ -122,18 +111,6 @@ class EnvEncoder(nn.Module):
             ordered_layers[f'gelu{i}'] = nn.GELU()
         ordered_layers[f'linear{num_layers-1}'] = nn.Linear(output_dims, output_dims)
         return nn.Sequential(ordered_layers)
-
-    # Load a pretrained model
-    def load(self, model_selection, device, path_prepared, continue_training=False):
-        run_dir = f'{path_prepared}trained_models/'
-        save_dir = os.path.join(run_dir, f'{model_selection}')
-        best_model = glob.glob(f'{save_dir}/*_encoder.pth')[0]
-        state_dict = torch.load(best_model, map_location=device, weights_only=True)
-        self.load_state_dict(state_dict)
-        print(f"Pretrained encoder for environment features loaded: {best_model.split('trained_models/')[-1]}")
-        if not continue_training:
-            for param in self.parameters():
-                param.requires_grad = False
 
     def forward(self, x): # x: (batch_size, 27)
         lighting = x[:,0:5] # (batch_size, 5)
