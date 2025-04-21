@@ -64,7 +64,7 @@ class UnifiedProximity(nn.Module):
             self.EnvEncoder = modules.EnvEncoder(input_dims=27, output_dims=64)
             self.final_seq_len += 4
         if 'profiles' in encoder_selection:
-            self.TSEncoder = modules.TSEncoder(device, input_dims=4, output_dims=64)
+            self.TSEncoder = modules.TSEncoder(input_dims=4, output_dims=64)
             self.final_seq_len += 5
         self.AttentionDecoder = modules.AttentionDecoder(self.final_seq_len, latent_dims=64,
                                                          single_output=single_output,

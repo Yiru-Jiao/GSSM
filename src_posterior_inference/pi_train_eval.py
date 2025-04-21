@@ -127,7 +127,7 @@ def main(args, manual_seed, path_prepared):
             else:
                 model_size['environment_encoder'] = 0
             if 'profiles' in encoder_selection:
-                model_size['profiles_encoder'] = sum(p.numel() for p in pipeline.model.TSEncoder.spclt_model.net.parameters())
+                model_size['profiles_encoder'] = sum(p.numel() for p in pipeline.model.TSEncoder.net.parameters())
             else:
                 model_size['profiles_encoder'] = 0
             model_size['attention_decoder'] = sum(p.numel() for p in pipeline.model.AttentionDecoder.parameters())
