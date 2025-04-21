@@ -119,6 +119,8 @@ def main(args, path_result, path_prepared):
 
     gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
     for model_name in evaluation_files:
+        if 'not_pretrained' not in model_name:
+            continue
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
             print('--- Analysis 1 with', model_name, 'already completed ---')
         else:
@@ -176,6 +178,8 @@ def main(args, path_result, path_prepared):
     pretraining_list = model_evaluation['pretraining'].values
     mixrate_list = model_evaluation['mixrate'].values
     for dataset_name, encoder_name, pretraining, mixrate in zip(dataset_name_list, encoder_name_list, pretraining_list, mixrate_list):
+        if pretraining == 'pretrained':
+            continue
         if np.isnan(mixrate):
             model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
         else:

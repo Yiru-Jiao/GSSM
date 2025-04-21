@@ -11,7 +11,7 @@ import pandas as pd
 import torch
 import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src_encoder_pretraining.ssrl_utils.utils_general import fix_seed, init_dl_program
+from src_posterior_inference.inference_utils.utils_general import fix_seed, init_dl_program
 from src_posterior_inference.inference_utils.utils_train_eval_test import set_experiments, train_val_test
 
 
