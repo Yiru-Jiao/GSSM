@@ -4,7 +4,6 @@ This script defines the training, validation, and testing procedures for the pos
 
 import os
 import sys
-import glob
 import torch
 import numpy as np
 import pandas as pd
@@ -19,40 +18,30 @@ def set_experiments(stage=[1,2,3,4]):
     exp_config = []
     if 1 in stage: # single dataset, current only
         exp_config.extend([
-            [['SafeBaseline'], ['current'], False],
-            [['highD'], ['current'], False],
-            [['ArgoverseHV'], ['current'], False],
+            [['SafeBaseline'], ['current']],
+            [['highD'], ['current']],
+            [['ArgoverseHV'], ['current']],
         ])
     if 2 in stage: # multiple datasets, current only
         exp_config.extend([
-            [['SafeBaseline','ArgoverseHV'], ['current'], False],
-            [['SafeBaseline','highD'], ['current'], False],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current'], False],
+            [['SafeBaseline','ArgoverseHV'], ['current']],
+            [['SafeBaseline','highD'], ['current']],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
-            [['SafeBaseline'], ['current+acc'], False],
-            [['SafeBaseline'], ['current', 'environment'], False],
-            [['SafeBaseline'], ['current+acc', 'environment'], False],
-            [['SafeBaseline'], ['current','environment','profiles'], False],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], False],
+            [['SafeBaseline'], ['current+acc']],
+            [['SafeBaseline'], ['current', 'environment']],
+            [['SafeBaseline'], ['current+acc', 'environment']],
+            [['SafeBaseline'], ['current','environment','profiles']],
+            [['SafeBaseline'], ['current+acc','environment','profiles']],
         ])
-    if 4 in stage: # add extra features, pretrained encoders
-        exp_config.extend([
-            [['SafeBaseline'], ['current'], 'all'],
-            [['SafeBaseline'], ['current+acc'], 'all'],
-            [['SafeBaseline'], ['current', 'environment'], 'all'],
-            [['SafeBaseline'], ['current+acc', 'environment'], 'all'],
-            [['SafeBaseline'], ['current','environment','profiles'], 'all'],
-            [['SafeBaseline'], ['current+acc','environment','profiles'], 'all'],
-        ])        
     return exp_config
 
 
 class train_val_test():
     def __init__(self, device, path_prepared, dataset,
                  encoder_selection='all', 
-                 pretrained_encoder=False,
                  single_output=None,
                  return_attention=False):
         super(train_val_test, self).__init__()
@@ -66,22 +55,12 @@ class train_val_test():
         encoder_name = '_'.join(encoder_selection)
         self.encoder_name = encoder_name
         if not return_attention:
-            if pretrained_encoder:
-                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/pretrained/{encoder_name}/'
-            else:
-                self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/not_pretrained/{encoder_name}/'
+            self.path_output = path_prepared + f'PosteriorInference/{dataset_name}/{encoder_name}/'
             os.makedirs(self.path_output, exist_ok=True)
         self.encoder_selection = encoder_selection
-        self.pretrained_encoder = pretrained_encoder
         self.single_output = single_output
         self.return_attention = return_attention
-        self.define_model()
-
-    def define_model(self,):
         self.model = UnifiedProximity(self.device, self.encoder_selection, self.single_output, self.return_attention)
-        if self.pretrained_encoder:
-            self.model.load_pretrained_encoders('SafeBaseline_ArgoverseHV_highD', 
-                                                self.path_prepared, continue_training=True)
 
     def create_dataloader(self, batch_size, mixrate=2, random_seed=131):
         self.batch_size = batch_size
@@ -204,20 +183,6 @@ class train_val_test():
             val_loss = self.val_loop()
             if lr_schedule and epoch_n>25: # Start learning rate scheduler after 25 epochs
                 self.scheduler.step(val_loss)
-                # if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
-                #     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
-                #     # make the frozen parameters trainable
-                #     if self.pretrained_encoder:
-                #         sys.stderr.write('\n Learning rate is reduced so the frozen parameters are all activated since now ...')
-                #         for param in self.model.parameters():
-                #             param.requires_grad = True
-                #         # re-define the optimizer and scheduler for the whole model
-                #         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr*0.6)
-                #         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                #             self.optimizer, mode='min', factor=0.6, patience=5, cooldown=5,
-                #             threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**30
-                #         )
-                #     self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
@@ -291,10 +256,7 @@ class train_val_test():
     
     def load_model(self, mixrate=2):
         if 'path_output' not in self.__dict__:
-            if self.pretrained_encoder:
-                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/pretrained/{self.encoder_name}/'
-            else:
-                self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/not_pretrained/{self.encoder_name}/'
+            self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/{self.encoder_name}/'
         if mixrate<=1 and 'mixed' not in self.path_output:
             self.path_output = f'{self.path_output}mixed{mixrate}/'
         final_model = [f for f in os.listdir(self.path_output) if f.endswith('.pth')][0]

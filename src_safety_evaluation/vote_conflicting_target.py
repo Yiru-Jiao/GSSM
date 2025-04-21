@@ -59,8 +59,6 @@ def main(args, path_result, path_prepared):
         for model in models:
             if model=='UCD':
                 continue
-            if model not in ['TAdv', 'TTC2D', 'ACT', 'EI'] and 'not_pretrained' not in model:
-                continue
             if 'mixed' in model:
                 if 'ArgoverseHV' in model:
                     if '0.2' not in model:
@@ -146,20 +144,18 @@ def main(args, path_result, path_prepared):
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
-    pretraining_list = model_evaluation['pretraining'].values
     mixrate_list = model_evaluation['mixrate'].values
     if args.reversed_list:
         dataset_name_list = dataset_name_list[::-1]
         encoder_name_list = encoder_name_list[::-1]
-        pretraining_list = pretraining_list[::-1]
         mixrate_list = mixrate_list[::-1]
 
     gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
-    for dataset_name, encoder_name, pretraining, mixrate in zip(dataset_name_list, encoder_name_list, pretraining_list, mixrate_list):
+    for dataset_name, encoder_name, mixrate in zip(dataset_name_list, encoder_name_list, mixrate_list):
         if np.isnan(mixrate):
-            model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+            model_name = f'{dataset_name}_{encoder_name}'
         else:
-            model_name = f'{dataset_name}_{encoder_name}_{pretraining}_mixed{mixrate}'
+            model_name = f'{dataset_name}_{encoder_name}_mixed{mixrate}'
             if 'ArgoverseHV' in model_name:
                 if '0.2' not in model_name:
                     continue

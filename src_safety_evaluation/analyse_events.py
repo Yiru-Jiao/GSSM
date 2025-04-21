@@ -33,24 +33,18 @@ def fill_na_warning(results):
 def get_model_fig(model_name):
     dataset_name = model_name.split('_current')[0]
 
-    features = model_name.split('pretrained')[0]
-    if 'acc' in features:
-        features = features.split('current+acc_')[1]
+    if 'acc' in model_name:
+        features = model_name.split('current+acc_')[1]
         features = features.split('_')
         features = ['current+acc'] + features
     else:
-        features = features.split('current')[1]
+        features = model_name.split('current')[1]
         features = features.split('_')
         features = ['current'] + features
-    features = [f for f in features if f not in ['not','']]
+    features = [f for f in features if f !='']
     encoder_name = '_'.join(features)
 
-    if 'not_pretrained' in model_name:
-        pretrained = 'not_pretrained'
-    else:
-        pretrained = 'pretrained'
-
-    return dataset_name, encoder_name, pretrained
+    return dataset_name, encoder_name
 
 
 def main(args, path_result, path_prepared):
@@ -119,13 +113,11 @@ def main(args, path_result, path_prepared):
 
     gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
     for model_name in evaluation_files:
-        if 'not_pretrained' not in model_name:
-            continue
         if os.path.exists(path_result + f'Analyses/Warning_{model_name}.h5'):
             print('--- Analysis 1 with', model_name, 'already completed ---')
         else:
             print('--- Analyzing with', model_name, '---')
-            dataset_name, encoder_name, pretraining = get_model_fig(model_name)
+            dataset_name, encoder_name = get_model_fig(model_name)
             sub_initial_time = systime.time()
             safety_evaluation = read_evaluation('GSSM', path_eval, model_name)
             progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
@@ -175,15 +167,12 @@ def main(args, path_result, path_prepared):
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
-    pretraining_list = model_evaluation['pretraining'].values
     mixrate_list = model_evaluation['mixrate'].values
-    for dataset_name, encoder_name, pretraining, mixrate in zip(dataset_name_list, encoder_name_list, pretraining_list, mixrate_list):
-        if pretraining == 'pretrained':
-            continue
+    for dataset_name, encoder_name, mixrate in zip(dataset_name_list, encoder_name_list, mixrate_list):
         if np.isnan(mixrate):
-            model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+            model_name = f'{dataset_name}_{encoder_name}'
         else:
-            model_name = f'{dataset_name}_{encoder_name}_{pretraining}_mixed{mixrate}'
+            model_name = f'{dataset_name}_{encoder_name}_mixed{mixrate}'
         if model_name in existing_models:
             print('--- Optimal warning analysis with', model_name, 'already completed ---')
         else:

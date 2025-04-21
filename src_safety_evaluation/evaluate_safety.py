@@ -141,13 +141,8 @@ def main(args, events, manual_seed, path_prepared, path_result):
         dataset = dataset_name.split('_')
         encoder_name = model_evaluation.iloc[model_id]['encoder_selection']
         encoder_selection = encoder_name.split('_')
-        pretraining = model_evaluation.iloc[model_id]['pretraining']
         mixrate = model_evaluation.iloc[model_id]['mixrate']
-        if pretraining=='not_pretrained':
-            pretrained_encoder = False
-        elif pretraining=='pretrained':
-            pretrained_encoder = True
-        model_name = f'{dataset_name}_{encoder_name}_{pretraining}'
+        model_name = f'{dataset_name}_{encoder_name}'
         if mixrate<=1:
             model_name = f'{model_name}_mixed{mixrate}'
         else:
@@ -159,7 +154,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             continue
 
         # Define and load trained model
-        model = define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, mixrate, return_attention=False)
+        model = define_model(device, path_prepared, dataset, encoder_selection, mixrate, return_attention=False)
 
         states = []
         if encoder_selection[0]=='current':

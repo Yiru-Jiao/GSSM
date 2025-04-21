@@ -55,13 +55,12 @@ def main(args, manual_seed, path_prepared, path_result):
     encoder_selection = ['current', 'environment', 'profiles']
     # Define the model to be used for attribution
     dataset = ['SafeBaseline']
-    pretrained_encoder = False
-    model_name = f"SafeBaseline_{'_'.join(encoder_selection)}_not_pretrained"
+    model_name = f"SafeBaseline_{'_'.join(encoder_selection)}"
     if os.path.exists(path_save + f'{model_name}.h5'):
         print(f'{model_name} has been attributed.')
         sys.exit(0)
 
-    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output='intensity')
+    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, single_output='intensity')
     pipeline.load_model()
     encoder = pipeline.model.combi_encoder
     decoder = pipeline.model.AttentionDecoder

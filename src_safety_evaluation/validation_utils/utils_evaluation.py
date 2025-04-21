@@ -46,12 +46,12 @@ def set_veh_dimensions(event_meta, avg_width, avg_length):
     return veh_dimensions
 
 
-def define_model(device, path_prepared, dataset, encoder_selection, pretrained_encoder, mixrate=2, single_output=None, return_attention=False):
+def define_model(device, path_prepared, dataset, encoder_selection, mixrate=2, single_output=None, return_attention=False):
     # Define the model
-    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, pretrained_encoder, single_output, return_attention)
+    pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, single_output, return_attention)
     # Load trained model
     pipeline.load_model(mixrate)
-    print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}-{pipeline.pretrained_encoder}')
+    print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}')
     return pipeline.model
 
 

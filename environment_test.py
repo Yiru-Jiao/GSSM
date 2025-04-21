@@ -39,23 +39,6 @@ from sklearn.preprocessing import OneHotEncoder
 from src_data_preparation.represent_utils.coortrans import coortrans
 print('--- All the imports in src_data_preparation are successful ---')
 
-# src_encoder_pretraining
-from tslearn.metrics import dtw, dtw_path
-from src_encoder_pretraining.clt_model import spclt
-from src_encoder_pretraining.modules.loss_utils import *
-from src_encoder_pretraining.ae_model import autoencoder
-from src_encoder_pretraining.ssrl_utils.utils_eval import *
-from src_encoder_pretraining.modules import encoder, losses
-from src_encoder_pretraining.ssrl_utils.utils_general import *
-import src_encoder_pretraining.ssrl_utils.utils_data as datautils
-from src_encoder_pretraining.ssrl_utils.utils_paramsearch import *
-from src_encoder_pretraining.ssrl_utils.utils_distance_matrix import *
-from src_encoder_pretraining.modules.measures import MeasureCalculator
-from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
-from src_encoder_pretraining.ssrl_utils.utils_distance_matrix import get_EUC
-from src_posterior_inference.inference_utils.modules import CurrentEncoder, EnvEncoder
-print('--- All the imports in src_encoder_pretraining are successful ---')
-
 # src_posterior_inference
 print('--- All the imports in src_posterior_inference are successful ---')
 
