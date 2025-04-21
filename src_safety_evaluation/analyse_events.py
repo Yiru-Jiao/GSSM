@@ -156,10 +156,10 @@ def main(args, path_result, path_prepared):
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
             safety_evaluation = read_evaluation(conflict_indicator, path_eval)
             if conflict_indicator == 'UCD':
-                optimal_threshold = optimize_threshold(conflict_warning, 'UCD', 'ROC')
+                optimal_threshold = optimize_threshold(conflict_warning, 'UCD', 'PRC')
                 records = issue_warning('UCD', optimal_threshold, safety_evaluation, event_meta)
             else:
-                optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'ROC')
+                optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'PRC')
                 records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
             records['model'] = conflict_indicator
             results.append(records.copy())
@@ -179,7 +179,7 @@ def main(args, path_result, path_prepared):
             print('--- Issuing warning', model_name, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
             safety_evaluation = read_evaluation('GSSM', path_eval, model_name)
-            optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'ROC')
+            optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'PRC')
             records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
             records['model'] = model_name
             results.append(records.copy())
