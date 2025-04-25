@@ -194,11 +194,18 @@ class train_val_test():
 
         progress_bar.close()
 
+        # Save model and likelihood
+        self.model.eval()
+        self.likelihood.eval()
+        torch.save(self.model.state_dict(), self.path_output+f'model_{count_epoch+1}epoch.pth')
+        torch.save(self.likelihood.state_dict(), self.path_output+f'likelihood_{count_epoch+1}epoch.pth')
+        loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records[:count_epoch+1])+1)],
+                                data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[:count_epoch+1]})
+        loss_log.to_csv(self.path_output+'loss_log.csv')
+
         # Print inspection results
         lognorm_nll = LogNormalNLL()
         smooth_lognorm_nll = SmoothLogNormalNLL(beta=5)
-        self.model.eval()
-        self.likelihood.eval()
 
         mu_list, sigma_list = [], []
         val_gau = torch.tensor(0., device=self.device, requires_grad=False)
@@ -215,21 +222,11 @@ class train_val_test():
                 inducing_out = self.get_inducing_out(interaction_context.to(self.device))
                 val_smooth_gau += smooth_lognorm_nll((mu, log_var), torch.exp(current_spacing.to(self.device)), inducing_out)
 
-        self.model.train()
-        self.likelihood.train()
         mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
         mu_sigma['mode'] = np.exp(mu_sigma['mu']-mu_sigma['sigma']**2)
         print(mu_sigma.describe().to_string())
         print(f'LogNormal NLL: {val_gau.item()/count_batch}, Smooth LogNormal NLL: {val_smooth_gau.item()/count_batch}')
         
-        # Save loss records
-        loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_records[:count_epoch+1])+1)],
-                                data={'train_loss': loss_records[:count_epoch+1], 'val_loss': val_loss_records[:count_epoch+1]})
-        loss_log.to_csv(self.path_output+'loss_log.csv')
-        # Save model and likelihood
-        torch.save(self.model.state_dict(), self.path_output+f'model_{count_epoch+1}epoch.pth')
-        torch.save(self.likelihood.state_dict(), self.path_output+f'likelihood_{count_epoch+1}epoch.pth')
-
     def val_loop(self,):
         self.model.eval()
         self.likelihood.eval()
