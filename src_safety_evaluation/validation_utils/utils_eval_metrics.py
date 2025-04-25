@@ -24,7 +24,7 @@ def get_statistics(warning, return_statistics=False):
         return statistics['TP'], statistics['FP'], statistics['TN'], statistics['FN']
     
 
-def area_curve(xaxis, yaxis, threshold):
+def interpolate_xy(xaxis, yaxis):
     condition = (xaxis>0)&(yaxis>0)
     xaxis = xaxis[condition]
     yaxis = yaxis[condition]
@@ -33,6 +33,11 @@ def area_curve(xaxis, yaxis, threshold):
     yaxis = yaxis[sorted_indices]
     virtual_xaxis = np.linspace(0, 1, 1000)
     virtual_yaxis = np.interp(virtual_xaxis, xaxis, yaxis)
+    return virtual_xaxis, virtual_yaxis
+
+
+def area_curve(xaxis, yaxis, threshold):
+    virtual_xaxis, virtual_yaxis = interpolate_xy(xaxis, yaxis)
     virtual_yaxis = virtual_yaxis[virtual_xaxis<=threshold]
     virtual_xaxis = virtual_xaxis[virtual_xaxis<=threshold]
     area = np.trapz(virtual_yaxis, virtual_xaxis)
@@ -43,7 +48,7 @@ def get_time(warning, threshold=1.5):
     warning = warning.copy()
     warning['TTI'] = warning['impact_time'] - warning['warning_timestamp']/1000
     median_TTI = warning.groupby('threshold')['TTI'].median()
-    PTTI = len(warning[warning['TTI']>=threshold])/len(warning)
+    PTTI = len(warning[warning['TTI']>=threshold])/len(warning[~warning['TTI'].isna()])
     return median_TTI, PTTI
 
 
