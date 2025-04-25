@@ -128,7 +128,7 @@ class BatchNormModule(nn.Module):
     '''
     def __init__(self, seq_len):
         super(BatchNormModule, self).__init__()
-        self.batch_norm1d = nn.BatchNorm1d(seq_len)
+        self.batch_norm1d = nn.BatchNorm1d(seq_len+1)
         self.frozen_noise_generator = nn.Linear(seq_len, 1)
         for param in self.frozen_noise_generator.parameters():
             param.requires_grad = False
