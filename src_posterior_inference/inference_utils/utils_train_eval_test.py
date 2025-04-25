@@ -14,7 +14,7 @@ from model import UnifiedProximity, LogNormalNLL, SmoothLogNormalNLL
 from torch.utils.data import DataLoader
 
 
-def set_experiments(stage=[1,2,3,4]):
+def set_experiments(stage=[1,2,3]):
     exp_config = []
     if 1 in stage: # single dataset, current only
         exp_config.extend([
@@ -221,7 +221,7 @@ class train_val_test():
         progress_bar.close()
 
         # Save model and loss records
-        self.model.eval()
+        torch.optim.swa_utils.update_bn(self.train_dataloader, self.model) 
         torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
         loss_log = loss_log[:epoch_n+1]
         if lr_schedule:
@@ -235,26 +235,6 @@ class train_val_test():
             loss_log = pd.DataFrame(index=[f'epoch_{i}' for i in range(1, len(loss_log)+1)],
                                     data={'train_loss': loss_log})
             loss_log.to_csv(self.path_output+'loss_log.csv')
-
-        # Print inspection results
-        self._model = self.model
-        mu_list, sigma_list = [], []
-        val_gau = torch.tensor(0., device=self.device, requires_grad=False)
-        val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
-        with torch.no_grad():
-            for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                gau_loss, out = self.compute_loss(x, y, return_out=True, smoothed=False)
-                smooth_gau_loss = self.compute_loss(x, y)
-                mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
-                mu_list.append(mu.cpu().numpy())
-                sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
-                val_gau += gau_loss
-                val_smooth_gau += smooth_gau_loss
-
-        mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
-        mu_sigma['mode'] = np.exp(mu_sigma['mu'] - mu_sigma['sigma']**2)
-        print(mu_sigma.describe().to_string())
-        print(f'LogNormal NLL: {val_gau.item()/val_batch_iter}, Smooth LogNormal NLL: {val_smooth_gau.item()/val_batch_iter}')
 
     # Validation loop
     def val_loop(self):
@@ -273,7 +253,30 @@ class train_val_test():
             self.path_output = f'{self.path_output}mixed{mixrate}/'
         final_model = [f for f in os.listdir(self.path_output) if f.endswith('.pth')][0]
         final_model = os.path.join(self.path_output, final_model)
-        self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))        
+        self.model = self._model
+        self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))
         self.model = self.model.to(self.device)
-        self.lognorm_nll = LogNormalNLL().to(self.device)
         self.model.eval()
+        self.lognorm_nll = LogNormalNLL().to(self.device)
+
+    def print_inspection(self):
+        self._model = self.model
+        self._model.eval()
+        mu_list, sigma_list = [], []
+        val_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        with torch.no_grad():
+            for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
+                gau_loss, out = self.compute_loss(x, y, return_out=True, smoothed=False)
+                smooth_gau_loss = self.compute_loss(x, y)
+                mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
+                mu_list.append(mu.cpu().numpy())
+                sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
+                val_gau += gau_loss
+                val_smooth_gau += smooth_gau_loss
+
+        mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
+        mu_sigma['mode'] = np.exp(mu_sigma['mu'] - mu_sigma['sigma']**2)
+        print(mu_sigma.describe().to_string())
+        print(f'LogNormal NLL: {val_gau.item()/val_batch_iter}, Smooth LogNormal NLL: {val_smooth_gau.item()/val_batch_iter}')
+
