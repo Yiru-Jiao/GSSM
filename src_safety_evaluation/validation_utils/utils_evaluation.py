@@ -76,7 +76,7 @@ def extreme_cdf(x, mu, sigma, n=10):
 def torch_intensity(spacing, mu, log_var=None, var=None):
     assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
     assert spacing.size() == log_var.size(), f'{spacing.size()} != {log_var.size()}'
-    log_p = torch.log(torch.tensor(0.5))
+    log_p = torch.log(torch.tensor(0.5), device=mu.device)
     log_s = torch.log(torch.clamp(spacing, min=1e-6))
     if var is None:
         squared2var = torch.sqrt(2*torch.exp(log_var))
@@ -129,8 +129,12 @@ def GSSM(states, model, device):
     logn_list = []
     with torch.no_grad():
         for X, s in data_loader:
+            print('model device:')
+            for name, param in model.named_parameters():
+                print(name, param.device)
             out = model(send_x_to_device(X, device))
             mu, log_var = out
+            print('mu, log_var device:', mu.device, log_var.device)
             logn = torch_intensity(s.to(device), mu, log_var=log_var)
             mu_list.append(mu.cpu().numpy()) # [n_samples]
             sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
