@@ -43,9 +43,8 @@ class custom_dataset(Dataset):
     
 
 class UnifiedProximity(nn.Module):
-    def __init__(self, device, encoder_selection='all', single_output=None, return_attention=False):
+    def __init__(self, encoder_selection='all', single_output=None, return_attention=False):
         super(UnifiedProximity, self).__init__()
-        self.device = device
         if encoder_selection=='all':
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
@@ -109,19 +108,6 @@ class UnifiedProximity(nn.Module):
         latent = self.combi_encoder(x)
         out = self.AttentionDecoder(latent)
         return out
-
-    def encode(self, states, batch_size):
-        contexts, _ = states
-        data_loader = DataLoader(custom_dataset(contexts), batch_size=batch_size, shuffle=False)
-
-        hidden_representations = []
-        with torch.no_grad():
-            for x in data_loader:
-                latent = self.combi_encoder(send_x_to_device(x, self.device))
-                _, _, hidden_states = self.AttentionDecoder(latent)
-                hidden_representations.append(hidden_states[0])
-        hidden_representations = torch.cat(hidden_representations, dim=0) # (n_samples, final_seq_len, hidden_dim)
-        return hidden_representations.cpu().numpy()
 
 
 class LogNormalNLL(nn.Module):
