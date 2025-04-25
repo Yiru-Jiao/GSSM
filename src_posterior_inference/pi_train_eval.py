@@ -48,7 +48,7 @@ def main(args, manual_seed, path_prepared):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     if args.stage is None:
-        exp_config = set_experiments(stage=[1,2,3,4])
+        exp_config = set_experiments(stage=[1,2,3])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -113,6 +113,7 @@ def main(args, manual_seed, path_prepared):
             else:
                 pipeline.train_model(epochs, initial_lr, lr_schedule=True, verbose=5)
                 val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
+            
             model_size = dict()
             model_size['whole_model'] = sum(p.numel() for p in pipeline.model.parameters())
             model_size['current_encoder'] = sum(p.numel() for p in pipeline._model.CurrentEncoder.parameters())
@@ -125,6 +126,7 @@ def main(args, manual_seed, path_prepared):
             else:
                 model_size['profiles_encoder'] = 0
             model_size['attention_decoder'] = sum(p.numel() for p in pipeline._model.AttentionDecoder.parameters())
+
             evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
             columns = ['dataset', 'encoder_selection', 'val_loss'] + list(model_size.keys())
             values = [dataset_name, encoder_name, val_loss] + [int(model_size[key]) for key in model_size.keys()]
@@ -134,7 +136,10 @@ def main(args, manual_seed, path_prepared):
             evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'mixrate'])
             evaluation[list(model_size.keys())] = evaluation[list(model_size.keys())].astype(int)
             evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
+
+            pipeline.print_inspection()
             pipeline = [] # Clear the pipeline to free up memory
+
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
