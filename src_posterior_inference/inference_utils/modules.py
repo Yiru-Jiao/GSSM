@@ -121,6 +121,27 @@ class EnvEncoder(nn.Module):
         return torch.stack(out, dim=1) # (batch_size, 4, 64)
 
 
+class BatchNormModule(nn.Module):
+    '''
+    This module is used to add a fixed noise to the latent representation for regularisation,
+    and to apply batch normalization to the concatenated latent representation.
+    '''
+    def __init__(self, seq_len):
+        super(BatchNormModule, self).__init__()
+        self.batch_norm1d = nn.BatchNorm1d(seq_len)
+        self.frozen_noise_generator = nn.Linear(seq_len, 1)
+        for param in self.frozen_noise_generator.parameters():
+            param.requires_grad = False
+    
+    def forward(self, x): # x: (batch_size, seq_len, latent_dims=64)
+        permuted_x = x.permute(0, 2, 1) # (batch_size, latent_dims=64, seq_len)
+        with torch.no_grad():
+            noise = self.frozen_noise_generator(permuted_x) # (batch_size, latent_dims=64, 1)
+        noise = noise.permute(0, 2, 1) # (batch_size, 1, latent_dims=64)
+        latent = self.batch_norm1d(torch.cat([x, noise], dim=1)) # (batch_size, seq_len+1, latent_dims=64)
+        return latent
+
+
 class AttentionBlock(nn.Module):
     def __init__(self, input_dims):
         super(AttentionBlock, self).__init__()
