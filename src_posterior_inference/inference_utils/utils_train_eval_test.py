@@ -60,7 +60,9 @@ class train_val_test():
         self.encoder_selection = encoder_selection
         self.single_output = single_output
         self.return_attention = return_attention
-        self.model = UnifiedProximity(self.device, self.encoder_selection, self.single_output, self.return_attention)
+        self._model = UnifiedProximity(self.encoder_selection, self.single_output, self.return_attention)
+        self.model = torch.optim.swa_utils.AveragedModel(self._model)
+        self.model.update_parameters(self._model)
 
     def create_dataloader(self, batch_size, mixrate=2, random_seed=131):
         self.batch_size = batch_size
@@ -84,7 +86,7 @@ class train_val_test():
         Maintain the original values of [vy_ego, v_ego2, v_sur2, delta_v2].
         '''
         if len(x.size())==2:
-            if self.model.training:
+            if self._model.training:
                 noise = noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
                 noise_mask = torch.ones_like(x, requires_grad=False)
@@ -98,7 +100,7 @@ class train_val_test():
             elif x.size(1)==13:
                 noised_x[:,[10,12]] = (noised_x[:,[10,12]] + np.pi) % (2 * np.pi) - np.pi
         elif len(x.size())==3:
-            if self.model.training:
+            if self._model.training:
                 noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
                 noise_mask = torch.ones_like(x, requires_grad=False)
@@ -119,20 +121,24 @@ class train_val_test():
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             inducing_points = [self.generate_noised_x(x[0]), x[1], self.generate_noised_x(x[2])]
         inducing_points = self.send_x_to_device(inducing_points)
-        inducing_out = self.model(inducing_points)
+        if self._model.training:
+            inducing_out = self._model(inducing_points)
+        else:
+            with torch.no_grad():
+                inducing_out = self._model(inducing_points)
         return inducing_out
 
     def compute_loss(self, x, y, return_out=False, smoothed=True):
         if not smoothed:
             x = self.send_x_to_device(x)
             y = y.to(self.device)
-            out = self.model(x)
+            out = self._model(x)
             loss = self.lognorm_nll(out, y)
         else:
             inducing_out = self.get_inducing_out(x)
             x = self.send_x_to_device(x)
             y = y.to(self.device)
-            out = self.model(x)
+            out = self._model(x)
             loss = self.smooth_lognorm_nll(out, y, inducing_out)
         if return_out:
             return loss, out
@@ -142,8 +148,9 @@ class train_val_test():
     def train_model(self, num_epochs=100, initial_lr=0.0001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
-        # self.lr_reduced = False
+        self.lr_reduced = False
         # Move model and loss function to device
+        self._model = self._model.to(self.device)
         self.model = self.model.to(self.device)
         self.lognorm_nll = LogNormalNLL().to(self.device)
         self.smooth_lognorm_nll = SmoothLogNormalNLL(beta=5).to(self.device)
@@ -152,8 +159,8 @@ class train_val_test():
         loss_log = np.ones(num_epochs)*np.inf
         val_loss_log = np.ones(num_epochs)*np.inf
 
-        self.model.train()
-        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.initial_lr)
+        self._model.train(), self.model.train()
+        self.optimizer = torch.optim.AdamW(self._model.parameters(), lr=self.initial_lr)
 
         if lr_schedule:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -178,11 +185,17 @@ class train_val_test():
                 loss.backward()
                 self.optimizer.step()
                 train_loss += loss
+                if self.lr_reduced: # Update the averaged model after learning rate is reduced
+                    self.model.update_parameters(self._model)
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop()
             if lr_schedule and epoch_n>25: # Start learning rate scheduler after 25 epochs
                 self.scheduler.step(val_loss)
+                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
+                    # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
+                    # set the flag to True to update the averaged model
+                    self.lr_reduced = True
             val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
@@ -207,29 +220,8 @@ class train_val_test():
 
         progress_bar.close()
 
-        # Print inspection results
-        self.model.eval()
-
-        mu_list, sigma_list = [], []
-        val_gau = torch.tensor(0., device=self.device, requires_grad=False)
-        val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
-        with torch.no_grad():
-            for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                gau_loss, out = self.compute_loss(x, y, return_out=True, smoothed=False)
-                smooth_gau_loss = self.compute_loss(x, y)
-                mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
-                mu_list.append(mu.cpu().numpy())
-                sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
-                val_gau += gau_loss
-                val_smooth_gau += smooth_gau_loss
-
-        self.model.train()
-        mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
-        mu_sigma['mode'] = np.exp(mu_sigma['mu'] - mu_sigma['sigma']**2)
-        print(mu_sigma.describe().to_string())
-        print(f'LogNormal NLL: {val_gau.item()/val_batch_iter}, Smooth LogNormal NLL: {val_smooth_gau.item()/val_batch_iter}')
-
         # Save model and loss records
+        self.model.eval()
         torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
         loss_log = loss_log[:epoch_n+1]
         if lr_schedule:
@@ -244,14 +236,34 @@ class train_val_test():
                                     data={'train_loss': loss_log})
             loss_log.to_csv(self.path_output+'loss_log.csv')
 
+        # Print inspection results
+        self._model = self.model
+        mu_list, sigma_list = [], []
+        val_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
+        with torch.no_grad():
+            for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
+                gau_loss, out = self.compute_loss(x, y, return_out=True, smoothed=False)
+                smooth_gau_loss = self.compute_loss(x, y)
+                mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
+                mu_list.append(mu.cpu().numpy())
+                sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
+                val_gau += gau_loss
+                val_smooth_gau += smooth_gau_loss
+
+        mu_sigma = pd.DataFrame(data={'mu': np.concatenate(mu_list), 'sigma': np.concatenate(sigma_list)})
+        mu_sigma['mode'] = np.exp(mu_sigma['mu'] - mu_sigma['sigma']**2)
+        print(mu_sigma.describe().to_string())
+        print(f'LogNormal NLL: {val_gau.item()/val_batch_iter}, Smooth LogNormal NLL: {val_smooth_gau.item()/val_batch_iter}')
+
     # Validation loop
     def val_loop(self):
-        self.model.eval()
+        self._model.eval(), self.model.eval()
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
                 val_loss += self.compute_loss(x, y)
-        self.model.train()
+        self._model.train(), self.model.train()
         return val_loss.item() / val_batch_iter
     
     def load_model(self, mixrate=2):
