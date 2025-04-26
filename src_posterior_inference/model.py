@@ -77,21 +77,21 @@ class UnifiedProximity(nn.Module):
             def combi_encoder(x):
                 x_current = self.CurrentEncoder(x)
                 latent = self.batch_norm(x_current)
-                return latent # (batch_size, 12/13+1, latent_dims=64)
+                return latent # (batch_size, 12/13+noise_dim, latent_dims=64)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             def combi_encoder(x):
                 x_current, x_environment = x
                 x_current = self.CurrentEncoder(x_current)
                 x_environment = self.EnvEncoder(x_environment)
                 latent = self.batch_norm(torch.cat([x_current, x_environment], dim=1))
-                return latent # (batch_size, 16/17+1, latent_dims=64)
+                return latent # (batch_size, 16/17+noise_dim, latent_dims=64)
         elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
             def combi_encoder(x):
                 x_current, x_ts = x
                 x_current = self.CurrentEncoder(x_current)
                 x_ts = self.TSEncoder(x_ts)
                 latent = self.batch_norm(torch.cat([x_current, x_ts], dim=1))
-                return latent # (batch_size, 17/18+1, latent_dims=64)
+                return latent # (batch_size, 17/18+noise_dim, latent_dims=64)
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             def combi_encoder(x):
                 x_current, x_environment, x_ts = x
