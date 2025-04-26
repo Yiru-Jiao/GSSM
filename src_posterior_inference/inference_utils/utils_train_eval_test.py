@@ -221,7 +221,7 @@ class train_val_test():
         progress_bar.close()
 
         # Save model and loss records
-        torch.optim.swa_utils.update_bn(self.train_dataloader, self.model, device=self.device) 
+        self.customed_update_bn(self.train_dataloader, self.model)
         torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
         loss_log = loss_log[:epoch_n+1]
         if lr_schedule:
@@ -246,6 +246,34 @@ class train_val_test():
         self._model.train(), self.model.train()
         return val_loss.item() / val_batch_iter
     
+    @torch.no_grad()
+    def customed_update_bn(self, loader, model):
+        '''
+        Update BatchNorm running_mean, running_var buffers in the model.
+        It performs one pass over data in `loader` to estimate the activation
+        statistics for BatchNorm layers in the model.
+
+        This function is a customed version of the original one in torch.optim.swa_utils.update_bn
+        for the list format of input data.
+        '''
+        momenta = {}
+        for module in model.modules():
+            if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
+                module.reset_running_stats()
+                momenta[module] = module.momentum
+        if not momenta:
+            return
+        was_training = model.training
+        model.train()
+        for module in momenta.keys():
+            module.momentum = None
+        for x, _ in loader:
+            x = self.send_x_to_device(x)
+            model(x)
+        for bn_module in momenta.keys():
+            bn_module.momentum = momenta[bn_module]
+        model.train(was_training)
+
     def load_model(self, mixrate=2):
         if 'path_output' not in self.__dict__:
             self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/{self.encoder_name}/'
