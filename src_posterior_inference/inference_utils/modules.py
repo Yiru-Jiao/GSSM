@@ -10,10 +10,11 @@ from collections import OrderedDict
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_dims=4, hidden_dims=64, num_layers=2):
+    def __init__(self, input_dims=4, hidden_dims=64, num_layers=2, drop_rate=0.4):
         super(LSTM, self).__init__()
         self.hidden_dims = hidden_dims
         self.num_layers = num_layers
+        self.drop_rate = drop_rate
         self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims//2, num_layers, batch_first=True) for _ in range(5)])
         self.linear = nn.Sequential(
             nn.Linear(hidden_dims//2, hidden_dims),
@@ -23,6 +24,10 @@ class LSTM(nn.Module):
         )
 
     def forward(self, x): # x: (batch_size, 25, feature_dims=4)
+        # randomly mask the time series input to avoid position bias
+        random_mask = (torch.rand_like(x, requires_grad=False) > self.drop_rate).to(x.device)
+        x = x * random_mask.float()
+
         # in total 5 time blocks, each for the passed 0.5, 1, 1.5, 2, 2.5 seconds
         for i, lstm in enumerate(self.LSTMs):
             sub_x = x[:, -(i+1)*5:, :] # (batch_size, [5, 10, 15, 20, 25], feature_dims)
@@ -128,17 +133,18 @@ class BatchNormModule(nn.Module):
     '''
     def __init__(self, seq_len):
         super(BatchNormModule, self).__init__()
+        self.noise_dim = self.seq_len // 5 - 1
         self.batch_norm1d = nn.BatchNorm1d(seq_len+1)
-        self.frozen_noise_generator = nn.Linear(seq_len, 1)
+        self.frozen_noise_generator = nn.Linear(seq_len, self.noise_dim)
         for param in self.frozen_noise_generator.parameters():
             param.requires_grad = False
     
     def forward(self, x): # x: (batch_size, seq_len, latent_dims=64)
         permuted_x = x.permute(0, 2, 1) # (batch_size, latent_dims=64, seq_len)
         with torch.no_grad():
-            noise = self.frozen_noise_generator(permuted_x) # (batch_size, latent_dims=64, 1)
-        noise = noise.permute(0, 2, 1) # (batch_size, 1, latent_dims=64)
-        latent = self.batch_norm1d(torch.cat([x, noise], dim=1)) # (batch_size, seq_len+1, latent_dims=64)
+            noise = self.frozen_noise_generator(permuted_x) # (batch_size, latent_dims=64, noise_dim)
+        noise = noise.permute(0, 2, 1) # (batch_size, noise_dim, latent_dims=64)
+        latent = self.batch_norm1d(torch.cat([x, noise], dim=1)) # (batch_size, seq_len+noise_dim, latent_dims=64)
         return latent
 
 

@@ -67,11 +67,10 @@ class UnifiedProximity(nn.Module):
             self.final_seq_len += 5
         self.batch_norm = modules.BatchNormModule(self.final_seq_len)
         self.combi_encoder = self.define_combi_encoder()
-        self.final_seq_len += 1 # A latent dimension is added in batch norm for reguralisation noise
+        self.final_seq_len += self.batch_norm.noise_dim # noise dimensions are added in batch norm for reguralisation
         self.AttentionDecoder = modules.AttentionDecoder(self.final_seq_len, latent_dims=64,
                                                          single_output=single_output,
-                                                         return_attention=return_attention
-                                                         )
+                                                         return_attention=return_attention)
 
     def define_combi_encoder(self,):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
