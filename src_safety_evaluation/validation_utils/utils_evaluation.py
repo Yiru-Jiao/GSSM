@@ -129,8 +129,6 @@ def GSSM(states, model, device):
     logn_list = []
     with torch.no_grad():
         for X, s in data_loader:
-            for name, param in model.named_parameters():
-                print(name, param.device)
             out = model(send_x_to_device(X, device))
             mu, log_var = out
             logn = torch_intensity(s.to(device), mu, log_var=log_var)
