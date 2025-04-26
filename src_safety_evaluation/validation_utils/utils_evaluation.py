@@ -52,7 +52,7 @@ def define_model(device, path_prepared, dataset, encoder_selection, mixrate=2, s
     # Load trained model
     pipeline.load_model(mixrate)
     print(f'Model loaded: {pipeline.dataset_name}-{pipeline.encoder_name}')
-    return pipeline.model
+    return pipeline._model
 
 
 def lognormal_pdf(x, mu, sigma, rescale=True):
@@ -76,7 +76,7 @@ def extreme_cdf(x, mu, sigma, n=10):
 def torch_intensity(spacing, mu, log_var=None, var=None):
     assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
     assert spacing.size() == log_var.size(), f'{spacing.size()} != {log_var.size()}'
-    log_p = torch.log(torch.tensor(0.5), device=mu.device)
+    log_p = torch.log(torch.tensor(0.5, device=mu.device))
     log_s = torch.log(torch.clamp(spacing, min=1e-6))
     if var is None:
         squared2var = torch.sqrt(2*torch.exp(log_var))

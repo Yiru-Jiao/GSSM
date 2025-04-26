@@ -221,7 +221,7 @@ class train_val_test():
         progress_bar.close()
 
         # Save model and loss records
-        torch.optim.swa_utils.update_bn(self.train_dataloader, self.model) 
+        torch.optim.swa_utils.update_bn(self.train_dataloader, self.model, device=self.device) 
         torch.save(self.model.state_dict(), self.path_output+f'model_final_{epoch_n}epoch.pth')
         loss_log = loss_log[:epoch_n+1]
         if lr_schedule:
@@ -253,10 +253,12 @@ class train_val_test():
             self.path_output = f'{self.path_output}mixed{mixrate}/'
         final_model = [f for f in os.listdir(self.path_output) if f.endswith('.pth')][0]
         final_model = os.path.join(self.path_output, final_model)
-        self.model = self._model
         self.model.load_state_dict(torch.load(final_model, map_location=torch.device(self.device), weights_only=True))
+        self._model.load_state_dict(self.model.module.state_dict())
         self.model = self.model.to(self.device)
+        self._model = self._model.to(self.device)
         self.model.eval()
+        self._model.eval()
         self.lognorm_nll = LogNormalNLL().to(self.device)
 
     def print_inspection(self):

@@ -62,9 +62,9 @@ def main(args, manual_seed, path_prepared, path_result):
 
     pipeline = train_val_test(device, path_prepared, dataset, encoder_selection, single_output='intensity')
     pipeline.load_model()
-    encoder = pipeline.model.combi_encoder
-    decoder = pipeline.model.AttentionDecoder
-    if not pipeline.model.training:
+    encoder = pipeline._model.combi_encoder
+    decoder = pipeline._model.AttentionDecoder
+    if not pipeline._model.training:
         print('The model is correctly loaded under evaluation mode.')
     else:
         print('The model is not under evaluation mode, please check whether the model is correctly loaded.')
