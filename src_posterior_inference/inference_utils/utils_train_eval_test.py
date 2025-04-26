@@ -260,6 +260,7 @@ class train_val_test():
         self.model.eval()
         self._model.eval()
         self.lognorm_nll = LogNormalNLL().to(self.device)
+        self.smooth_lognorm_nll = SmoothLogNormalNLL(beta=5).to(self.device)
 
     def print_inspection(self):
         self._model = self.model
