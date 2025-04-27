@@ -147,6 +147,7 @@ class train_val_test():
         self.initial_lr = initial_lr
         self.verbose = verbose
         self.lr_reduced = False
+        self.epoch_reduced = num_epochs
         # Move model and loss function to device
         self._model = self._model.to(self.device)
         self.lognorm_nll = LogNormalNLL().to(self.device)
