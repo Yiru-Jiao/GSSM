@@ -189,7 +189,10 @@ class train_val_test():
 
             val_loss = self.val_loop()
             if lr_schedule and epoch_n>25: # Start learning rate scheduler after 25 epochs
-                self.scheduler.step(val_loss)
+                if not self.lr_reduced:
+                    self.scheduler.step(val_loss)
+                else:
+                    self.scheduler.step()
                 if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
                     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
                     # set the flag to True to update the averaged model
