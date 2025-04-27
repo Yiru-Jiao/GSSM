@@ -222,7 +222,7 @@ class train_val_test():
                 progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
                                          train_loss=loss_log[epoch_n], val_loss=val_loss, refresh=False)
                 if epoch_n % self.verbose == (self.verbose-1):
-                    progress_bar.update(self.verbose)
+                    progress_bar.update(self.verbose-1)
 
             # Early stopping if validation loss converges
             if (epoch_n>50) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
