@@ -26,7 +26,7 @@ def set_experiments(stage=[1,2,3]):
         exp_config.extend([
             [['SafeBaseline','ArgoverseHV'], ['current']],
             [['SafeBaseline','highD'], ['current']],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
+            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
@@ -61,8 +61,6 @@ class train_val_test():
         self.single_output = single_output
         self.return_attention = return_attention
         self._model = UnifiedProximity(self.encoder_selection, self.single_output, self.return_attention)
-        self.model = torch.optim.swa_utils.AveragedModel(self._model)
-        self.model.update_parameters(self._model)
 
     def create_dataloader(self, batch_size, mixrate=2, random_seed=131):
         self.batch_size = batch_size
@@ -128,17 +126,17 @@ class train_val_test():
                 inducing_out = self._model(inducing_points)
         return inducing_out
 
-    def compute_loss(self, x, y, return_out=False, smoothed=True):
+    def compute_loss(self, x, y, model2use, return_out=False, smoothed=True):
         if not smoothed:
             x = self.send_x_to_device(x)
             y = y.to(self.device)
-            out = self._model(x)
+            out = model2use(x)
             loss = self.lognorm_nll(out, y)
         else:
             inducing_out = self.get_inducing_out(x)
             x = self.send_x_to_device(x)
             y = y.to(self.device)
-            out = self._model(x)
+            out = model2use(x)
             loss = self.smooth_lognorm_nll(out, y, inducing_out)
         if return_out:
             return loss, out
@@ -151,7 +149,6 @@ class train_val_test():
         self.lr_reduced = False
         # Move model and loss function to device
         self._model = self._model.to(self.device)
-        self.model = self.model.to(self.device)
         self.lognorm_nll = LogNormalNLL().to(self.device)
         self.smooth_lognorm_nll = SmoothLogNormalNLL(beta=5).to(self.device)
 
@@ -159,7 +156,7 @@ class train_val_test():
         loss_log = np.ones(num_epochs)*np.inf
         val_loss_log = np.ones(num_epochs)*np.inf
 
-        self._model.train(), self.model.train()
+        self._model.train()
         self.optimizer = torch.optim.AdamW(self._model.parameters(), lr=self.initial_lr)
 
         if lr_schedule:
@@ -181,7 +178,7 @@ class train_val_test():
                 y: [batch_size]
                 '''
                 self.optimizer.zero_grad()
-                loss = self.compute_loss(x, y)
+                loss = self.compute_loss(x, y, self._model)
                 loss.backward()
                 self.optimizer.step()
                 train_loss += loss
@@ -196,6 +193,17 @@ class train_val_test():
                     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
                     # set the flag to True to update the averaged model
                     self.lr_reduced = True
+                    self.epoch_reduced = epoch_n
+                    # use an averaged model for the rest of training
+                    self.model = torch.optim.swa_utils.AveragedModel(self._model)
+                    self.model.update_parameters(self._model)
+                    self.model = self.model.to(self.device)
+                    # new scheduler
+                    self.scheduler = torch.optim.swa_utils.SWALR(self.optimizer, 
+                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.05, # 3e-6
+                                                                 anneal_epochs=20,
+                                                                 anneal_strategy="cos")
+                    self.model.train()
             val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
@@ -205,7 +213,7 @@ class train_val_test():
             elif self.verbose > 1:
                 progress_bar.set_postfix(lr=self.optimizer.param_groups[0]['lr'],
                                          train_loss=loss_log[epoch_n], val_loss=val_loss, refresh=False)
-                if (epoch_n+1) % self.verbose == 0:
+                if epoch_n % self.verbose == (self.verbose-1):
                     progress_bar.update(self.verbose)
 
             # Early stopping if validation loss converges
@@ -213,9 +221,9 @@ class train_val_test():
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
-            # Force a stop if the learning rate is too low
-            if (epoch_n>50) and (self.optimizer.param_groups[0]['lr'] < 1e-6):
-                print(f'Learning rate is too low and training stops early at Epoch {epoch_n}.')
+            # Force a stop if the swa procedure is long enough
+            if epoch_n > (self.epoch_reduced+50) and (self.optimizer.param_groups[0]['lr'] < 5e-6):
+                print(f'Learning procedure is too long and training stops early at Epoch {epoch_n}.')
                 break
 
         progress_bar.close()
@@ -238,12 +246,16 @@ class train_val_test():
 
     # Validation loop
     def val_loop(self):
-        self._model.eval(), self.model.eval()
+        if self.lr_reduced:
+            model2use = self.model
+        else:
+            model2use = self._model
+        model2use.eval()
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                val_loss += self.compute_loss(x, y)
-        self._model.train(), self.model.train()
+                val_loss += self.compute_loss(x, y, model2use)
+        model2use.train()
         return val_loss.item() / val_batch_iter
     
     @torch.no_grad()
@@ -291,15 +303,14 @@ class train_val_test():
         self.smooth_lognorm_nll = SmoothLogNormalNLL(beta=5).to(self.device)
 
     def print_inspection(self):
-        self._model = self.model
-        self._model.eval()
+        self.model.eval()
         mu_list, sigma_list = [], []
         val_gau = torch.tensor(0., device=self.device, requires_grad=False)
         val_smooth_gau = torch.tensor(0., device=self.device, requires_grad=False)
         with torch.no_grad():
             for val_batch_iter, (x, y) in enumerate(self.val_dataloader, start=1):
-                gau_loss, out = self.compute_loss(x, y, return_out=True, smoothed=False)
-                smooth_gau_loss = self.compute_loss(x, y)
+                gau_loss, out = self.compute_loss(x, y, self.model, return_out=True, smoothed=False)
+                smooth_gau_loss = self.compute_loss(x, y, self.model)
                 mu, log_var = out[0], out[1] # mu: [batch_size], log_var: [batch_size]
                 mu_list.append(mu.cpu().numpy())
                 sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))

@@ -34,7 +34,7 @@ def get_model_fig(model_name):
     dataset_name = model_name.split('_current')[0]
 
     if 'acc' in model_name:
-        features = model_name.split('current+acc_')[1]
+        features = model_name.split('current+acc')[1]
         features = features.split('_')
         features = ['current+acc'] + features
     else:
