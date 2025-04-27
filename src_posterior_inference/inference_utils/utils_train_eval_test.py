@@ -198,13 +198,14 @@ class train_val_test():
                     # set the flag to True to update the averaged model
                     self.lr_reduced = True
                     self.epoch_reduced = epoch_n
-                    val_loss = self.val_loop()
-                    sys.stderr.write('\n Learning rate is reduced so the training uses SWA since now...')
-                    sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
                     # use an averaged model for the rest of training
                     self.model = torch.optim.swa_utils.AveragedModel(self._model)
                     self.model.update_parameters(self._model)
                     self.model = self.model.to(self.device)
+                    # print the current learning rate and validation loss
+                    val_loss = self.val_loop()
+                    sys.stderr.write('\n Learning rate is reduced so the training uses SWA since now...')
+                    sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
                     # new scheduler
                     self.scheduler = torch.optim.swa_utils.SWALR(self.optimizer, 
                                                                  swa_lr=self.optimizer.param_groups[0]['lr'] * 0.05, # 3e-6
