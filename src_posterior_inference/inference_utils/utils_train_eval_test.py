@@ -109,28 +109,29 @@ class train_val_test():
             noised_x = x + noise
         return noised_x
 
-    def get_inducing_out(self, x):
+    def get_inducing_out(self, x, model2use):
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             inducing_points = self.generate_noised_x(x)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             inducing_points = [self.generate_noised_x(x[0]), x[1]]
-        elif self.encoder_selection==['current','profiles'] or self.encoder_selection==['current+acc','profiles']:
-            inducing_points = [self.generate_noised_x(x[0]), self.generate_noised_x(x[1])]
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             inducing_points = [self.generate_noised_x(x[0]), x[1], self.generate_noised_x(x[2])]
-        inducing_points = self.send_x_to_device(inducing_points)
-        if self._model.training:
-            inducing_out = self._model(inducing_points)
+        if model2use.training:
+            if isinstance(x, list) and len(x)==3:
+                inducing_points[2] = inducing_points[2]*self.random_mask
+            inducing_points = self.send_x_to_device(inducing_points)
+            inducing_out = model2use(inducing_points)
         else:
             with torch.no_grad():
-                inducing_out = self._model(inducing_points)
+                inducing_points = self.send_x_to_device(inducing_points)
+                inducing_out = model2use(inducing_points)
         return inducing_out
     
-    def mask_xts(self, x, drop_rate=0.4):
-        if isinstance(x, list) and len(x)==3 and self._model.training:
+    def mask_xts(self, x, model2use, drop_rate=0.2):
+        if isinstance(x, list) and len(x)==3 and model2use.training:
             # randomly mask the time series input to avoid position bias
-            random_mask = (torch.rand_like(x[2], requires_grad=False) > drop_rate)
-            x[2] = x[2] * random_mask.float()
+            self.random_mask = (torch.rand_like(x[2], requires_grad=False) > drop_rate).float()
+            x[2] = x[2] * self.random_mask
             return x
         else:
             return x
@@ -142,8 +143,8 @@ class train_val_test():
             out = model2use(x)
             loss = self.lognorm_nll(out, y)
         else:
-            inducing_out = self.get_inducing_out(x)
-            x = self.send_x_to_device(self.mask_xts(x))
+            x = self.send_x_to_device(self.mask_xts(x, model2use))
+            inducing_out = self.get_inducing_out(x, model2use)
             y = y.to(self.device)
             out = model2use(x)
             loss = self.smooth_lognorm_nll(out, y, inducing_out)
