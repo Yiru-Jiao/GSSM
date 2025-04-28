@@ -131,7 +131,7 @@ def main(args, manual_seed, path_prepared, path_result):
                                         (voted_targets['target_id'].isin(existing_ids['target_id'])))]
         print(f'{len(existing_ids)} event_id and target_id pairs already exist, {len(voted_targets)} pairs left to compute.')
 
-    feature_list = sampler.variables + ['Noise', 'Spacing']
+    feature_list = sampler.variables + ['Noise1', 'Noise2', 'Noise3', 'Spacing']
     eg_columns = [f'eg_{var}' for var in feature_list]
     std_columns = [f'std_{var}' for var in feature_list]
     event_count = 0
@@ -143,7 +143,7 @@ def main(args, manual_seed, path_prepared, path_result):
         sample_inputs = torch.cat((sample_representations, proximity), dim=1)
         eg_matrix, var = explainer.shap_values(sample_inputs, nsamples=1024, return_variances=True, rseed=manual_seed)
         intensity = decoder(sample_inputs).squeeze().detach().numpy()
-        eg_values = eg_matrix.sum(axis=2)
+        eg_values = eg_matrix[:,:,:,0].sum(axis=2)
         std = np.sqrt(var[0].sum(axis=2))
         assert eg_values.shape == std.shape
         if np.any(np.isnan(eg_values)):
