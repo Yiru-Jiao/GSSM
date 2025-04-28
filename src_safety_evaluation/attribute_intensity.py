@@ -131,7 +131,7 @@ def main(args, manual_seed, path_prepared, path_result):
                                         (voted_targets['target_id'].isin(existing_ids['target_id'])))]
         print(f'{len(existing_ids)} event_id and target_id pairs already exist, {len(voted_targets)} pairs left to compute.')
 
-    feature_list = sampler.variables + ['Noise1', 'Noise2', 'Noise3', 'Spacing']
+    feature_list = sampler.variables + ['Noise', 'Spacing']
     eg_columns = [f'eg_{var}' for var in feature_list]
     std_columns = [f'std_{var}' for var in feature_list]
     event_count = 0

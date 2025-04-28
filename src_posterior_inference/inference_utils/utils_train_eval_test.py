@@ -125,6 +125,15 @@ class train_val_test():
             with torch.no_grad():
                 inducing_out = self._model(inducing_points)
         return inducing_out
+    
+    def mask_xts(self, x, drop_rate=0.4):
+        if isinstance(x, list) and len(x)==3 and self._model.training:
+            # randomly mask the time series input to avoid position bias
+            random_mask = (torch.rand_like(x, requires_grad=False) > drop_rate).to(x.device)
+            x[2] = x[2] * random_mask.float()
+            return x
+        else:
+            return x
 
     def compute_loss(self, x, y, model2use, return_out=False, smoothed=True):
         if not smoothed:
@@ -134,7 +143,7 @@ class train_val_test():
             loss = self.lognorm_nll(out, y)
         else:
             inducing_out = self.get_inducing_out(x)
-            x = self.send_x_to_device(x)
+            x = self.send_x_to_device(self.mask_xts(x))
             y = y.to(self.device)
             out = model2use(x)
             loss = self.smooth_lognorm_nll(out, y, inducing_out)

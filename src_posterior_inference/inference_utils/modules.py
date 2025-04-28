@@ -10,11 +10,10 @@ from collections import OrderedDict
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_dims=4, hidden_dims=64, num_layers=2, drop_rate=0.4):
+    def __init__(self, input_dims=4, hidden_dims=64, num_layers=2):
         super(LSTM, self).__init__()
         self.hidden_dims = hidden_dims
         self.num_layers = num_layers
-        self.drop_rate = drop_rate
         self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims//2, num_layers, batch_first=True) for _ in range(5)])
         self.linear = nn.Sequential(
             nn.Linear(hidden_dims//2, hidden_dims),
@@ -24,10 +23,6 @@ class LSTM(nn.Module):
         )
 
     def forward(self, x): # x: (batch_size, 25, feature_dims=4)
-        # randomly mask the time series input to avoid position bias
-        random_mask = (torch.rand_like(x, requires_grad=False) > self.drop_rate).to(x.device)
-        x = x * random_mask.float()
-
         # in total 5 time blocks, each for the passed 0.5, 1, 1.5, 2, 2.5 seconds
         for i, lstm in enumerate(self.LSTMs):
             sub_x = x[:, -(i+1)*5:, :] # (batch_size, [5, 10, 15, 20, 25], feature_dims)
@@ -131,9 +126,9 @@ class BatchNormModule(nn.Module):
     This module is used to add a fixed noise to the latent representation for regularisation,
     and to apply batch normalization to the concatenated latent representation.
     '''
-    def __init__(self, seq_len):
+    def __init__(self, seq_len, noise_dim=1):
         super(BatchNormModule, self).__init__()
-        self.noise_dim = seq_len // 5 - 1
+        self.noise_dim = noise_dim
         self.batch_norm1d = nn.BatchNorm1d(seq_len+self.noise_dim)
         self.frozen_noise_generator = nn.Linear(seq_len, self.noise_dim)
         for param in self.frozen_noise_generator.parameters():
