@@ -26,7 +26,7 @@ def set_experiments(stage=[1,2,3]):
         exp_config.extend([
             [['SafeBaseline','ArgoverseHV'], ['current']],
             [['SafeBaseline','highD'], ['current']],
-            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
