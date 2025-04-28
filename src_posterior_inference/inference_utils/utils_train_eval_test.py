@@ -129,7 +129,7 @@ class train_val_test():
     def mask_xts(self, x, drop_rate=0.4):
         if isinstance(x, list) and len(x)==3 and self._model.training:
             # randomly mask the time series input to avoid position bias
-            random_mask = (torch.rand_like(x, requires_grad=False) > drop_rate).to(x.device)
+            random_mask = (torch.rand_like(x[2], requires_grad=False) > drop_rate)
             x[2] = x[2] * random_mask.float()
             return x
         else:
