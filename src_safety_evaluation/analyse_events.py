@@ -144,10 +144,11 @@ def main(args, path_result, path_prepared):
         print('--- Analysis 2: Part of optimal warning analysis already completed ---')
         existing_results = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')
         existing_models = existing_results['model'].unique()
+        results = [existing_results]
     else:
         existing_models = []
+        results = []
 
-    results = []
     for conflict_indicator in ['TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
         if conflict_indicator in existing_models:
             print('--- Optimal warning analysis with', conflict_indicator, 'already completed ---')
@@ -162,7 +163,7 @@ def main(args, path_result, path_prepared):
                 optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'PRC')
                 records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
             records['model'] = conflict_indicator
-            results.append(records.copy())
+            results.append(records.reset_index())
 
     model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     dataset_name_list = model_evaluation['dataset'].values
@@ -182,14 +183,13 @@ def main(args, path_result, path_prepared):
             optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'PRC')
             records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
             records['model'] = model_name
-            results.append(records.copy())
-    if len(results) > 0:
-        results = pd.concat(results).reset_index()
-        results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
-        results['danger_recorded'] = results['danger_recorded'].astype(bool)
-        if len(existing_models) > 0:
-            results = pd.concat([results, existing_results]).reset_index(drop=True)
+            results.append(records.reset_index())
+
+    results = pd.concat(results).reset_index(drop=True)
+    results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
+    results['danger_recorded'] = results['danger_recorded'].astype(bool)
     results.to_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results', mode='w')
+    
     print('--- Optimal warning analysis completed ---')
     print('Analysed models:', results['model'].unique())
 
