@@ -121,25 +121,47 @@ class EnvEncoder(nn.Module):
         return torch.stack(out, dim=1) # (batch_size, 4, 64)
 
 
-class BatchNormModule(nn.Module):
+class BNRF(nn.Module):
     '''
-    This module is used to add a fixed noise to the latent representation for regularisation,
-    and to apply batch normalization to the concatenated latent representation.
+    Batch-Norm + Random Feature (BNRF)
+    This module first applies batch normalization to the concatenated latent representation,
+    and then attaches an orthogonal Gaussian random feature that is deterministic for a latent representation.
+    The attached feature is with no gradients to regularise the latent space.
     '''
-    def __init__(self, seq_len, noise_dim=1):
-        super(BatchNormModule, self).__init__()
-        self.noise_dim = noise_dim
-        self.batch_norm1d = nn.BatchNorm1d(seq_len+self.noise_dim)
-        self.frozen_noise_generator = nn.Linear(seq_len, self.noise_dim)
-        for param in self.frozen_noise_generator.parameters():
-            param.requires_grad = False
+    def __init__(self, seq_len, additional_dim=None):
+        super(BNRF, self).__init__()
+        self.seq_len = seq_len
+        if additional_dim is None:
+            self.additional_dim = seq_len // 5
+        else:
+            self.additional_dim = additional_dim
+        self.batch_norm1d = nn.BatchNorm1d(seq_len)
+        self.register_buffer("projector", None)
+
+    @torch.no_grad()
+    def _make_orthogonal_rows(self, device):
+        # full random Gaussian matrix
+        G = torch.randn(self.seq_len, self.seq_len, device=device)
+        # QR decomposition -> orthonormal columns (so rows of Q^T are orthonormal)
+        Q, _ = torch.linalg.qr(G, mode="reduced")          # Q: seq_len×seq_len
+        Q = Q[:self.additional_dim].contiguous()           # keep first `additional_dim` rows of Q^T
+                                                           # (additional_dim, seq_len)
+
+        # scaling factors for each row of Q^T
+        chi_samples = torch.randn(self.additional_dim, self.seq_len, device=device).norm(dim=1) # (additional_dim,)
+        P = (chi_samples.unsqueeze(1) / (self.seq_len**0.5)) * Q  # (additional_dim, seq_len)
+
+        return P
     
     def forward(self, x): # x: (batch_size, seq_len, latent_dims=64)
-        permuted_x = x.permute(0, 2, 1) # (batch_size, latent_dims=64, seq_len)
+        if self.projector is None:
+            self.projector = self._make_orthogonal_rows(x.device)
+
         with torch.no_grad():
-            noise = self.frozen_noise_generator(permuted_x) # (batch_size, latent_dims=64, noise_dim)
-        noise = noise.permute(0, 2, 1) # (batch_size, noise_dim, latent_dims=64)
-        latent = self.batch_norm1d(torch.cat([x, noise], dim=1)) # (batch_size, seq_len+noise_dim, latent_dims=64)
+            random_feature = torch.einsum("as,bsd->bad", self.projector, x) # (batch_size, additional_dim, latent_dims=64)
+        
+        x_bn = self.batch_norm1d(x) # (batch_size, seq_len, latent_dims=64)
+        latent = torch.cat([x_bn, random_feature], dim=1) # (batch_size, seq_len+additional_dim, latent_dims=64)
         return latent
 
 
@@ -231,6 +253,10 @@ class AttentionDecoder(nn.Module):
         self.single_output = single_output
         self.return_attention = return_attention
 
+        # Define the BNRF module
+        self.bnrf = BNRF(self.seq_len)
+        self.seq_len += self.bnrf.additional_dim
+
         # Define the attention blocks
         self.SelfAttention = StackedAttention([
             (self.latent_dims, self.latent_dims),
@@ -287,7 +313,8 @@ class AttentionDecoder(nn.Module):
         if self.single_output == 'intensity':
             spacing = state[:,-1,0:1].detach() # (batch_size, 1)
             state = state[:,:-1]
-        attended_state, attention_matrices = self.SelfAttention(state, attention_matrices) # (batch_size, seq_len, latent_dims*4=256)
+        latent = self.bnrf(state) # (batch_size, seq_len, latent_dims=64)
+        attended_state, attention_matrices = self.SelfAttention(latent, attention_matrices) # (batch_size, seq_len, latent_dims*4=256)
         transposed_state = attended_state.permute(0, 2, 1) # (batch_size, latent_dims*4=256, seq_len)
         out = self.output_cnn(transposed_state) # (batch_size, 16, seq_len) -> (batch_size, 128)
         mu = self.output_mu(out)
