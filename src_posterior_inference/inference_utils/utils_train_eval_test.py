@@ -68,6 +68,7 @@ class train_val_test():
                                                          mixrate, random_seed), batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared, 
                                                        mixrate, random_seed), batch_size=self.batch_size, shuffle=False)
+        self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
         if 'profiles' in self.encoder_selection:
             self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
         
