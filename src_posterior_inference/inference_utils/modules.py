@@ -136,7 +136,7 @@ class BNRF(nn.Module):
         else:
             self.additional_dim = additional_dim
         self.batch_norm1d = nn.BatchNorm1d(seq_len)
-        self.register_buffer("projector", None)
+        self.register_buffer("projector", torch.empty(0))
 
     @torch.no_grad()
     def _make_orthogonal_rows(self, device):
