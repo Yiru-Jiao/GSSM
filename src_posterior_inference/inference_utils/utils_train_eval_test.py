@@ -26,7 +26,7 @@ def set_experiments(stage=[1,2,3]):
         exp_config.extend([
             [['SafeBaseline','ArgoverseHV'], ['current']],
             [['SafeBaseline','highD'], ['current']],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
+            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
@@ -68,7 +68,6 @@ class train_val_test():
                                                          mixrate, random_seed), batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared, 
                                                        mixrate, random_seed), batch_size=self.batch_size, shuffle=False)
-        self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
         if 'profiles' in self.encoder_selection:
             self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
         
@@ -127,7 +126,7 @@ class train_val_test():
                 inducing_out = model2use(inducing_points)
         return inducing_out
     
-    def mask_xts(self, x, model2use, drop_rate=0.2):
+    def mask_xts(self, x, model2use, drop_rate=0.4):
         if isinstance(x, list) and len(x)==3 and model2use.training:
             # randomly mask the time series input to avoid position bias
             self.random_mask = (torch.rand_like(x[2], requires_grad=False) > drop_rate).float()
@@ -138,16 +137,13 @@ class train_val_test():
 
     def compute_loss(self, x, y, model2use, return_out=False, smoothed=True):
         if not smoothed:
-            x = self.send_x_to_device(x)
-            y = y.to(self.device)
-            out = model2use(x)
-            loss = self.lognorm_nll(out, y)
+            out = model2use(self.send_x_to_device(x))
+            loss = self.lognorm_nll(out, y.to(self.device))
         else:
-            x = self.send_x_to_device(self.mask_xts(x, model2use))
+            x = self.mask_xts(x, model2use)
             inducing_out = self.get_inducing_out(x, model2use)
-            y = y.to(self.device)
-            out = model2use(x)
-            loss = self.smooth_lognorm_nll(out, y, inducing_out)
+            out = model2use(self.send_x_to_device(x))
+            loss = self.smooth_lognorm_nll(out, y.to(self.device), inducing_out)
         if return_out:
             return loss, out
         else:
