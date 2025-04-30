@@ -154,7 +154,7 @@ class BNRF(nn.Module):
         return P
     
     def forward(self, x): # x: (batch_size, seq_len, latent_dims=64)
-        if self.projector is None:
+        if self.projector.size(0) != self.additional_dim:
             self.projector = self._make_orthogonal_rows(x.device)
 
         with torch.no_grad():
