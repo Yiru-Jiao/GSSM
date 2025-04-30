@@ -26,7 +26,7 @@ def set_experiments(stage=[1,2,3]):
         exp_config.extend([
             [['SafeBaseline','ArgoverseHV'], ['current']],
             [['SafeBaseline','highD'], ['current']],
-            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 3 in stage: # add extra features
         exp_config.extend([
@@ -127,7 +127,7 @@ class train_val_test():
                 inducing_out = model2use(inducing_points)
         return inducing_out
     
-    def mask_xts(self, x, model2use, drop_rate=0.4):
+    def mask_xts(self, x, model2use, drop_rate=0.5):
         if isinstance(x, list) and len(x)==3 and model2use.training:
             # randomly mask the time series input to avoid position bias
             self.random_mask = (torch.rand_like(x[2], requires_grad=False) > drop_rate).float()
