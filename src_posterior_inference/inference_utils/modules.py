@@ -136,7 +136,8 @@ class BNRF(nn.Module):
         else:
             self.additional_dim = additional_dim
         self.batch_norm1d = nn.BatchNorm1d(seq_len)
-        self.register_buffer("projector", torch.empty(0))
+        self.register_buffer("projector", # register a buffer to store the orthogonal random feature
+                             torch.ones((self.additional_dim, self.seq_len), requires_grad=False)*float('inf'))
 
     @torch.no_grad()
     def _make_orthogonal_rows(self, device):
@@ -154,7 +155,7 @@ class BNRF(nn.Module):
         return P
     
     def forward(self, x): # x: (batch_size, seq_len, latent_dims=64)
-        if self.projector.size(0) != self.additional_dim:
+        if self.projector.isinf().all():
             self.projector = self._make_orthogonal_rows(x.device)
 
         with torch.no_grad():
