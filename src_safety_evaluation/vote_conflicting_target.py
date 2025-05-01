@@ -57,8 +57,6 @@ def main(args, path_result, path_prepared):
         models = warning_timeliness['model'].unique()
         models2use = []
         for model in models:
-            if model=='UCD':
-                continue
             if 'mixed' in model:
                 if 'ArgoverseHV' in model:
                     if '0.3' not in model:

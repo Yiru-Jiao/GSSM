@@ -149,19 +149,15 @@ def main(args, path_result, path_prepared):
         existing_models = []
         results = []
 
-    for conflict_indicator in ['TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
+    for conflict_indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
         if conflict_indicator in existing_models:
             print('--- Optimal warning analysis with', conflict_indicator, 'already completed ---')
         else:
             print('--- Issuing warning', conflict_indicator, '---')
             conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
             safety_evaluation = read_evaluation(conflict_indicator, path_eval)
-            if conflict_indicator == 'UCD':
-                optimal_threshold = optimize_threshold(conflict_warning, 'UCD', 'PRC')
-                records = issue_warning('UCD', optimal_threshold, safety_evaluation, event_meta)
-            else:
-                optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'PRC')
-                records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
+            optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'PRC')
+            records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
             records['model'] = conflict_indicator
             results.append(records.reset_index())
 
