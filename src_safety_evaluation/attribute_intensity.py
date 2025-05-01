@@ -52,7 +52,7 @@ def main(args, manual_seed, path_prepared, path_result):
     path_save = path_result + 'FeatureAttribution/'
     os.makedirs(path_save, exist_ok=True)
 
-    encoder_selection = ['current', 'environment', 'profiles']
+    encoder_selection = ['current', 'environment']
     # Define the model to be used for attribution
     dataset = ['SafeBaseline']
     model_name = f"SafeBaseline_{'_'.join(encoder_selection)}"
@@ -131,7 +131,7 @@ def main(args, manual_seed, path_prepared, path_result):
                                         (voted_targets['target_id'].isin(existing_ids['target_id'])))]
         print(f'{len(existing_ids)} event_id and target_id pairs already exist, {len(voted_targets)} pairs left to compute.')
 
-    feature_list = sampler.variables + ['Noise', 'Spacing']
+    feature_list = sampler.variables + ['Spacing']
     eg_columns = [f'eg_{var}' for var in feature_list]
     std_columns = [f'std_{var}' for var in feature_list]
     event_count = 0
