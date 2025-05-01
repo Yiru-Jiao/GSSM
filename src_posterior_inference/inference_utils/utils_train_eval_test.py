@@ -127,10 +127,10 @@ class train_val_test():
                 inducing_out = model2use(inducing_points)
         return inducing_out
     
-    def mask_xts(self, x, model2use, drop_rate=0.5):
+    def mask_xts(self, x, model2use, drop_rate=0.2):
         if isinstance(x, list) and len(x)==3 and model2use.training:
             # randomly mask the time series input to avoid position bias
-            self.random_mask = (torch.rand_like(x[2], requires_grad=False) > drop_rate).float()
+            self.random_mask = (torch.rand_like(x[2][:,:,0], requires_grad=False) > drop_rate).float().unsqueeze(-1)
             x[2] = x[2] * self.random_mask
             return x
         else:
