@@ -71,10 +71,10 @@ class train_val_test():
         
         self.noise = noise
         self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
-        x = self.train_dataloader.dataset.data[0][:batch_size]
+        x = self.train_dataloader.dataset.data[0][:self.batch_size]
         self.val_current_noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
         if 'profiles' in self.encoder_selection:
-            x_ts = self.train_dataloader.dataset.data[2][:batch_size]
+            x_ts = self.train_dataloader.dataset.data[2][:self.batch_size]
             self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
             self.val_profile_noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x_ts, requires_grad=False)
         
@@ -94,7 +94,7 @@ class train_val_test():
             if self._model.training:
                 noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
-                noise = self.val_current_noise
+                noise = self.val_current_noise[:x.size(0)]
             noised_x = x + noise
             # make sure the rad angles are within [-pi, pi]
             if x.size(1)==12:
@@ -105,7 +105,7 @@ class train_val_test():
             if self._model.training:
                 noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
-                noise = self.val_profile_noise
+                noise = self.val_profile_noise[:x.size(0)]
             noised_x = x + noise
         return noised_x
 
