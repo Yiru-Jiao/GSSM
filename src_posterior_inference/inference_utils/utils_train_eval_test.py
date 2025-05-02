@@ -62,15 +62,22 @@ class train_val_test():
         self.return_attention = return_attention
         self._model = UnifiedProximity(self.encoder_selection, self.single_output, self.return_attention)
 
-    def create_dataloader(self, batch_size, mixrate=2, random_seed=131):
+    def create_dataloader(self, batch_size, mixrate=2, random_seed=131, noise=0.01):
         self.batch_size = batch_size
         self.train_dataloader = DataLoader(DataOrganiser('train', self.dataset, self.encoder_selection, self.path_prepared, 
                                                          mixrate, random_seed), batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared, 
                                                        mixrate, random_seed), batch_size=self.batch_size, shuffle=False)
+        
+        self.noise = noise
         self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
+        x = self.train_dataloader.dataset.data[0][:batch_size]
+        self.val_current_noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
         if 'profiles' in self.encoder_selection:
+            x_ts = self.train_dataloader.dataset.data[2][:batch_size]
             self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
+            self.val_profile_noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x_ts, requires_grad=False)
+        
         
     def send_x_to_device(self, x):
         if isinstance(x, list):
@@ -78,19 +85,16 @@ class train_val_test():
         else:
             return x.to(self.device)
         
-    def generate_noised_x(self, x, noise=0.01):
+    def generate_noised_x(self, x):
         '''
         Generate noise based on the range of each feature, and add it to the original features.
         Maintain the original values of [vy_ego, v_ego2, v_sur2, delta_v2].
         '''
         if len(x.size())==2:
             if self._model.training:
-                noise = noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+                noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
-                noise_mask = torch.ones_like(x, requires_grad=False)
-                noise_mask[::2, :] *= -1
-                noise_mask[:, ::2] *= -1
-                noise = noise * self.current_ranges.unsqueeze(0) * noise_mask
+                noise = self.val_current_noise
             noised_x = x + noise
             # make sure the rad angles are within [-pi, pi]
             if x.size(1)==12:
@@ -99,13 +103,9 @@ class train_val_test():
                 noised_x[:,[10,12]] = (noised_x[:,[10,12]] + np.pi) % (2 * np.pi) - np.pi
         elif len(x.size())==3:
             if self._model.training:
-                noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+                noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
             else: # generate fixed noise for validation and testing
-                noise_mask = torch.ones_like(x, requires_grad=False)
-                noise_mask[::2, :, :] *= -1
-                noise_mask[:, ::2, :] *= -1
-                noise_mask[:, :, ::2] *= -1
-                noise = noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * noise_mask
+                noise = self.val_profile_noise
             noised_x = x + noise
         return noised_x
 
@@ -128,7 +128,7 @@ class train_val_test():
         return inducing_out
     
     def mask_xts(self, x, model2use, drop_rate=0.4):
-        if isinstance(x, list) and len(x)==3 and model2use.training:
+        if model2use.training and isinstance(x, list) and len(x)==3:
             # randomly mask the time series input to avoid position bias
             self.random_mask = (torch.rand_like(x[2][:,:,0], requires_grad=False) > drop_rate).float().unsqueeze(-1)
             x[2] = x[2] * self.random_mask
