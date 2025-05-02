@@ -135,7 +135,7 @@ class BNRF(nn.Module):
             self.additional_dim = seq_len // 5
         else:
             self.additional_dim = additional_dim
-        self.batch_norm1d = nn.BatchNorm1d(seq_len)
+        self.batch_norm1d = nn.BatchNorm1d(seq_len+self.additional_dim)
         self.register_buffer("projector", # register a buffer to store the orthogonal random feature
                              torch.ones((self.additional_dim, self.seq_len), requires_grad=False)*float('inf'))
 
@@ -161,8 +161,7 @@ class BNRF(nn.Module):
         with torch.no_grad():
             random_feature = torch.einsum("as,bsd->bad", self.projector, x) # (batch_size, additional_dim, latent_dims=64)
         
-        x_bn = self.batch_norm1d(x) # (batch_size, seq_len, latent_dims=64)
-        latent = torch.cat([x_bn, random_feature], dim=1) # (batch_size, seq_len+additional_dim, latent_dims=64)
+        latent = self.batch_norm1d(torch.cat([x, random_feature], dim=1)) # (batch_size, seq_len+additional_dim, latent_dims=64)
         return latent
 
 
