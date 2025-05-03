@@ -123,10 +123,12 @@ class custom_dataset(Dataset):
 def GSSM(states, model, device):
     contexts, spacing_list = states
     data_loader = DataLoader(custom_dataset(contexts, spacing_list), batch_size=1024, shuffle=False)
+    org_training = model.training
 
     mu_list = []
     sigma_list = []
     logn_list = []
+    model.eval()
     with torch.no_grad():
         for X, s in data_loader:
             out = model(send_x_to_device(X, device))
@@ -135,6 +137,7 @@ def GSSM(states, model, device):
             mu_list.append(mu.cpu().numpy()) # [n_samples]
             sigma_list.append(np.exp(0.5*log_var.cpu().numpy()))
             logn_list.append(logn.cpu().numpy())
+    model.train(org_training)
 
     mu = np.concatenate(mu_list)
     sigma = np.concatenate(sigma_list)
