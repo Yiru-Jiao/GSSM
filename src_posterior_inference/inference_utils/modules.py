@@ -2,41 +2,11 @@
 This script defines the encoders and decoder for the GSSM model.
 '''
 
-import os
-import glob
 import torch
 from torch import nn
 from collections import OrderedDict
 
 
-class LSTM(nn.Module):
-    def __init__(self, input_dims=4, hidden_dims=64, num_layers=2):
-        super(LSTM, self).__init__()
-        self.hidden_dims = hidden_dims
-        self.num_layers = num_layers
-        self.LSTMs = nn.ModuleList([nn.LSTM(input_dims, hidden_dims//2, num_layers, batch_first=True) for _ in range(5)])
-        self.linear = nn.Sequential(
-            nn.Linear(hidden_dims//2, hidden_dims),
-            nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(hidden_dims, hidden_dims),
-        )
-
-    def forward(self, x): # x: (batch_size, 25, feature_dims=4)
-        # in total 5 time blocks, each for the passed 0.5, 1, 1.5, 2, 2.5 seconds
-        for i, lstm in enumerate(self.LSTMs):
-            sub_x = x[:, -(i+1)*5:, :] # (batch_size, [5, 10, 15, 20, 25], feature_dims)
-            h0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims//2).to(x.device)
-            c0 = torch.zeros(self.num_layers, sub_x.size(0), self.hidden_dims//2).to(x.device)
-            _, (sub_hidden, _) = lstm(sub_x, (h0, c0)) # hidden: (num_layers, batch_size, hidden_dims//2)
-            if i==0:
-                hidden = sub_hidden[-1].unsqueeze(1) # (batch_size, 1, hidden_dims//2)
-            else:
-                hidden = torch.cat((hidden, sub_hidden[-1].unsqueeze(1)), dim=1) # (batch_size, [2, 3, 4, 5], hidden_dims//2)
-        out = self.linear(hidden) # (batch_size, 5, hidden_dims)
-        # nn.Linear() applies to the last dimension, therefore the 5 time blocks are still independently processed
-        return out
-    
 
 class TSEncoder(nn.Module):
     '''
@@ -45,10 +15,15 @@ class TSEncoder(nn.Module):
     '''
     def __init__(self, input_dims=4, output_dims=64):
         super(TSEncoder, self).__init__()
-        self.net = LSTM(input_dims, output_dims, num_layers=2)
+        self.batch_norm = nn.BatchNorm1d(input_dims)
+        self.lstm = nn.LSTM(input_dims, output_dims, num_layers=1, batch_first=True, bidirectional=False)
 
-    def forward(self, x):
-        out = self.net(x)
+    def forward(self, x): # x: (batch_size, 25, feature_dims=4)
+        x = torch.flip(x, [1]) # reverse time series to encode the latest time step first
+        x_bn = self.batch_norm(x.permute(0, 2, 1))
+        x_bn = x_bn.permute(0, 2, 1) # (batch_size, feature_dims=4, 25) -> (batch_size, 25, feature_dims=4)
+        output, _ = self.lstm(x_bn) # output: (batch_size, 25, hidden_dims=64)
+        out = output[:, 4::5, :] # each encode the passed 0.5, 1, 1.5, 2, 2.5 seconds
         return out #(batch_size, 5, 64)
 
 
