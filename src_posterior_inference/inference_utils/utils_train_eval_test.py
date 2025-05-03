@@ -25,10 +25,13 @@ def set_experiments(stage=[1,2,3]):
     if 2 in stage: # multiple datasets, current only
         exp_config.extend([
             [['SafeBaseline','ArgoverseHV'], ['current']],
-            [['SafeBaseline','highD'], ['current']],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
-    if 3 in stage: # add extra features
+    if 3 in stage: # multiple datasets, current only
+        exp_config.extend([
+            [['SafeBaseline','highD'], ['current']],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current+acc']],
+        ])
+    if 4 in stage: # add extra features
         exp_config.extend([
             [['SafeBaseline'], ['current+acc']],
             [['SafeBaseline'], ['current', 'environment']],
@@ -68,17 +71,11 @@ class train_val_test():
                                                          mixrate, random_seed), batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared, 
                                                        mixrate, random_seed), batch_size=self.batch_size, shuffle=False)
-        
         self.noise = noise
         self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
         x = self.train_dataloader.dataset.data[0][:self.batch_size]
         self.val_current_noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
-        if 'profiles' in self.encoder_selection:
-            x_ts = self.train_dataloader.dataset.data[2][:self.batch_size]
-            self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
-            self.val_profile_noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x_ts, requires_grad=False)
-        
-        
+
     def send_x_to_device(self, x):
         if isinstance(x, list):
             return tuple([i.to(self.device) for i in x])
@@ -88,25 +85,19 @@ class train_val_test():
     def generate_noised_x(self, x):
         '''
         Generate noise based on the range of each feature, and add it to the original features.
-        Maintain the original values of [vy_ego, v_ego2, v_sur2, delta_v2].
         '''
-        if len(x.size())==2:
-            if self._model.training:
-                noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
-            else: # generate fixed noise for validation and testing
-                noise = self.val_current_noise[:x.size(0)]
-            noised_x = x + noise
-            # make sure the rad angles are within [-pi, pi]
-            if x.size(1)==12:
-                noised_x[:,[10,11]] = (noised_x[:,[10,11]] + np.pi) % (2 * np.pi) - np.pi
-            elif x.size(1)==13:
-                noised_x[:,[10,12]] = (noised_x[:,[10,12]] + np.pi) % (2 * np.pi) - np.pi
-        elif len(x.size())==3:
-            if self._model.training:
-                noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
-            else: # generate fixed noise for validation and testing
-                noise = self.val_profile_noise[:x.size(0)]
-            noised_x = x + noise
+        if self._model.training:
+            noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+        else: # generate fixed noise for validation and testing
+            noise = self.val_current_noise[:x.size(0)]
+        noised_x = x + noise
+        # make sure the rad angles are within [-pi, pi]
+        mask = torch.zeros_like(noised_x, dtype=torch.bool, requires_grad=False)
+        if x.size(1)==12:
+            mask[:, [10,11]] = True
+        elif x.size(1)==13:
+            mask[:, [10,12]] = True
+        noised_x = torch.where(mask, (noised_x + np.pi) % (2 * np.pi) - np.pi, noised_x)
         return noised_x
 
     def get_inducing_out(self, x, model2use):
@@ -115,7 +106,7 @@ class train_val_test():
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             inducing_points = [self.generate_noised_x(x[0]), x[1]]
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
-            inducing_points = [self.generate_noised_x(x[0]), x[1], self.generate_noised_x(x[2])]
+            inducing_points = [self.generate_noised_x(x[0]), x[1], x[2]]
         if model2use.training:
             if isinstance(x, list) and len(x)==3:
                 inducing_points[2] = inducing_points[2]*self.random_mask
@@ -137,7 +128,7 @@ class train_val_test():
             return x
 
     def compute_loss(self, x, y, model2use, return_out=False, smoothed=True):
-        if not smoothed:
+        if not smoothed: # used only when evaluating the model
             out = model2use(self.send_x_to_device(x))
             loss = self.lognorm_nll(out, y.to(self.device))
         else:
