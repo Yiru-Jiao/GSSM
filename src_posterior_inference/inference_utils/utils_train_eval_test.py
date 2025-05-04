@@ -206,7 +206,8 @@ class train_val_test():
                     sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
                     # new scheduler
                     self.scheduler = torch.optim.swa_utils.SWALR(self.optimizer, 
-                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.03, # 1.35e-6
+                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.05,
+                                                                 # 3e-6 if 'profiles' not in encoder_selection, otherwise 2.25e-6
                                                                  anneal_epochs=20,
                                                                  anneal_strategy="cos")
                     self.model.train()
