@@ -206,8 +206,7 @@ class train_val_test():
                     sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
                     # new scheduler
                     self.scheduler = torch.optim.swa_utils.SWALR(self.optimizer, 
-                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.05,
-                                                                 # 3e-6 if 'profiles' not in encoder_selection, otherwise 2.25e-6
+                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.01,
                                                                  anneal_epochs=20,
                                                                  anneal_strategy="cos")
                     self.model.train()
@@ -229,7 +228,7 @@ class train_val_test():
                 break
 
             # Force a stop if the swa procedure is long enough
-            if epoch_n > (self.epoch_reduced+30):
+            if epoch_n >= (self.epoch_reduced+50):
                 print(f'Learning procedure is too long and training stops early at Epoch {epoch_n}.')
                 break
 

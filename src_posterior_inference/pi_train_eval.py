@@ -69,7 +69,9 @@ def main(args, manual_seed, path_prepared):
         dataset_name = '_'.join(dataset)
         encoder_name = '_'.join(encoder_selection)
 
-        initial_lr = 0.0001 if 'profiles' not in encoder_selection else 0.000075
+        initial_lr = 0.0001
+        if ('current+acc' in encoder_selection) and ('profiles' in encoder_selection):
+            initial_lr = 0.000075 # if initial lr is 0.0001 this combination will be overfitted
         batch_size = 512
         epochs = 150
 
