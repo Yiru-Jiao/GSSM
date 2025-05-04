@@ -29,7 +29,7 @@ def set_experiments(stage=[1,2,3]):
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
             [['SafeBaseline','highD'], ['current']],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current+acc']],
+            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 4 in stage: # add extra features
         exp_config.extend([
@@ -206,7 +206,7 @@ class train_val_test():
                     sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
                     # new scheduler
                     self.scheduler = torch.optim.swa_utils.SWALR(self.optimizer, 
-                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.05, # 3e-6
+                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.03, # 1.35e-6
                                                                  anneal_epochs=20,
                                                                  anneal_strategy="cos")
                     self.model.train()
@@ -228,7 +228,7 @@ class train_val_test():
                 break
 
             # Force a stop if the swa procedure is long enough
-            if epoch_n > (self.epoch_reduced+50) and (self.optimizer.param_groups[0]['lr'] < 5e-6):
+            if epoch_n > (self.epoch_reduced+30):
                 print(f'Learning procedure is too long and training stops early at Epoch {epoch_n}.')
                 break
 
