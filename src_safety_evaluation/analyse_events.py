@@ -106,7 +106,7 @@ def main(args, path_result, path_prepared):
             print(f'{indicator} time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - sub_initial_time)))
 
     # GSSM
-    evaluation_files = os.listdir(path_eval)
+    evaluation_files = sorted(os.listdir(path_eval), key=lambda f: os.path.getmtime(os.path.join(path_eval, f)))
     evaluation_files = [f[:-3] for f in evaluation_files if f.endswith('.h5') and f!='TAdv_TTC2D_ACT_EI.h5' and 'UCD' not in f]
     if args.reversed_list:
         evaluation_files = evaluation_files[::-1]
