@@ -198,7 +198,7 @@ class train_val_test():
                     self.schedule_stage = 'in-swa'
                     self.epoch_reduced = epoch_n
                     # use an averaged model for the rest of training
-                    self.model = torch.optim.swa_utils.AveragedModel(self._model, use_buffers=True)
+                    self.model = torch.optim.swa_utils.AveragedModel(self._model, use_buffers=False)
                     self.model.update_parameters(self._model)
                     self.model = self.model.to(self.device)
                     # print the current learning rate and validation loss
