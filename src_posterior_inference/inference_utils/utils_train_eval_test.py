@@ -239,7 +239,7 @@ class train_val_test():
                     progress_bar.update(self.verbose-1)
 
             # Early stopping if validation loss converges
-            if (epoch_n>50) and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
+            if self.schedule_stage=='post-swa' and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
