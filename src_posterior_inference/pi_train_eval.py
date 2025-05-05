@@ -70,8 +70,6 @@ def main(args, manual_seed, path_prepared):
         encoder_name = '_'.join(encoder_selection)
 
         initial_lr = 0.0001
-        if ('current+acc' in encoder_selection) and ('profiles' in encoder_selection):
-            initial_lr = 0.000075 # if initial lr is 0.0001 this combination will be overfitted
         batch_size = 512
         epochs = 150
 
