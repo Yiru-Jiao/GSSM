@@ -144,7 +144,7 @@ class train_val_test():
     def train_model(self, num_epochs=100, initial_lr=0.0001, lr_schedule=True, verbose=0):
         self.initial_lr = initial_lr
         self.verbose = verbose
-        self.lr_reduced = False
+        self.schedule_stage = 'pre-swa'
         self.epoch_reduced = num_epochs
         # Move model and loss function to device
         self._model = self._model.to(self.device)
@@ -181,35 +181,51 @@ class train_val_test():
                 loss.backward()
                 self.optimizer.step()
                 train_loss += loss
-                if self.lr_reduced: # Update the averaged model after learning rate is reduced
+                if self.schedule_stage!='pre-swa': # Update the averaged model after pre-swa training
                     self.model.update_parameters(self._model)
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop()
-            if lr_schedule and epoch_n>25: # Start learning rate scheduler after 25 epochs
-                if not self.lr_reduced:
+            if lr_schedule and epoch_n>20: # Start learning rate scheduler after 20 epochs
+                if self.schedule_stage!='in-swa':
                     self.scheduler.step(val_loss)
                 else:
                     self.scheduler.step()
-                if not self.lr_reduced and self.optimizer.param_groups[0]['lr'] < self.initial_lr*0.8:
+                
+                if self.schedule_stage=='pre-swa' and self.optimizer.param_groups[0]['lr']<self.initial_lr*0.8:
                     # we use self.initial_lr*0.8 rather than 0.6 to avoid missing due to float precision
-                    # set the flag to True to update the averaged model
-                    self.lr_reduced = True
+                    # set the flag to 'in-swa' to update the averaged model
+                    self.schedule_stage = 'in-swa'
                     self.epoch_reduced = epoch_n
                     # use an averaged model for the rest of training
-                    self.model = torch.optim.swa_utils.AveragedModel(self._model)
+                    self.model = torch.optim.swa_utils.AveragedModel(self._model, use_buffers=True)
                     self.model.update_parameters(self._model)
                     self.model = self.model.to(self.device)
                     # print the current learning rate and validation loss
                     val_loss = self.val_loop()
                     sys.stderr.write('\n Learning rate is reduced so the training uses SWA since now...')
                     sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
-                    # new scheduler
-                    self.scheduler = torch.optim.swa_utils.SWALR(self.optimizer, 
-                                                                 swa_lr=self.optimizer.param_groups[0]['lr'] * 0.01,
-                                                                 anneal_epochs=20,
-                                                                 anneal_strategy="cos")
+                    # define SWA scheduler
+                    self.scheduler = torch.optim.swa_utils.SWALR(
+                        self.optimizer, swa_lr=self.optimizer.param_groups[0]['lr'] * 0.05,
+                        anneal_epochs=20, anneal_strategy="cos"
+                        )
                     self.model.train()
+                
+                if self.schedule_stage=='in-swa' and epoch_n>self.epoch_reduced+20:
+                    # set the flag to 'post-swa' to stop using SWA
+                    self.schedule_stage = 'post-swa'
+                    # update buffers for the averaged model
+                    self.customed_update_bn(self.train_dataloader, self.model)
+                    val_loss = self.val_loop()
+                    sys.stderr.write('\n SWA annealing completes, post-anneal fine-tuning since now...')
+                    sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
+                    # use ReduceLROnPlateau to further reduce the learning rate
+                    self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                        self.optimizer, mode='min', factor=0.6, patience=3, cooldown=0,
+                        threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**30
+                    )
+
             val_loss_log[epoch_n] = val_loss
 
             # Add information to progress bar with learning rate and loss values
@@ -227,8 +243,8 @@ class train_val_test():
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
-            # Force a stop if the swa procedure is long enough
-            if epoch_n >= (self.epoch_reduced+50):
+            # Force a stop if the post-swa procedure is too long
+            if epoch_n > (self.epoch_reduced+50):
                 print(f'Learning procedure is too long and training stops early at Epoch {epoch_n}.')
                 break
 
@@ -252,10 +268,12 @@ class train_val_test():
 
     # Validation loop
     def val_loop(self):
-        if self.lr_reduced:
-            model2use = self.model
-        else:
+        if self.schedule_stage=='pre-swa':
+            # Use the original model for validation during pre-swa training
             model2use = self._model
+        else:
+            # Use the averaged model for validation after pre-swa training
+            model2use = self.model
         model2use.eval()
         val_loss = torch.tensor(0.0, device=self.device, requires_grad=False)
         with torch.no_grad():
