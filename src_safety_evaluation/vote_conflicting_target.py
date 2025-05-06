@@ -59,10 +59,10 @@ def main(args, path_result, path_prepared):
         for model in models:
             if 'mixed' in model:
                 if 'ArgoverseHV' in model:
-                    if '0.3' not in model:
+                    if '0.2' not in model:
                         continue
                 elif 'highD' in model:
-                    if '0.9' not in model:
+                    if '0.6' not in model:
                         continue
             models2use.append(model)
         models = models2use
@@ -155,10 +155,10 @@ def main(args, path_result, path_prepared):
         else:
             model_name = f'{dataset_name}_{encoder_name}_mixed{mixrate}'
             if 'ArgoverseHV' in model_name:
-                if '0.3' not in model_name:
+                if '0.2' not in model_name:
                     continue
             elif 'highD' in model_name:
-                if '0.9' not in model_name:
+                if '0.6' not in model_name:
                     continue
         if os.path.exists(path_result + f'Conflicts/Results/RiskEval_{model_name}.h5'):
             print('--- Evaluation with', model_name, 'already completed ---')

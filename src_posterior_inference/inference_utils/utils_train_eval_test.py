@@ -29,7 +29,7 @@ def set_experiments(stage=[1,2,3]):
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
             [['SafeBaseline','highD'], ['current']],
-            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 4 in stage: # add extra features
         exp_config.extend([
@@ -64,10 +64,10 @@ class train_val_test():
         self.single_output = single_output
         self.return_attention = return_attention
         self._model = UnifiedProximity(self.encoder_selection, self.single_output, self.return_attention)
-        if 'environment' in self.encoder_selection or 'profiles' in self.encoder_selection:
-            self.epoch2start = 25 # start learning rate scheduler after 25 epochs rather than 20 to force more exploration
+        if 'environment' in self.encoder_selection:
+            self.epoch2start = 25 # start learning rate scheduler after 25 epochs to prevent underfitting
         else:
-            self.epoch2start = 20
+            self.epoch2start = 20 # 20 is enough when only current features are used by a single encoder, otherwise there is overfitting
 
     def create_dataloader(self, batch_size, mixrate=2, random_seed=131, noise=0.01):
         self.batch_size = batch_size
