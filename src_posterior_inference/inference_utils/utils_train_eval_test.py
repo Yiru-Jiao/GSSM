@@ -64,7 +64,7 @@ class train_val_test():
         self.single_output = single_output
         self.return_attention = return_attention
         self._model = UnifiedProximity(self.encoder_selection, self.single_output, self.return_attention)
-        if 'environment' in self.encoder_name:
+        if 'acc' in self.encoder_name:
             self.epoch2start = 25 # start learning rate scheduler after 25 epochs to prevent underfitting
         else:
             self.epoch2start = 20 # 20 is enough when acc is not included, otherwise there will be overfitting
