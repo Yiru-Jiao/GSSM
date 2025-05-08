@@ -224,7 +224,7 @@ class train_val_test():
                     val_loss = self.val_loop()
                     sys.stderr.write(
                         f'\n Learning rate is reduced so the training uses SWA since now...'
-                        f'\n Current lr: {self.optimizer.param_groups[0]['lr']}, epoch: {epoch_n}, val_loss: {val_loss}'
+                        f"\n Current lr: {self.optimizer.param_groups[0]['lr']}, epoch: {epoch_n}, val_loss: {val_loss}"
                         )
                     # define SWA scheduler
                     self.scheduler = torch.optim.swa_utils.SWALR(
@@ -241,7 +241,7 @@ class train_val_test():
                     val_loss = self.val_loop()
                     sys.stderr.write(
                         f'\n SWA annealing completes, post-anneal fine-tuning since now...'
-                        f'\n Current lr: {self.optimizer.param_groups[0]['lr']}, epoch: {epoch_n}, val_loss: {val_loss}'
+                        f"\n Current lr: {self.optimizer.param_groups[0]['lr']}, epoch: {epoch_n}, val_loss: {val_loss}"
                         )
                     # use ReduceLROnPlateau to further reduce the learning rate
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
