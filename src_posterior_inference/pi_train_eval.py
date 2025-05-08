@@ -85,7 +85,7 @@ def main(args, manual_seed, path_prepared):
         for mixrate in mixrates:
             try:
                 pipeline = train_val_test(device, path_prepared, dataset, encoder_selection)
-                pipeline.create_dataloader(batch_size, mixrate, random_seed=args.seed)
+                pipeline.create_dataloader(batch_size, mixrate)
             except:
                 print(f'Failed to initialize the pipeline for {dataset_name}, {encoder_name}, {mixrate}, skipping...')
                 continue
