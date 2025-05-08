@@ -6,10 +6,10 @@ import os
 import sys
 import torch
 import torch.nn as nn
-import pandas as pd
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils import modules
+small_eps = 1e-6
 
 
 def send_x_to_device(x, device):
@@ -19,7 +19,7 @@ def send_x_to_device(x, device):
         return x.to(device)
 
 
-class custom_dataset(Dataset): 
+class custom_dataset(Dataset):
     def __init__(self, X):
         self.X = X
         if isinstance(X, tuple):
@@ -42,9 +42,9 @@ class custom_dataset(Dataset):
         return self.get_item(idx)
     
 
-class UnifiedProximity(nn.Module):
+class GSSM(nn.Module):
     def __init__(self, encoder_selection='all', single_output=None, return_attention=False):
-        super(UnifiedProximity, self).__init__()
+        super(GSSM, self).__init__()
         if encoder_selection=='all':
             encoder_selection = ['current+acc', 'environment', 'profiles']
         self.encoder_selection = encoder_selection
@@ -105,26 +105,32 @@ class UnifiedProximity(nn.Module):
 
 
 class LogNormalNLL(nn.Module):
-    def __init__(self, eps=1e-6):
+    '''
+    Negative log-likelihood loss function for log-normal distribution.
+    '''
+    def __init__(self, small_eps=small_eps):
         super(LogNormalNLL, self).__init__()
         self.log2pi = torch.log(torch.tensor(2*3.1415926535897932384626433832795))
-        self.eps = eps
+        self.small_eps = small_eps
 
     def forward(self, out, s):
         mu = out[0]
         log_var = out[1]
-        log_s = torch.log(torch.clamp(s, min=self.eps))
+        log_s = torch.log(torch.clamp(s, min=self.small_eps))
         nll = 0.5 * (self.log2pi + log_var + (log_s-mu)**2 / torch.exp(log_var)) + log_s
         loss = nll.mean()
         return loss
 
 
 class SmoothLogNormalNLL(nn.Module):
-    def __init__(self, beta=5., eps=1e-6):
+    '''
+    Negative log-likelihood loss function for log-normal distribution with smoothness regularization.
+    '''
+    def __init__(self, beta=5., small_eps=small_eps):
         super(SmoothLogNormalNLL, self).__init__()
         self.beta = beta
         self.log2pi = torch.log(torch.tensor(2*3.1415926535897932384626433832795))
-        self.eps = eps
+        self.small_eps = small_eps
 
     def kl_divergence(self, mu1, log_var1, mu2, log_var2):
         return 0.5 * (log_var2 - log_var1 + (torch.exp(log_var1)+(mu1-mu2)**2) / torch.exp(log_var2) - 1)
@@ -132,7 +138,7 @@ class SmoothLogNormalNLL(nn.Module):
     def js_divergence(self, mu1, log_var1, mu2, log_var2):
         mu = 0.5 * (mu1 + mu2)
         var = 0.5 * (torch.exp(log_var1) + torch.exp(log_var2))
-        log_var = torch.log(torch.clamp(var, min=self.eps))
+        log_var = torch.log(torch.clamp(var, min=self.small_eps))
         kl1 = self.kl_divergence(mu1, log_var1, mu, log_var)
         kl2 = self.kl_divergence(mu2, log_var2, mu, log_var)
         return 0.5 * (kl1 + kl2)
@@ -140,7 +146,7 @@ class SmoothLogNormalNLL(nn.Module):
     def forward(self, out, s, inducing_out):
         mu = out[0]
         log_var = out[1]
-        log_s = torch.log(torch.clamp(s, min=self.eps))
+        log_s = torch.log(torch.clamp(s, min=self.small_eps))
         nll = 0.5 * (self.log2pi + log_var + (log_s-mu)**2 / torch.exp(log_var)) + log_s
 
         mu_prime, log_var_prime = inducing_out

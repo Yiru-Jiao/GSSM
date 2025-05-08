@@ -17,13 +17,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.utils_general import fix_seed, init_dl_program
 from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
 from src_safety_evaluation.validation_utils.utils_attribution import get_sample
+manual_seed = 131
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
+    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be 1,2 for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
-    parser.add_argument('--stage', type=int, default=None, help='The random seed')
+    parser.add_argument('--features', type=int, default=0, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
     args.reproduction = bool(args.reproduction)
@@ -39,7 +40,7 @@ def main(args, manual_seed, path_prepared, path_result):
         args.seed = manual_seed # Fix the random seed for reproduction
     if args.seed is None:
         args.seed = random.randint(0, 1000)
-    print(f"Random seed is set to {args.seed}")
+    print(f'Random seed is set to {args.seed}')
     fix_seed(args.seed, deterministic=args.reproduction)
     
     # Initialize the deep learning program
@@ -52,7 +53,10 @@ def main(args, manual_seed, path_prepared, path_result):
     path_save = path_result + 'FeatureAttribution/'
     os.makedirs(path_save, exist_ok=True)
 
-    encoder_selection = ['current', 'environment']
+    if args.features == 0:
+        encoder_selection = ['current', 'environment']
+    elif args.features == 1:
+        encoder_selection = ['current', 'environment', 'profiles']
     # Define the model to be used for attribution
     dataset = ['SafeBaseline']
     model_name = f"SafeBaseline_{'_'.join(encoder_selection)}"
@@ -171,9 +175,6 @@ def main(args, manual_seed, path_prepared, path_result):
 if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
-
-    manual_seed = 131
     path_prepared = 'PreparedData/'
     path_result = 'ResultData/'
-    
     main(args, manual_seed, path_prepared, path_result)

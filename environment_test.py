@@ -4,21 +4,24 @@ It checks if all the required libraries are installed and if a GPU is available.
 It also checks if the random seeds are fixed properly.
 '''
 
+# Standard libraries
 import os
 import sys
 import glob
 import torch
-import captum
 import random
-import pickle
 import argparse
 import warnings
+import time as systime
+from datetime import datetime
+
+# Third-party libraries
+import gpytorch
 import numpy as np
 import pandas as pd
 from torch import nn
+import scipy.special
 from tqdm import tqdm
-import time as systime
-from datetime import datetime
 import torch.nn.functional as F
 from joblib import Parallel, delayed
 from torch.utils.data import Dataset, DataLoader
@@ -27,8 +30,8 @@ from sklearn.model_selection import ShuffleSplit
 
 # src_trajectory_reconstruction
 from matplotlib.backends.backend_pdf import PdfPages
+from src_trajectory_reconstruction.reconstruction_utils.utils_ekf import *
 from src_trajectory_reconstruction.reconstruction_utils.utils_ego_sur import *
-from src_trajectory_reconstruction.reconstruction_utils.utils_ekf import reconstruct_ego, reconstruct_surrounding
 print('--- All the imports in src_trajectory_reconstruction are successful ---')
 
 # src_data_preparation
@@ -37,21 +40,35 @@ from itertools import product
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import OneHotEncoder
 from src_data_preparation.represent_utils.coortrans import coortrans
+from src_data_preparation.represent_utils.get_heading_highD import *
+from src_data_preparation.represent_utils.utils_data_segmentation import *
 print('--- All the imports in src_data_preparation are successful ---')
 
 # src_posterior_inference
+from src_posterior_inference.model import *
+from src_posterior_inference.inference_utils.modules import *
+from src_posterior_inference.inference_utils.utils_data import *
+from src_posterior_inference.inference_utils.utils_general import *
+from src_posterior_inference.inference_utils.utils_train_eval_test import *
 print('--- All the imports in src_posterior_inference are successful ---')
 
 # src_conflict_detection
-from src_safety_evaluation.validation_utils.utils_evaluation import *
+from src_safety_evaluation.validation_utils.SSMsOnPlane import *
 from src_safety_evaluation.validation_utils.utils_features import *
+from src_safety_evaluation.validation_utils.EmergencyIndex import *
+from src_safety_evaluation.validation_utils.utils_evaluation import *
+from src_safety_evaluation.validation_utils.utils_attribution import *
+from src_safety_evaluation.validation_utils.utils_eval_metrics import *
 print('--- All the imports in src_safety_evaluation are successful ---')
+
+# visualization
+from src_visualisation.visual_utils.utils_tabfig import *
+from src_visualisation.visual_utils.utils_dynamic import *
+print('--- All the imports in src_visualisation are successful ---')
 
 
 def main():
     manual_seed = 131
-
-    print('--- All the imports are successful ---')
     
     print(f'--- Available cores: {torch.get_num_threads()} available gpus: {torch.cuda.device_count()} ---')
     print(f'--- Cuda available: {torch.cuda.is_available()} ---')

@@ -16,13 +16,15 @@ from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
 from src_posterior_inference.model import LogNormalNLL
 from src_safety_evaluation.validation_utils.EmergencyIndex import get_EI
-from src_safety_evaluation.validation_utils.SSMsOnPlane import longitudinal_ssms, two_dimensional_ssms
-from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions, define_model, GSSM
+from src_safety_evaluation.validation_utils.SSMsOnPlane import two_dimensional_ssms
+from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions, define_model, get_GSSM
+manual_seed = 131
+small_eps = 1e-6
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
+    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be 1,2 for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
@@ -39,7 +41,7 @@ def evaluate(eval_func, model, eval_config, eval_efficiency, results, path_save)
     return results, eval_efficiency
 
 
-def main(args, events, manual_seed, path_prepared, path_result):
+def main(args, manual_seed, path_prepared, path_result):
     initial_time = systime.time()
     print('Available cpus:', torch.get_num_threads(), 'available gpus:', torch.cuda.device_count())
     
@@ -48,7 +50,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         args.seed = manual_seed # Fix the random seed for reproduction
     if args.seed is None:
         args.seed = random.randint(0, 1000)
-    print(f"Random seed is set to {args.seed}")
+    print(f'Random seed is set to {args.seed}')
     fix_seed(args.seed, deterministic=args.reproduction)
     
     # Initialize the deep learning program
@@ -172,7 +174,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
             states = [tuple(states), spacing_list]
 
         time_start = systime.time()
-        mu, sigma, max_intensity = GSSM(states, model, device)
+        mu, sigma, max_intensity = get_GSSM(states, model, device)
         time_end = systime.time()
 
         results = pd.DataFrame(event_id_list, columns=['event_id','target_id','time'])
@@ -188,7 +190,7 @@ def main(args, events, manual_seed, path_prepared, path_result):
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
         results['mode'] = np.exp(results['mu'] - results['sigma']**2)
         print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
-        log_var = np.log(np.maximum(1e-6, sigma**2))
+        log_var = np.log(np.maximum(small_eps, sigma**2))
         out = (torch.from_numpy(mu).float(), torch.from_numpy(log_var).float())
         nll = loss_func(out, torch.from_numpy(spacing_list).float()).item()
         model_evaluation.loc[model_id, 'test_nll'] = nll
@@ -203,11 +205,7 @@ if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
 
-    manual_seed = 131
     path_prepared = 'PreparedData/'
     path_result = 'ResultData/'
-
-    # Load event information to create one-hot encoder later
-    events = pd.read_csv('RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')
     
-    main(args, events, manual_seed, path_prepared, path_result)
+    main(args, manual_seed, path_prepared, path_result)

@@ -11,6 +11,8 @@ from torch.utils.data import Dataset, DataLoader
 from scipy.special import erf
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
+from src_safety_evaluation.validation_utils.utils_eval_metrics import get_statistics
+small_eps = 1e-6
 
 
 def read_events(path_events, meta_only=False):
@@ -65,7 +67,7 @@ def lognormal_pdf(x, mu, sigma, rescale=True):
 
 
 def lognormal_cdf(x, mu, sigma):
-    x = np.maximum(1e-6, x)
+    x = np.maximum(small_eps, x)
     return 1/2+1/2*erf((np.log(x)-mu)/sigma/np.sqrt(2))
 
 
@@ -77,7 +79,7 @@ def torch_intensity(spacing, mu, log_var=None, var=None):
     assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
     assert spacing.size() == log_var.size(), f'{spacing.size()} != {log_var.size()}'
     log_p = torch.log(torch.tensor(0.5, device=mu.device))
-    log_s = torch.log(torch.clamp(spacing, min=1e-6))
+    log_s = torch.log(torch.clamp(spacing, min=small_eps))
     if var is None:
         squared2var = torch.sqrt(2*torch.exp(log_var))
     elif log_var is None:
@@ -85,7 +87,7 @@ def torch_intensity(spacing, mu, log_var=None, var=None):
     else:
         ValueError('At least one of log_var and var should be provided.')
     one_minus_cdf = 0.5*(1-torch.erf((log_s-mu)/squared2var))
-    max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=1e-6, max=1-1e-6))
+    max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=small_eps, max=1-small_eps))
     return torch.log10(torch.clamp(max_intensity, min=1.))
 
 
@@ -120,7 +122,7 @@ class custom_dataset(Dataset):
         return self.get_item(idx), self.s[idx]
     
 
-def GSSM(states, model, device):
+def get_GSSM(states, model, device):
     contexts, spacing_list = states
     data_loader = DataLoader(custom_dataset(contexts, spacing_list), batch_size=1024, shuffle=False)
     org_training = model.training
@@ -317,58 +319,38 @@ def parallel_records(threshold, safety_evaluation, event_data, event_meta, indic
     return records
 
 
-def optimize_threshold(warning, conflict_indicator, curve_type, return_stats=False):
-    # true_positives = warning[warning['danger_recorded']&(warning['true_warning']>0.5)].groupby('threshold').size()
-    # false_positives = warning[warning['safety_recorded']&(warning['false_warning']>0.5)].groupby('threshold').size()
-    # true_negatives = warning[warning['safety_recorded']&(warning['false_warning']<0.5)].groupby('threshold').size()
-    # false_negatives = warning[warning['danger_recorded']&(warning['true_warning']<0.5)].groupby('threshold').size()
-    true_positives = warning[warning['danger_recorded']&(warning['true_warning']>0.5)].groupby('threshold').size()
-    false_positives = warning[warning['safety_recorded']].groupby('threshold')['num_false_warning'].sum()
-    true_negatives = warning[warning['safety_recorded']].groupby('threshold')['num_true_non_warning'].sum()
-    false_negatives = warning[warning['danger_recorded']&(warning['true_warning']<0.5)].groupby('threshold').size()
-    statistics = pd.concat([true_positives, false_positives, true_negatives, false_negatives], axis=1, keys=['TP', 'FP', 'TN', 'FN'])
-    statistics = statistics.fillna(0).reset_index().sort_values('threshold') # nan can be caused by empty combination of threshold and warning
+def optimize_threshold(warning, conflict_indicator, return_stats=False):
+    statistics = get_statistics(warning, return_statistics=True)
+    statistics['false negative rate'] = statistics['FN']/(statistics['TP']+statistics['FN'])
+    statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
+    statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
+    statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
+    statistics['F1'] = 2*statistics['precision']*statistics['recall']/(statistics['precision']+statistics['recall'])
 
-    if curve_type=='ROC':
-        statistics['false negative rate'] = statistics['FN']/(statistics['TP']+statistics['FN'])
-        statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
-        if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
-            statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
-        elif conflict_indicator in ['GSSM', 'EI', 'UCD']:
-            statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
-        statistics['combined rate'] = statistics['false negative rate']**2+statistics['false positive rate']**2
-    elif curve_type=='PRC':
-        statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
-        statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
-        if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
-            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, True])
-        elif conflict_indicator in ['GSSM', 'EI', 'UCD']:
-            statistics = statistics.sort_values(by=['recall','precision','threshold'], ascending=[False, False, False])
-        statistics['combined rate'] = (1-statistics['recall'])**2+(1-statistics['precision'])**2
-    statistics['combined rate'] = np.round(np.sqrt(statistics['combined rate']), 2)
-    optimal_rate = statistics['combined rate'].min()
+    if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
+        statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
+    elif conflict_indicator in ['GSSM', 'EI', 'UCD']:
+        statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
+
+    optimal_rate = statistics['F1'].max()
     if np.isnan(optimal_rate):
         if return_stats:
             return statistics, None, None
         else:
             return np.nan
     else:
-        optimal_warning = statistics.loc[statistics['combined rate']==optimal_rate]
+        optimal_warning = statistics.loc[statistics['F1']==optimal_rate]
         optimal_threshold = optimal_warning.iloc[0]
         if return_stats:
             optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
             return statistics, optimal_warning, optimal_threshold
         else:
-            if curve_type=='ROC':
-                print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
-                    ' optimal threshold: ', optimal_threshold['threshold'], 
-                    ' false negative rate: ', round(optimal_threshold['false negative rate']*100, 2),
-                    ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2))
-            elif curve_type=='PRC':
-                print(warning['model'].values[0], ' ', conflict_indicator, ' ', curve_type,
-                    ' optimal threshold: ', optimal_threshold['threshold'], 
-                    ' precision: ', round(optimal_threshold['precision']*100, 2),
-                    ' recall: ', round(optimal_threshold['recall']*100, 2))
+            print(warning['model'].values[0], ' ', conflict_indicator, ' ',
+                 ' optimal threshold: ', optimal_threshold['threshold'], 
+                 ' false negative rate: ', round(optimal_threshold['false negative rate']*100, 2),
+                 ' false positive rate: ', round(optimal_threshold['false positive rate']*100, 2),
+                 ' precision: ', round(optimal_threshold['precision']*100, 2),
+                 ' recall: ', round(optimal_threshold['recall']*100, 2))
             return optimal_threshold['threshold']
 
 

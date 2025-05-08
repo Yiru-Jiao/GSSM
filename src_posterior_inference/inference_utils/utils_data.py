@@ -8,10 +8,11 @@ import numpy as np
 import pandas as pd
 import warnings
 from torch.utils.data import Dataset
+small_eps = 1e-6
 
 
 class DataOrganiser(Dataset):
-    def __init__(self, split, dataset, encoder_selection, path_prepared, mixrate=2, random_seed=131):
+    def __init__(self, split, dataset, encoder_selection, path_prepared, mixrate=2):
         super(DataOrganiser, self).__init__()
         self.split = split
         self.dataset = dataset
@@ -20,7 +21,6 @@ class DataOrganiser(Dataset):
         self.encoder_selection = encoder_selection
         self.path_prepared = path_prepared
         self.mixrate = mixrate
-        self.random_seed = random_seed
         self.data = self.read_data()
         self.combine_features = self.define_combine_features()
 
@@ -64,7 +64,7 @@ class DataOrganiser(Dataset):
             else:
                 mixrate = mixrate_dict[dataset]
                 scene_ids = x_current['scene_id'].unique()
-                scene_ids = np.random.RandomState(self.random_seed).choice(scene_ids, int(len(scene_ids)*mixrate), replace=False)
+                scene_ids = np.random.choice(scene_ids, int(len(scene_ids)*mixrate), replace=False)
                 X_current.append(x_current[x_current['scene_id'].isin(scene_ids)])
 
         X_current = pd.concat(X_current, ignore_index=True)
@@ -109,9 +109,9 @@ class DataOrganiser(Dataset):
             X_profiles = X_profiles[['yaw_ego','v_ego','vx_sur','vy_sur']].values.reshape(-1, 25, 4)
             self.data.append(torch.from_numpy(X_profiles).float())
 
-        if np.any(X_current['s']<=1e-6): # the spacing must be larger than 0
+        if np.any(X_current['s']<=small_eps): # the spacing must be larger than 0
             warnings.warn('There are spacings smaller than or equal to 0.')
-            X_current.loc[X_current['s']<=1e-6, 's'] = 1e-6
+            X_current.loc[X_current['s']<=small_eps, 's'] = small_eps
         self.data.append(torch.from_numpy(X_current['s'].values).float())
 
         return tuple(self.data)

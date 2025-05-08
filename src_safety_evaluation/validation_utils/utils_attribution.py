@@ -4,25 +4,18 @@ This script contains utility functions for attributing potential conflict intens
 
 import os
 import sys
-import shap
-import random
-import time as systime
-from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from scipy.special import erf
 import torch
-import argparse
-from sklearn.preprocessing import OneHotEncoder
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src_posterior_inference.inference_utils.utils_general import fix_seed, init_dl_program
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
-from src_posterior_inference.inference_utils.utils_train_eval_test import train_val_test
-from src_safety_evaluation.validation_utils.utils_evaluation import read_events, set_veh_dimensions
 
 
-class get_sample(): 
+class get_sample():
+    '''
+    This class is used to get the sample data for a specific event and target vehicle.
+    '''
     def __init__(self, encoder_selection, path_result):
         event_categories = sorted(os.listdir(path_result + 'EventData/'))
         profiles_features = []

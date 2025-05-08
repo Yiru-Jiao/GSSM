@@ -13,11 +13,12 @@ import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_posterior_inference.inference_utils.utils_general import fix_seed, init_dl_program
 from src_posterior_inference.inference_utils.utils_train_eval_test import set_experiments, train_val_test
+manual_seed = 131
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
+    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be 1,2 for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
     parser.add_argument('--stage', type=int, default=None, help='The experiment stage to run (defaults to None for all stages)')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
@@ -37,7 +38,7 @@ def main(args, manual_seed, path_prepared):
         args.seed = manual_seed # Fix the random seed for reproduction
     if args.seed is None:
         args.seed = random.randint(0, 1000)
-    print(f"Random seed is set to {args.seed}")
+    print(f'Random seed is set to {args.seed}')
     fix_seed(args.seed, deterministic=args.reproduction)
     
     # Initialize the deep learning program
@@ -48,7 +49,7 @@ def main(args, manual_seed, path_prepared):
     print(f'--- Device: {device}, Pytorch version: {torch.__version__} ---')
 
     if args.stage is None:
-        exp_config = set_experiments(stage=[1,2,3,4])
+        exp_config = set_experiments(stage=[1,4,2,3])
     else:
         exp_config = set_experiments(stage=[args.stage])
     if args.reversed_list:
@@ -65,13 +66,14 @@ def main(args, manual_seed, path_prepared):
                                            'whole_model', 'current_encoder', 'environment_encoder', 
                                            'profiles_encoder', 'attention_decoder', 'mixrate'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
+
+    initial_lr = 0.0001
+    batch_size = 512
+    epochs = 150
+
     for dataset, encoder_selection in zip(datasets, encoder_combinations):
         dataset_name = '_'.join(dataset)
         encoder_name = '_'.join(encoder_selection)
-
-        initial_lr = 0.0001
-        batch_size = 512
-        epochs = 150
 
         if len(dataset)==2 and encoder_name=='current':
             # Set mixrates for the multi-dataset training
@@ -79,13 +81,13 @@ def main(args, manual_seed, path_prepared):
             if args.reversed_list:
                 mixrates = mixrates[::-1]
         else:
-            mixrates = [2]
+            mixrates = [2.0]
         for mixrate in mixrates:
             try:
                 pipeline = train_val_test(device, path_prepared, dataset, encoder_selection)
                 pipeline.create_dataloader(batch_size, mixrate, random_seed=args.seed)
             except:
-                print(f"Failed to initialize the pipeline for {dataset_name}, {encoder_name}, {mixrate}, skipping...")
+                print(f'Failed to initialize the pipeline for {dataset_name}, {encoder_name}, {mixrate}, skipping...')
                 continue
 
             if mixrate<=1:
@@ -100,13 +102,13 @@ def main(args, manual_seed, path_prepared):
                             (evaluation['encoder_selection']==encoder_name)
 
             if len(evaluation[condition])>0 and not np.isnan(evaluation.loc[condition, 'val_loss'].values[0]):
-                print(f"Already done {dataset_name}, {encoder_name}, {mixrate}, skipping...")
+                print(f'Already done {dataset_name}, {encoder_name}, {mixrate}, skipping...')
                 continue
             else:
-                print(f"Start training {dataset_name}, {encoder_name}, {mixrate}...")
+                print(f'Start training {dataset_name}, {encoder_name}, {mixrate}...')
 
             if os.path.exists(pipeline.path_output + f'loss_log.csv'):
-                print(f"Loading trained model: {dataset_name}, {encoder_name}, {mixrate}...")
+                print(f'Loading trained model: {dataset_name}, {encoder_name}, {mixrate}...')
                 pipeline.load_model(mixrate)
                 val_loss = pd.read_csv(pipeline.path_output + 'loss_log.csv')
                 val_loss = np.sort(val_loss['val_loss'].values[-5:])[1:4].mean()
@@ -147,7 +149,6 @@ def main(args, manual_seed, path_prepared):
 if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
-    manual_seed = 131
     path_prepared = 'PreparedData/'
     main(args, manual_seed, path_prepared)
 

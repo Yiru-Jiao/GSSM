@@ -12,12 +12,7 @@ from sklearn.preprocessing import OneHotEncoder
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_safety_evaluation.validation_utils.utils_evaluation import set_veh_dimensions
 from src_safety_evaluation.validation_utils.utils_features import read_data, get_context_representations
-
 manual_seed = 131
-path_processed = 'ProcessedData/SHRP2/'
-path_prepared = 'PreparedData/'
-path_result = 'ResultData/'
-os.makedirs(path_result, exist_ok=True)
 
 
 def create_categorical_encoder(events, environment_feature_names):
@@ -191,10 +186,13 @@ def main(meta_both, events):
 
 
 if __name__ == '__main__':
-    manual_seed = 131
     np.random.seed(manual_seed)
 
     # Load metadata and event information
+    path_processed = 'ProcessedData/SHRP2/'
+    path_prepared = 'PreparedData/'
+    path_result = 'ResultData/'
+    os.makedirs(path_result, exist_ok=True)
     meta_both = pd.read_csv(path_processed + 'metadata_birdseye.csv')
     meta_both = meta_both.set_index('event_id')
     events = pd.read_csv('RawData/SHRP2/FileToUse/InsightTables/Event_Table.csv').set_index('eventID')

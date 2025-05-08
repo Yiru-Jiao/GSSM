@@ -17,11 +17,13 @@ from src_posterior_inference.model import LogNormalNLL
 from src_safety_evaluation.validation_utils.utils_evaluation import parallel_records
 from src_safety_evaluation.reuse_ucd.unified_conflit_detection import UCD, define_model
 from joblib import Parallel, delayed
+manual_seed = 131
+small_eps = 1e-6
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
+    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be 1,2 for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
@@ -38,7 +40,7 @@ def main(args, manual_seed, path_result):
         args.seed = manual_seed # Fix the random seed for reproduction
     if args.seed is None:
         args.seed = random.randint(0, 1000)
-    print(f"Random seed is set to {args.seed}")
+    print(f'Random seed is set to {args.seed}')
     fix_seed(args.seed, deterministic=args.reproduction)
     
     # Initialize the deep learning program
@@ -104,7 +106,7 @@ def main(args, manual_seed, path_result):
         results['mode'] = np.exp(results['mu'] - results['sigma']**2)
         print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
         loss_func = LogNormalNLL()
-        log_var = np.log(np.maximum(1e-6, sigma**2))
+        log_var = np.log(np.maximum(small_eps, sigma**2))
         out = (torch.from_numpy(mu).float(), torch.from_numpy(log_var).float())
         print(f'LogNormal NLL: {loss_func(out, torch.from_numpy(spacing_list).float()).item()}')
 
@@ -142,8 +144,5 @@ def main(args, manual_seed, path_result):
 if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
-
-    manual_seed = 131
-    path_result = 'ResultData/'
-    
+    path_result = 'ResultData/'    
     main(args, manual_seed, path_result)

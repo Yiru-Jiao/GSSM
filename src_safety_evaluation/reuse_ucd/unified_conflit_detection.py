@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from src_posterior_inference.model import LogNormalNLL, SmoothLogNormalNLL
 from src_data_preparation.represent_utils.coortrans import coortrans
 coortrans = coortrans()
+small_eps = 1e-6
 
 
 # Create dataloader
@@ -43,9 +44,9 @@ class DataOrganiser(Dataset):
                      'psi_sur','rho']
         self.interaction_context = features[variables].copy()
         # log-transform spacing, and the spacing must be larger than 0
-        if np.any(features['s']<=1e-6):
+        if np.any(features['s']<=small_eps):
             print('There are spacings smaller than or equal to 0.')
-            features.loc[features['s']<=1e-6, 's'] = 1e-6
+            features.loc[features['s']<=small_eps, 's'] = small_eps
         self.current_spacing = np.log(features['s']).copy()
         # print data descriptions for inspection
         print(features[variables+['s']].describe().to_string())
@@ -131,12 +132,12 @@ class train_val_test():
                                         'rho': np.random.uniform(-np.pi,np.pi,num_inducing_points)})
         return inducing_points.values
 
-    def get_inducing_out(self, x, noise=0.05):
+    def get_inducing_out(self, x, noise=0.01):
         inducing_points = x + noise*torch.randn_like(x, device=x.device)
         f_dist = self.model(inducing_points)
         y_dist = self.likelihood(f_dist)
         mu, var = y_dist.mean, y_dist.variance
-        return mu, torch.log(torch.clamp(var, min=1e-6))
+        return mu, torch.log(torch.clamp(var, min=small_eps))
 
     def train_model(self, num_epochs=100, initial_lr=0.1):
         self.initial_lr = initial_lr
@@ -215,7 +216,7 @@ class train_val_test():
                 f_dist = self.model(interaction_context.to(self.device))
                 y_dist = self.likelihood(f_dist)
                 mu, var = y_dist.mean, y_dist.variance # mu: [batch_size], var: [batch_size]
-                log_var = torch.log(torch.clamp(var, min=1e-6))
+                log_var = torch.log(torch.clamp(var, min=small_eps))
                 mu_list.append(mu.cpu().numpy())
                 sigma_list.append(var.sqrt().cpu().numpy())
                 val_gau += lognorm_nll((mu, log_var), torch.exp(current_spacing.to(self.device)))
@@ -291,7 +292,7 @@ class custom_dataset(Dataset):
     
 
 def lognormal_cdf(x, mu, sigma):
-    x = np.maximum(1e-6, x)
+    x = np.maximum(small_eps, x)
     return 1/2+1/2*erf((np.log(x)-mu)/sigma/np.sqrt(2))
 
 
@@ -316,7 +317,7 @@ def UCD(states, model, likelihood, device):
 
     # 0.5 means that the probability of conflict is larger than the probability of non-conflict
     one_minus_cdf = 1 - lognormal_cdf(spacing_list, mu, sigma)
-    one_minus_cdf = np.minimum(1-1e-6, np.maximum(1e-6, one_minus_cdf))
+    one_minus_cdf = np.minimum(1-small_eps, np.maximum(small_eps, one_minus_cdf))
     max_intensity = np.log(0.5)/np.log(one_minus_cdf) # around (0.050171666, 693146.834)
 
     return mu, sigma, max_intensity

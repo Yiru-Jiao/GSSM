@@ -1,6 +1,6 @@
 import numpy as np
 import warnings
-from .geometry_utils import DTC_ij, CurrentD
+from .geometry_utils import DTC_ij
 
 
 def TTC(samples, toreturn='dataframe'):
@@ -96,8 +96,8 @@ def MTTC(samples, toreturn='dataframe'):
             delta_a = acc_i
         delta_v = delta_v*np.sign(((leaving_ij>=20)|(leaving_ji>=20)).astype(int)-0.5) # if the two vehicles are leaving each other, the relative velocity is set negative
         dtc[(abs(delta_a)<1e-6)&np.isinf(dtc)] = 1e15 # to avoid multiplication error when delta_a=0 and dtc=inf
-        delta_a[(delta_a>0)&(delta_a<1e-6)] = 1e-7
-        delta_a[(delta_a<0)&(delta_a>-1e-6)] = -1e-7
+        delta_a[(delta_a>0)&(delta_a<1e-6)] = 1e-6
+        delta_a[(delta_a<0)&(delta_a>-1e-6)] = -1e-6
         squared_term = delta_v**2 + 2*delta_a*dtc
         squared_term[squared_term>=0] = np.sqrt(squared_term[squared_term>=0])
         squared_term[squared_term<0] = np.nan

@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from inference_utils.utils_data import DataOrganiser
-from model import UnifiedProximity, LogNormalNLL, SmoothLogNormalNLL
+from model import GSSM, LogNormalNLL, SmoothLogNormalNLL
 from torch.utils.data import DataLoader
 
 
@@ -29,7 +29,7 @@ def set_experiments(stage=[1,2,3]):
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
             [['SafeBaseline','highD'], ['current']],
-            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
+            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 4 in stage: # add extra features
         exp_config.extend([
@@ -43,6 +43,9 @@ def set_experiments(stage=[1,2,3]):
 
 
 class train_val_test():
+    '''
+    This class defines the training, validation, and testing procedures for the posterior inference model.
+    '''
     def __init__(self, device, path_prepared, dataset,
                  encoder_selection='all', 
                  single_output=None,
@@ -63,18 +66,18 @@ class train_val_test():
         self.encoder_selection = encoder_selection
         self.single_output = single_output
         self.return_attention = return_attention
-        self._model = UnifiedProximity(self.encoder_selection, self.single_output, self.return_attention)
+        self._model = GSSM(self.encoder_selection, self.single_output, self.return_attention)
         if 'acc' in self.encoder_name:
             self.epoch2start = 25 # start learning rate scheduler after 25 epochs to prevent underfitting
         else:
             self.epoch2start = 20 # 20 is enough when acc is not included, otherwise there will be overfitting
 
-    def create_dataloader(self, batch_size, mixrate=2, random_seed=131, noise=0.01):
+    def create_dataloader(self, batch_size, mixrate=2, noise=0.01):
         self.batch_size = batch_size
         self.train_dataloader = DataLoader(DataOrganiser('train', self.dataset, self.encoder_selection, self.path_prepared, 
-                                                         mixrate, random_seed), batch_size=self.batch_size, shuffle=True)
+                                                         mixrate), batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(DataOrganiser('val', self.dataset, self.encoder_selection, self.path_prepared, 
-                                                       mixrate, random_seed), batch_size=self.batch_size, shuffle=False)
+                                                       mixrate), batch_size=self.batch_size, shuffle=False)
         self.noise = noise
         self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
         x = self.train_dataloader.dataset.data[0][:self.batch_size]
@@ -105,6 +108,9 @@ class train_val_test():
         return noised_x
 
     def get_inducing_out(self, x, model2use):
+        '''
+        Generate inducing points for the model based on the encoder selection.
+        '''
         if self.encoder_selection==['current'] or self.encoder_selection==['current+acc']:
             inducing_points = self.generate_noised_x(x)
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
@@ -123,8 +129,10 @@ class train_val_test():
         return inducing_out
     
     def mask_xts(self, x, model2use, drop_rate=0.4):
+        '''
+        Randomly mask the time series input to avoid position bias.
+        '''
         if model2use.training and isinstance(x, list) and len(x)==3:
-            # randomly mask the time series input to avoid position bias
             self.random_mask = (torch.rand_like(x[2][:,:,0], requires_grad=False) > drop_rate).float().unsqueeze(-1)
             x[2] = x[2] * self.random_mask
             return x
@@ -132,6 +140,9 @@ class train_val_test():
             return x
 
     def compute_loss(self, x, y, model2use, return_out=False, smoothed=True):
+        '''
+        Compute the loss for the model, considering whether to use the smoothed or unsmoothed version.
+        '''
         if not smoothed: # used only when evaluating the model
             out = model2use(self.send_x_to_device(x))
             loss = self.lognorm_nll(out, y.to(self.device))
@@ -145,7 +156,10 @@ class train_val_test():
         else:
             return loss
 
-    def train_model(self, num_epochs=100, initial_lr=0.0001, lr_schedule=True, verbose=0):
+    def train_model(self, num_epochs=150, initial_lr=0.0001, lr_schedule=True, verbose=0):
+        '''
+        Train the model using the training data and validate it using the validation data.
+        '''
         self.initial_lr = initial_lr
         self.verbose = verbose
         self.schedule_stage = 'pre-swa'
@@ -203,16 +217,19 @@ class train_val_test():
                     self.epoch_reduced = epoch_n
                     # use an averaged model for the rest of training
                     self.model = torch.optim.swa_utils.AveragedModel(self._model, use_buffers=False)
-                    self.model.update_parameters(self._model)
                     self.model = self.model.to(self.device)
+                    self.model.update_parameters(self._model)
+                    self.customed_update_bn(self.train_dataloader, self.model)
                     # print the current learning rate and validation loss
                     val_loss = self.val_loop()
-                    sys.stderr.write('\n Learning rate is reduced so the training uses SWA since now...')
-                    sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
+                    sys.stderr.write(
+                        f'\n Learning rate is reduced so the training uses SWA since now...'
+                        f'\n Current lr: {self.optimizer.param_groups[0]['lr']}, epoch: {epoch_n}, val_loss: {val_loss}'
+                        )
                     # define SWA scheduler
                     self.scheduler = torch.optim.swa_utils.SWALR(
                         self.optimizer, swa_lr=self.optimizer.param_groups[0]['lr'] * 0.05,
-                        anneal_epochs=20, anneal_strategy="cos"
+                        anneal_epochs=20, anneal_strategy='cos'
                         )
                     self.model.train()
                 
@@ -222,8 +239,10 @@ class train_val_test():
                     # update buffers for the averaged model
                     self.customed_update_bn(self.train_dataloader, self.model)
                     val_loss = self.val_loop()
-                    sys.stderr.write('\n SWA annealing completes, post-anneal fine-tuning since now...')
-                    sys.stderr.write(f'\n Current lr: {self.optimizer.param_groups[0]["lr"]}, epoch: {epoch_n}, val_loss: {val_loss}')
+                    sys.stderr.write(
+                        f'\n SWA annealing completes, post-anneal fine-tuning since now...'
+                        f'\n Current lr: {self.optimizer.param_groups[0]['lr']}, epoch: {epoch_n}, val_loss: {val_loss}'
+                        )
                     # use ReduceLROnPlateau to further reduce the learning rate
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                         self.optimizer, mode='min', factor=0.6, patience=3, cooldown=0,
@@ -290,11 +309,8 @@ class train_val_test():
     def customed_update_bn(self, loader, model):
         '''
         Update BatchNorm running_mean, running_var buffers in the model.
-        It performs one pass over data in `loader` to estimate the activation
-        statistics for BatchNorm layers in the model.
-
-        This function is a customed version of the original one in torch.optim.swa_utils.update_bn
-        for the list format of input data.
+        It performs one pass over data in `loader` to estimate the activation statistics for BatchNorm layers in the model.
+        This function is a customed version of the original one in torch.optim.swa_utils.update_bn for the list format of inputs.
         '''
         momenta = {}
         for module in model.modules():
@@ -315,6 +331,9 @@ class train_val_test():
         model.train(was_training)
 
     def load_model(self, mixrate=2):
+        '''
+        Load the model from the path_output directory.
+        '''
         if 'path_output' not in self.__dict__:
             self.path_output = self.path_prepared + f'PosteriorInference/{self.dataset_name}/{self.encoder_name}/'
         if mixrate<=1 and 'mixed' not in self.path_output:
@@ -332,6 +351,9 @@ class train_val_test():
         self.smooth_lognorm_nll = SmoothLogNormalNLL(beta=5).to(self.device)
 
     def print_inspection(self):
+        '''
+        Print the inspection of the model, including the mean and standard deviation of the output.
+        '''
         self.model.eval()
         mu_list, sigma_list = [], []
         val_gau = torch.tensor(0., device=self.device, requires_grad=False)

@@ -11,11 +11,12 @@ import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src_posterior_inference.inference_utils.utils_general import fix_seed, init_dl_program
 from src_safety_evaluation.reuse_ucd.unified_conflit_detection import *
+manual_seed = 131
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be "1,2" for multi-gpu)')
+    parser.add_argument('--gpu', type=str, default='0', help='The gpu number to use for training and inference (defaults to 0 for CPU only, can be 1,2 for multi-gpu)')
     parser.add_argument('--seed', type=int, default=None, help='The random seed')
     parser.add_argument('--reproduction', type=int, default=1, help='Whether this run is for reproduction, if set to True, the random seed would be fixed (defaults to True)')
     args = parser.parse_args()
@@ -32,7 +33,7 @@ def main(args, manual_seed, model_path):
         args.seed = manual_seed # Fix the random seed for reproduction
     if args.seed is None:
         args.seed = random.randint(0, 1000)
-    print(f"Random seed is set to {args.seed}")
+    print(f'Random seed is set to {args.seed}')
     fix_seed(args.seed, deterministic=args.reproduction)
     
     # Initialize the deep learning program
@@ -69,9 +70,6 @@ def main(args, manual_seed, model_path):
 if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
     args = parse_args()
-
-    manual_seed = 131
     model_path = 'PreparedData/PosteriorInference/SafeBaseline/ucd/'
     os.makedirs(model_path, exist_ok=True)
-
     main(args, manual_seed, model_path)

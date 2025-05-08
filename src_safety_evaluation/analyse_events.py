@@ -11,7 +11,8 @@ from tqdm import tqdm
 import time as systime
 from joblib import Parallel, delayed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluation, optimize_threshold, issue_warning, parallel_records, read_events
+from src_safety_evaluation.validation_utils.utils_evaluation import read_evaluation, parallel_records, read_events
+manual_seed = 131
 
 
 def parse_args():
@@ -30,24 +31,7 @@ def fill_na_warning(results):
     return results
 
 
-def get_model_fig(model_name):
-    dataset_name = model_name.split('_current')[0]
-
-    if 'acc' in model_name:
-        features = model_name.split('current+acc')[1]
-        features = features.split('_')
-        features = ['current+acc'] + features
-    else:
-        features = model_name.split('current')[1]
-        features = features.split('_')
-        features = ['current'] + features
-    features = [f for f in features if f !='']
-    encoder_name = '_'.join(features)
-
-    return dataset_name, encoder_name
-
-
-def main(args, path_result, path_prepared):
+def main(args, path_result):
     initial_time = systime.time()
     print('---- available cpus:', os.cpu_count(), '----')
 
@@ -65,7 +49,6 @@ def main(args, path_result, path_prepared):
         event_meta.to_csv(path_result + 'Analyses/EventMeta.csv')
 
     '''
-    Analysis 1 - Conflict detection
     For each event, it is applicable to compare conflict detection if safety or danger period is present
     - danger: the period when an (near)crash happens as manually annotated by SHRP2
               * start: after start_timestamp or within 4.5 seconds before impact_timestamp
@@ -117,7 +100,6 @@ def main(args, path_result, path_prepared):
             print('--- Analysis 1 with', model_name, 'already completed ---')
         else:
             print('--- Analyzing with', model_name, '---')
-            dataset_name, encoder_name = get_model_fig(model_name)
             sub_initial_time = systime.time()
             safety_evaluation = read_evaluation('GSSM', path_eval, model_name)
             progress_bar = tqdm(gssm_thresholds, desc=model_name, ascii=True, dynamic_ncols=False, miniters=10)
@@ -132,75 +114,14 @@ def main(args, path_result, path_prepared):
 
     print('--- Conflict detection comparison completed ---')
 
-    '''
-    Analysis 2 - Warning timeliness and warning period
-    For every model, the optimal threshold makes false negative rate and false positive rate be closest to (0%, 0%).
-    For each event, the target has largest intensity/EI (or smallest TAdv/TTC2D/ACT) during danger
-    period is considered as the conflicting target, then
-    - first warning: the last safe->unsafe transition moment before impact_timestamp,
-    - warning period: the percentage of warned time moments within [danger_start, danger_end].
-    '''
-    if os.path.exists(path_result + 'Analyses/OptimalWarningEvaluation.h5'):
-        print('--- Analysis 2: Part of optimal warning analysis already completed ---')
-        existing_results = pd.read_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results')
-        existing_models = existing_results['model'].unique()
-        results = [existing_results]
-    else:
-        existing_models = []
-        results = []
-
-    for conflict_indicator in ['TAdv', 'TTC2D', 'ACT', 'EI']:
-        if conflict_indicator in existing_models:
-            print('--- Optimal warning analysis with', conflict_indicator, 'already completed ---')
-        else:
-            print('--- Issuing warning', conflict_indicator, '---')
-            conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{conflict_indicator}.h5', key='results')
-            safety_evaluation = read_evaluation(conflict_indicator, path_eval)
-            optimal_threshold = optimize_threshold(conflict_warning, conflict_indicator, 'PRC')
-            records = issue_warning(conflict_indicator, optimal_threshold, safety_evaluation, event_meta)
-            records['model'] = conflict_indicator
-            results.append(records.reset_index())
-
-    model_evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
-    dataset_name_list = model_evaluation['dataset'].values
-    encoder_name_list = model_evaluation['encoder_selection'].values
-    mixrate_list = model_evaluation['mixrate'].values
-    for dataset_name, encoder_name, mixrate in zip(dataset_name_list, encoder_name_list, mixrate_list):
-        if np.isnan(mixrate):
-            model_name = f'{dataset_name}_{encoder_name}'
-        else:
-            model_name = f'{dataset_name}_{encoder_name}_mixed{mixrate}'
-        if model_name in existing_models:
-            print('--- Optimal warning analysis with', model_name, 'already completed ---')
-        else:
-            print('--- Issuing warning', model_name, '---')
-            conflict_warning = pd.read_hdf(path_result + f'Analyses/Warning_{model_name}.h5', key='results')
-            safety_evaluation = read_evaluation('GSSM', path_eval, model_name)
-            optimal_threshold = optimize_threshold(conflict_warning, 'GSSM', 'PRC')
-            records = issue_warning('GSSM', optimal_threshold, safety_evaluation, event_meta)
-            records['model'] = model_name
-            results.append(records.reset_index())
-
-    results = pd.concat(results).reset_index(drop=True)
-    results.loc[results['danger_recorded'].isna(), 'danger_recorded'] = False
-    results['danger_recorded'] = results['danger_recorded'].astype(bool)
-    results.to_hdf(path_result + 'Analyses/OptimalWarningEvaluation.h5', key='results', mode='w')
-    
-    print('--- Optimal warning analysis completed ---')
-    print('Analysed models:', results['model'].unique())
-
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
 
 
 if __name__ == '__main__':
     sys.stdout.reconfigure(line_buffering=True)
-    manual_seed = 131
     np.random.seed(manual_seed)
-
     path_result = 'ResultData/'
     os.makedirs(path_result + 'Analyses/', exist_ok=True)
-    path_prepared = 'PreparedData/'
-
     args = parse_args()
-    main(args, path_result, path_prepared)
+    main(args, path_result)

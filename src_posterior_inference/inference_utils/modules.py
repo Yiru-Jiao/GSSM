@@ -5,7 +5,7 @@ This script defines the encoders and decoder for the GSSM model.
 import torch
 from torch import nn
 from collections import OrderedDict
-
+small_eps = 1e-6
 
 
 class TSEncoder(nn.Module):
@@ -99,9 +99,9 @@ class EnvEncoder(nn.Module):
 class BNRF(nn.Module):
     '''
     Batch-Norm + Random Feature (BNRF)
-    This module first applies batch normalization to the concatenated latent representation,
-    and then attaches an orthogonal Gaussian random feature that is deterministic for a latent representation.
-    The attached feature is with no gradients to regularise the latent space.
+    This module first attaches an orthogonal Gaussian random feature that is deterministic for a latent representation,
+    and then applies batch normalisation to the concatenated latent representations inculing random features.
+    The attached random featurs are with no gradients to regularise the latent space.
     '''
     def __init__(self, seq_len, additional_dim=None):
         super(BNRF, self).__init__()
@@ -111,36 +111,37 @@ class BNRF(nn.Module):
         else:
             self.additional_dim = additional_dim
         self.batch_norm1d = nn.BatchNorm1d(seq_len+self.additional_dim)
-        self.register_buffer("projector", # register a buffer to store the orthogonal random feature
+        self.register_buffer('projector', # register a buffer to store the orthogonal random feature
                              torch.ones((self.additional_dim, self.seq_len), requires_grad=False)*float('inf'))
 
-    @torch.no_grad()
-    def _make_orthogonal_rows(self, device):
+    @staticmethod
+    def _make_orthogonal_rows(m, n, device):
         # full random Gaussian matrix
-        G = torch.randn(self.seq_len, self.seq_len, device=device)
+        G = torch.randn(n, n, device=device, requires_grad=False) # (seq_len, seq_len)
         # QR decomposition -> orthonormal columns (so rows of Q^T are orthonormal)
-        Q, _ = torch.linalg.qr(G, mode="reduced")          # Q: seq_len×seq_len
-        Q = Q[:self.additional_dim].contiguous()           # keep first `additional_dim` rows of Q^T
+        Q, _ = torch.linalg.qr(G, mode='reduced')          # Q: seq_len×seq_len
+        Q = Q[:m].contiguous()                             # keep first `additional_dim` rows of Q^T
                                                            # (additional_dim, seq_len)
 
         # scaling factors for each row of Q^T
-        chi_samples = torch.randn(self.additional_dim, self.seq_len, device=device).norm(dim=1) # (additional_dim,)
-        P = (chi_samples.unsqueeze(1) / (self.seq_len**0.5)) * Q  # (additional_dim, seq_len)
-
-        return P
+        chi_samples = torch.randn(m, n, device=device).norm(dim=1, keepdim=True) # (additional_dim, seq_len)
+        return (chi_samples / (n**0.5)) * Q  # (additional_dim, seq_len)
     
     def forward(self, x): # x: (batch_size, seq_len, latent_dims=64)
         if self.projector.isinf().all():
-            self.projector = self._make_orthogonal_rows(x.device)
+            self.projector = self._make_orthogonal_rows(self.additional_dim, self.seq_len, x.device)
 
-        with torch.no_grad():
-            random_feature = torch.einsum("as,bsd->bad", self.projector, x) # (batch_size, additional_dim, latent_dims=64)
+        # random_feature = torch.einsum('as,bsd->bad', self.projector, x) 
+        random_feature = torch.matmul(x.transpose(1,2), self.projector.transpose(0,1)).transpose(1,2) # (batch_size, additional_dim, latent_dims=64)
         
         latent = self.batch_norm1d(torch.cat([x, random_feature], dim=1)) # (batch_size, seq_len+additional_dim, latent_dims=64)
         return latent
 
 
 class AttentionBlock(nn.Module):
+    '''
+    This defines a block for the self-attention mechanism.
+    '''
     def __init__(self, input_dims):
         super(AttentionBlock, self).__init__()
         self.linear_q = nn.Sequential(
@@ -170,6 +171,12 @@ class AttentionBlock(nn.Module):
     
 
 class FeedForwardBlock(nn.Module):
+    '''
+    This defines a block for the feed-forward network.
+    The output dimensions can be either the same as the input dimensions or larger.
+    If the output dimensions are larger, the number needs to be divisible by the input dimensions
+    to allow for residual connection.
+    '''
     def __init__(self, input_dims, output_dims):
         super(FeedForwardBlock, self).__init__()
         self.input_dims = input_dims
@@ -193,6 +200,9 @@ class FeedForwardBlock(nn.Module):
 
 
 class StackedAttention(nn.Module):
+    '''
+    This module stacks multiple attention blocks and feed-forward blocks together.
+    '''
     def __init__(self, dims_list, prefix='block'):
         super(StackedAttention, self).__init__()
         self.attention_blocks = nn.ModuleList([
@@ -209,17 +219,15 @@ class StackedAttention(nn.Module):
             attended, attention = attn_block(out)
             out = ff_block(attended)
             if attention_matrices is not None:
-                attention_matrices[f"{self.prefix}_{i}"] = attention
+                attention_matrices[f'{self.prefix}_{i}'] = attention
         return out, attention_matrices
 
 
 class AttentionDecoder(nn.Module):
     '''
-    State (Current + Environment) self-attention: (batch_size, 12/13+4, latent_dims=64) -> (batch_size, 12/13+4, hidden_dims=256=64*4)
-    TimeSeries self-attention: (batch_size, 5, latent_dims=64) -> (batch_size, 5, hidden_dims=256=64*4)
-
-    Local interaction with CNN: (batch_size, 256, 12~22) -> (batch_size, 16, 12~22)
-    Output with MLP: (batch_size, 16*(12~22)) -> (batch_size, 1)
+    State self-attention: (batch_size, seq_len, latent_dims=64) -> (batch_size, seq_len+additional_dim, hidden_dims=256=64*4)
+    Local interaction with CNN: (batch_size, 256, seq_len+additional_dim) -> (batch_size, 16, seq_len+additional_dim) -> (batch_size, 128)
+    Output with MLP: (batch_size, 128) -> (batch_size, 1)
     '''
     def __init__(self, seq_len, latent_dims=64, single_output=None, return_attention=False):
         super(AttentionDecoder, self).__init__()
@@ -274,12 +282,11 @@ class AttentionDecoder(nn.Module):
 
     def forward(self, state):
         '''
-        `state` can include
-        current: (batch_size, 12 or 13, latent_dims=64),
-        environment: (batch_size, 1, latent_dims=64),
-        ts: (batch_size, 5, latent_dims=64),
-        which are concatenated as (batch_size, 12~19, latent_dims=64)
-        or additionaly include spacing (batch_size, 1) when testing.
+        The input state can include
+        - current: (batch_size, 12 or 13, latent_dims=64),
+        - environment: (batch_size, 4, latent_dims=64),
+        - ts: (batch_size, 5, latent_dims=64),
+        - optional spacing (batch_size, 1) when testing.
         '''
         if self.return_attention:
             attention_matrices = dict()
@@ -310,8 +317,8 @@ class AttentionDecoder(nn.Module):
             assert spacing.size() == mu.size(), f'{spacing.size()} != {mu.size()}'
             assert spacing.size() == log_var.size(), f'{spacing.size()} != {log_var.size()}'
             log_p = torch.log(torch.tensor(0.5))
-            log_s = torch.log(torch.clamp(spacing, min=1e-6))
+            log_s = torch.log(torch.clamp(spacing, min=small_eps))
             squared2var = torch.sqrt(2*torch.exp(log_var))
             one_minus_cdf = 0.5*(1-torch.erf((log_s-mu)/squared2var))
-            max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=1e-6, max=1-1e-6))
+            max_intensity = log_p / torch.log(torch.clamp(one_minus_cdf, min=small_eps, max=1-small_eps))
             return torch.log10(torch.clamp(max_intensity, min=1.))

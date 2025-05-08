@@ -10,6 +10,9 @@ from represent_utils.coortrans import coortrans
 
 
 def read_dataset(dataset, path_processed, manual_seed):
+    '''
+    Read the selected dataset and organize the data into a single dataframe.
+    '''
     if dataset=='highD':
         data_both = pd.concat([pd.read_hdf(path_processed+'highD/lane_changing/lc_0'+str(loc_id)+'.h5', key='data') for loc_id in range(1,7)], ignore_index=True)
         data_both['event_id'] = data_both['track_id_ego']
@@ -48,6 +51,9 @@ def read_dataset(dataset, path_processed, manual_seed):
 
 
 class ContextSegmenter(coortrans):
+    '''
+    This class segments the data into scenes and organizes the features for model training.
+    '''
     def __init__(self, data, initial_scene_id, dataset, manual_seed):
         super().__init__()
         self.target_ids = data['target_id'].unique()

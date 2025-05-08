@@ -57,7 +57,6 @@ def main(path_prepared, path_processed, manual_seed):
             print('--------------------------------------------------------------------')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
-    sys.exit(0)
 
 
 if __name__ == '__main__':
@@ -69,3 +68,4 @@ if __name__ == '__main__':
     path_prepared = './PreparedData/Segments/'
     path_processed = './ProcessedData/'
     main(path_prepared, path_processed, manual_seed)
+    sys.exit(0)

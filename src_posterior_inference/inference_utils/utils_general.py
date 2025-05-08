@@ -9,12 +9,13 @@ import random
 
 
 def fix_seed(seed, deterministic=False):
+    '''
+    Fix the random seed for reproducibility. 
+    This function is called in all experiments to ensure that the results are reproducible.
+    '''
     random.seed(seed)
-    seed += 1
     np.random.seed(seed)
-    seed += 1
     torch.manual_seed(seed)
-    seed += 1
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = deterministic
@@ -22,7 +23,10 @@ def fix_seed(seed, deterministic=False):
 
 
 def init_dl_program(gpu_num=0, max_threads=None, use_tf32=False):
-
+    '''
+    Initialize the deep learning program. 
+    This function is called in all experiments with pytorch deep learning.
+    '''
     if max_threads is not None:
         torch.set_num_threads(max_threads)  # intraop
         if torch.get_num_interop_threads() != max_threads:
@@ -40,11 +44,11 @@ def init_dl_program(gpu_num=0, max_threads=None, use_tf32=False):
         elif ',' in gpu_num:
             device_name = ['cuda:'+idx for idx in gpu_num.split(',')]
             # Reduce VRAM usage by reducing fragmentation
-            os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
         else:
             device_name = [f'cuda:{idx}' for idx in range(int(gpu_num))]
             # Reduce VRAM usage by reducing fragmentation
-            os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+            os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
     
     devices = []
     for device in reversed(device_name):
