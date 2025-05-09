@@ -83,7 +83,7 @@ def main():
     print('Numpy random test:', np.random.rand()) # 0.650153605471749
     print('Torch random test:', torch.rand(1).item()) # 0.43932265043258667
     if torch.cuda.is_available():
-        print('Cudnn random test:', torch.rand(1, device='cuda').item()) # 0.5410190224647522
+        print('Cudnn random test:', torch.rand(1, device='cuda').item()) # 0.6956863403320312
 
     print('--- Run again to see if the random values are the same ---')
 
