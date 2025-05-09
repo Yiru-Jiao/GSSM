@@ -96,12 +96,15 @@ def main(args, manual_seed, path_prepared, path_result):
                 print(f'Number of samples in the last batch: {len(inputs)}')
         ref_samples = kmeans.cluster_centers_
         np.save(path_save + f'{model_name}_ref_samples.npy', ref_samples)
+    del kmeans
 
     # Define explainer, reference samples are the cluster centers
     ref_samples = torch.from_numpy(ref_samples.reshape(ref_samples.shape[0],-1,64)).float()
     explainer = shap.GradientExplainer(decoder, ref_samples, batch_size=1024)
     ref_intensity = decoder(ref_samples).squeeze().detach().numpy()
     np.save(path_save + f'{model_name}_ref_intensity.npy', ref_intensity)
+    del ref_samples
+    del ref_intensity
 
     # Read event_id and target_id pairs
     voted_targets = pd.read_csv(path_result + 'Conflicts/Voted_conflicting_targets.csv')
