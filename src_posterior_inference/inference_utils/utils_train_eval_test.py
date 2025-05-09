@@ -67,10 +67,10 @@ class train_val_test():
         self.single_output = single_output
         self.return_attention = return_attention
         self._model = GSSM(self.encoder_selection, self.single_output, self.return_attention)
-        if 'acc' in self.encoder_name:
-            self.epoch2start = 25 # start learning rate scheduler after 25 epochs to prevent underfitting
+        if 'highD' in self.dataset_name:
+            self.epoch2start = 15 # start learning rate scheduler after 15 epochs to prevent overfitting
         else:
-            self.epoch2start = 20 # 20 is enough when acc is not included, otherwise there will be overfitting
+            self.epoch2start = 20 # 20 is ok when highD is not included
 
     def create_dataloader(self, batch_size, mixrate=2, noise=0.01):
         self.batch_size = batch_size
@@ -204,7 +204,7 @@ class train_val_test():
             loss_log[epoch_n] = train_loss.item() / train_batch_iter
 
             val_loss = self.val_loop()
-            if lr_schedule and epoch_n>self.epoch2start: # Start learning rate scheduler after 20/25 epochs
+            if lr_schedule and epoch_n>self.epoch2start: # Start learning rate scheduler after certain epochs
                 if self.schedule_stage!='in-swa':
                     self.scheduler.step(val_loss)
                 else:
@@ -262,12 +262,12 @@ class train_val_test():
                     progress_bar.update(self.verbose-1)
 
             # Early stopping if validation loss converges
-            if self.schedule_stage=='post-swa' and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<1e-4):
+            if self.schedule_stage=='post-swa' and np.all(abs(np.diff(val_loss_log[epoch_n-3:epoch_n+1])/val_loss_log[epoch_n-3:epoch_n])<5e-4):
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
-            # Force a stop if the post-swa procedure is too long
-            if epoch_n > (self.epoch_reduced+50):
+            # Force a stop if the post-swa procedure over 20 epochs
+            if epoch_n > (self.epoch_reduced+40):
                 print(f'Learning procedure is too long and training stops early at Epoch {epoch_n}.')
                 break
 
