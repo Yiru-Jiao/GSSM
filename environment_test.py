@@ -6,6 +6,7 @@ It also checks if the random seeds are fixed properly.
 
 # Standard libraries
 import os
+import gc
 import sys
 import glob
 import torch
@@ -29,9 +30,9 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import ShuffleSplit
 
 # src_trajectory_reconstruction
-from matplotlib.backends.backend_pdf import PdfPages
+# from matplotlib.backends.backend_pdf import PdfPages
 from src_trajectory_reconstruction.reconstruction_utils.utils_ekf import *
-from src_trajectory_reconstruction.reconstruction_utils.utils_ego_sur import *
+# from src_trajectory_reconstruction.reconstruction_utils.utils_ego_sur import *
 print('--- All the imports in src_trajectory_reconstruction are successful ---')
 
 # src_data_preparation
@@ -62,9 +63,9 @@ from src_safety_evaluation.validation_utils.utils_eval_metrics import *
 print('--- All the imports in src_safety_evaluation are successful ---')
 
 # visualization
-from src_visualisation.visual_utils.utils_tabfig import *
-from src_visualisation.visual_utils.utils_dynamic import *
-print('--- All the imports in src_visualisation are successful ---')
+# from src_visualisation.visual_utils.utils_tabfig import *
+# from src_visualisation.visual_utils.utils_dynamic import *
+# print('--- All the imports in src_visualisation are successful ---')
 
 
 def main():

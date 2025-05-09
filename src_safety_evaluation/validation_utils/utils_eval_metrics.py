@@ -87,7 +87,7 @@ def get_time(warning, cutoff=1.5):
     return median_tti, p_tti
 
 
-def get_eval_metrics(warning, thresholds={'roc': [0.10, 0.20], 'tti': None}):
+def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'tti': None}):
     '''
     Compute safety-oriented evaluation metrics from a dataframe with
     per-threshold confusion counts stored in columns tp, fp, tn, fn.
@@ -105,8 +105,7 @@ def get_eval_metrics(warning, thresholds={'roc': [0.10, 0.20], 'tti': None}):
     fpr = fp / np.maximum(small_eps, fp + tn)
     tpr = tp / np.maximum(small_eps, tp + fn)
     for threshold in thresholds['roc']:
-        min_tpr = 1.0 - threshold
-        roc_metrics[f'aroc_{int(threshold*100)}'] = partial_auc(fpr, tpr, min_tpr)
+        roc_metrics[f'aroc_{int(threshold*100)}'] = partial_auc(fpr, tpr, threshold)
 
     # ATC
     if thresholds['tti'] is not None:

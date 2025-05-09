@@ -245,8 +245,8 @@ class train_val_test():
                         )
                     # use ReduceLROnPlateau to further reduce the learning rate
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.optimizer, mode='min', factor=0.6, patience=3, cooldown=0,
-                        threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6**30
+                        self.optimizer, mode='min', factor=0.3, patience=3, cooldown=0,
+                        threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6*0.05*0.3**10
                     )
 
             val_loss_log[epoch_n] = val_loss

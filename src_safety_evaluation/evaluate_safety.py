@@ -3,6 +3,7 @@ This script applies different models to evaluate the safety of events.
 '''
 
 import os
+import gc
 import sys
 import random
 import time as systime
@@ -195,6 +196,13 @@ def main(args, manual_seed, path_prepared, path_result):
         nll = loss_func(out, torch.from_numpy(spacing_list).float()).item()
         model_evaluation.loc[model_id, 'test_nll'] = nll
         print(f'LogNormal NLL: {nll}')
+
+        # Clean up after each run
+        del model
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
     model_evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')

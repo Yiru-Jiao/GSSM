@@ -3,6 +3,7 @@ This script trains and evaluates the posterior inference model in various config
 '''
 
 import os
+import gc
 import sys
 import random
 import time as systime
@@ -140,7 +141,12 @@ def main(args, manual_seed, path_prepared):
             evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
 
             pipeline.print_inspection()
-            pipeline = [] # Clear the pipeline to free up memory
+
+            # Clean up after each run
+            del pipeline
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
     sys.exit(0)
