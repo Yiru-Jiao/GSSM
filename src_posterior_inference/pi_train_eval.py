@@ -84,9 +84,10 @@ def main(args, manual_seed, path_prepared):
         else:
             mixrates = [2.0]
         for mixrate in mixrates:
-            # Reset the random seed for each run
             if args.reproduction:
+                # Reset the random seed for each run
                 fix_seed(args.seed, deterministic=args.reproduction)
+
             try:
                 pipeline = train_val_test(device, path_prepared, dataset, encoder_selection)
                 pipeline.create_dataloader(batch_size, mixrate)
