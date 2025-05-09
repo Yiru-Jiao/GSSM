@@ -187,7 +187,7 @@ def main(args, manual_seed, path_prepared, path_result):
         results = results.sort_values(['target_id','time']).reset_index(drop=True)
         results.to_hdf(path_save + f'{model_name}.h5', key='data', mode='w')
         eval_efficiency.loc[len(eval_efficiency)] = [model_name, time_end-time_start, results['target_id'].nunique(), len(results)]
-        eval_efficiency = eval_efficiency.sort_values('model_name')
+        eval_efficiency = eval_efficiency.groupby('model_name')[['time','num_targets','num_moments']].mean().reset_index()
         eval_efficiency.to_csv(path_save + 'EvaluationEfficiency.csv', index=False)
         results['mode'] = np.exp(results['mu'] - results['sigma']**2)
         print(results[['mu','sigma','mode']].describe().to_string(float_format=lambda x: f'{x:.4f}'))
