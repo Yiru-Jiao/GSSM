@@ -2,10 +2,13 @@
 This script contains utilities for segmenting data into scenes and organizing the features for model training.
 '''
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from sklearn.preprocessing import OneHotEncoder
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from represent_utils.coortrans import coortrans
 
 

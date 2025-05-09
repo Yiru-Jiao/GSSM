@@ -80,8 +80,8 @@ def main():
     fix_seed(manual_seed, deterministic=True)  # Below random values in comments are results in the author's machine
     print(f'Random seed fixed to be {manual_seed}, testing...')
     print('Python random test:', random.random()) # 0.3154351888034451
-    print('Numpy random test:', np.random.rand()) # 0.7809038987924661
-    print('Torch random test:', torch.rand(1).item()) # 0.39420515298843384
+    print('Numpy random test:', np.random.rand()) # 0.650153605471749
+    print('Torch random test:', torch.rand(1).item()) # 0.43932265043258667
     if torch.cuda.is_available():
         print('Cudnn random test:', torch.rand(1, device='cuda').item()) # 0.5410190224647522
 
