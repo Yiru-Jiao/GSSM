@@ -52,6 +52,7 @@ def main(args, manual_seed, path_prepared, path_result):
 
     path_save = path_result + 'FeatureAttribution/'
     os.makedirs(path_save, exist_ok=True)
+    os.makedirs(path_save + 'stages/', exist_ok=True)
 
     if args.features == 0:
         encoder_selection = ['current', 'environment']
@@ -111,27 +112,16 @@ def main(args, manual_seed, path_prepared, path_result):
     voted_targets = voted_targets[voted_targets['target_id']>=0]
 
     # Compute and save gradients for each event
+    results = []
     existing_ids = []
-    if os.path.exists(path_save + f'{model_name}_stage0.h5'):
-        print(f'{model_name}_stage0.h5 already exists, loading ...')
-        result = pd.read_hdf(path_save + f'{model_name}_stage0.h5', key='results')
-        existing_ids.append(result[['event_id','target_id']].drop_duplicates())
-        results = [result]
-        print(f'{existing_ids[0].shape[0]} event_id and target_id pairs in stage0.')
-    else:
-        results = []
-    if os.path.exists(path_save + f'{model_name}_stage1.h5'):
-        print(f'{model_name}_stage1.h5 already exists, loading ...')
-        result = pd.read_hdf(path_save + f'{model_name}_stage1.h5', key='results')
-        existing_ids.append(result[['event_id','target_id']].drop_duplicates())
-        results.append(result)
-        print(f'{existing_ids[-1].shape[0]} event_id and target_id pairs in stage1.')
-    if os.path.exists(path_save + f'{model_name}_stage2.h5'):
-        print(f'{model_name}_stage2.h5 already exists, loading ...')
-        result = pd.read_hdf(path_save + f'{model_name}_stage2.h5', key='results')
-        existing_ids.append(result[['event_id','target_id']].drop_duplicates())
-        results.append(result)
-        print(f'{existing_ids[-1].shape[0]} event_id and target_id pairs in stage2.')
+    for stage in range(len(voted_targets)//100+1):
+        stage_file = path_save + f'stages/{model_name}_{stage}.h5'
+        if os.path.exists(stage_file):
+            print(f'{model_name}_stage{stage}.h5 already exists, loading ...')
+            result = pd.read_hdf(stage_file, key='results')
+            existing_ids.append(result[['event_id', 'target_id']].drop_duplicates())
+            results.append(result)
+            print(f"{result[['event_id', 'target_id']].drop_duplicates().shape[0]} event_id and target_id pairs in stage{stage}.")
     if len(existing_ids)>0:
         existing_ids = pd.concat(existing_ids, axis=0).drop_duplicates()
         voted_targets = voted_targets[~((voted_targets['event_id'].isin(existing_ids['event_id']))&
@@ -141,7 +131,7 @@ def main(args, manual_seed, path_prepared, path_result):
     feature_list = sampler.variables + ['Spacing']
     eg_columns = [f'eg_{var}' for var in feature_list]
     std_columns = [f'std_{var}' for var in feature_list]
-    event_count = 0
+    event_count = len(existing_ids)
     for event_id, target_id in tqdm(voted_targets[['event_id','target_id']].values, total=len(voted_targets), ascii=True, desc='Attribution', miniters=10):
         samples, proximity = sampler.get_item(event_id, target_id)
         proximity = torch.from_numpy(proximity).float()
@@ -164,9 +154,8 @@ def main(args, manual_seed, path_prepared, path_result):
         event_count += 1
         if event_count%100 == 99:
             results = pd.concat(results, axis=0)
+            results.to_hdf(path_save + f'stages/{model_name}_{event_count//100}.h5', key='results', mode='w')
             results = [results]
-        if event_count%900 == 899:
-            pd.concat(results, axis=0).to_hdf(path_save + f'{model_name}_stage{event_count//900}.h5', key='results', mode='w')
 
     results = pd.concat(results, axis=0)
     results.to_hdf(path_save + f'{model_name}.h5', key='results', mode='w')
