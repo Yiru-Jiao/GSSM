@@ -40,10 +40,10 @@ def main(path_result):
                 continue
             if 'mixed' in model:
                 if 'ArgoverseHV' in model:
-                    if '0.2' not in model:
+                    if '0.1' not in model:
                         continue
                 elif 'highD' in model:
-                    if '0.5' not in model:
+                    if '1.0' not in model:
                         continue
             models.append(model)
             warning = pd.read_hdf(path_result+'Analyses/'+warning_file, key='results')

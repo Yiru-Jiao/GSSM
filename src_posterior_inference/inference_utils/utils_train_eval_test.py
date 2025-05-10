@@ -29,7 +29,7 @@ def set_experiments(stage=[1,2,3]):
     if 3 in stage: # multiple datasets, current only
         exp_config.extend([
             [['SafeBaseline','highD'], ['current']],
-            # [['SafeBaseline','ArgoverseHV','highD'], ['current']],
+            [['SafeBaseline','ArgoverseHV','highD'], ['current']],
         ])
     if 4 in stage: # add extra features
         exp_config.extend([
