@@ -64,25 +64,27 @@ class get_sample():
             def get_item(event_id, target_id, time=None):
                 if time is None:
                     idx = self.event_id_list.loc[(event_id, target_id, slice(None))]['idx'].values[::-1]
+                    time = self.event_id_list.loc[(event_id, target_id, slice(None))]['idx'].index[::-1].values
                 else:
                     idx = self.event_id_list.loc[(event_id, target_id, time)]['idx']
                     if isinstance(idx, np.int32):
                         idx = [idx]
                     else:
                         idx = idx.values
-                samples = tuple([torch.from_numpy(x_i[idx]).float() for x_i in self.states])
-                return samples, self.spacing_list[idx]
+                samples = [torch.from_numpy(x_i[idx]).float() for x_i in self.states]
+                return samples, self.spacing_list[idx], time
         else:
             def get_item(event_id, target_id, time=None):
                 if time is None:
                     idx = self.event_id_list.loc[(event_id, target_id, slice(None))]['idx'].values[::-1]
+                    time = self.event_id_list.loc[(event_id, target_id, slice(None))]['idx'].index[::-1].values
                 else:
                     idx = self.event_id_list.loc[(event_id, target_id, time)]['idx']
                     if isinstance(idx, np.int32):
                         idx = [idx]
                     else:
                         idx = idx.values
-                return torch.from_numpy(self.states[0][idx]).float(), self.spacing_list[idx]
+                return torch.from_numpy(self.states[0][idx]).float(), self.spacing_list[idx], time
         self.get_item = get_item
 
 

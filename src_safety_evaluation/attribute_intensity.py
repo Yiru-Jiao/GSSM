@@ -31,6 +31,13 @@ def parse_args():
     return args
 
 
+def send_x_to_device(batch, device):
+    if isinstance(batch, list):
+        return tuple([i.to(device) for i in batch])
+    else:
+        return batch.to(device)
+
+
 def main(args, manual_seed, path_prepared, path_result):
     initial_time = systime.time()
     print('Available cpus:', torch.get_num_threads(), 'available gpus:', torch.cuda.device_count())
@@ -52,7 +59,6 @@ def main(args, manual_seed, path_prepared, path_result):
 
     path_save = path_result + 'FeatureAttribution/'
     os.makedirs(path_save, exist_ok=True)
-    os.makedirs(path_save + 'stages/', exist_ok=True)
 
     if args.features == 0:
         encoder_selection = ['current', 'environment']
@@ -77,7 +83,7 @@ def main(args, manual_seed, path_prepared, path_result):
 
     # Define sample generator
     sampler = get_sample(encoder_selection, path_result)
-    event_id_list = sampler.event_id_list.reset_index()
+    results = sampler.event_id_list.copy()
 
     # Cluster representative training samples
     pipeline.create_dataloader(batch_size=1024)
@@ -88,7 +94,7 @@ def main(args, manual_seed, path_prepared, path_result):
         print(f'{model_name}_ref_samples.npy has not been created, clustering ...')
         kmeans = MiniBatchKMeans(n_clusters=1024, random_state=manual_seed, batch_size=1024)
         for batch, spacing in tqdm(pipeline.train_dataloader, total=len(pipeline.train_dataloader), ascii=True, desc='Clustering', miniters=50):
-            representations = encoder(batch)
+            representations = encoder(send_x_to_device(batch, device)).cpu()
             spacing = torch.cat([spacing.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
             inputs = torch.cat((representations, spacing), dim=1).detach().numpy()
             if len(inputs)==1024:
@@ -97,12 +103,12 @@ def main(args, manual_seed, path_prepared, path_result):
                 print(f'Number of samples in the last batch: {len(inputs)}')
         ref_samples = kmeans.cluster_centers_
         np.save(path_save + f'{model_name}_ref_samples.npy', ref_samples)
-    del kmeans
+        del kmeans
 
     # Define explainer, reference samples are the cluster centers
-    ref_samples = torch.from_numpy(ref_samples.reshape(ref_samples.shape[0],-1,64)).float()
+    ref_samples = torch.from_numpy(ref_samples.reshape(ref_samples.shape[0],-1,64)).float().to(device)
     explainer = shap.GradientExplainer(decoder, ref_samples, batch_size=1024)
-    ref_intensity = decoder(ref_samples).squeeze().detach().numpy()
+    ref_intensity = decoder(ref_samples).squeeze().detach().cpu().numpy()
     np.save(path_save + f'{model_name}_ref_intensity.npy', ref_intensity)
     del ref_samples
     del ref_intensity
@@ -112,52 +118,39 @@ def main(args, manual_seed, path_prepared, path_result):
     voted_targets = voted_targets[voted_targets['target_id']>=0]
 
     # Compute and save gradients for each event
-    results = []
-    existing_ids = []
-    for stage in range(len(voted_targets)//100+1):
-        stage_file = path_save + f'stages/{model_name}_{stage}.h5'
-        if os.path.exists(stage_file):
-            print(f'{model_name}_stage{stage}.h5 already exists, loading ...')
-            result = pd.read_hdf(stage_file, key='results')
-            existing_ids.append(result[['event_id', 'target_id']].drop_duplicates())
-            results.append(result)
-            print(f"{result[['event_id', 'target_id']].drop_duplicates().shape[0]} event_id and target_id pairs in stage{stage}.")
-    if len(existing_ids)>0:
-        existing_ids = pd.concat(existing_ids, axis=0).drop_duplicates()
+    if os.path.exists(path_save + f'{model_name}.h5'):
+        print(f'{model_name}.h5 already exists, loading ...')
+        saved_results = pd.read_hdf(path_save + f'{model_name}.h5', key='results')
+        existing_ids = saved_results.dropna(subset=['intensity']).reset_index()[['event_id', 'target_id']].drop_duplicates()
+        print(f'{len(existing_ids)} event_id and target_id pairs already attributed.')
         voted_targets = voted_targets[~((voted_targets['event_id'].isin(existing_ids['event_id']))&
                                         (voted_targets['target_id'].isin(existing_ids['target_id'])))]
-        print(f'{len(existing_ids)} event_id and target_id pairs already exist, {len(voted_targets)} pairs left to compute.')
+        print(f'{len(voted_targets)} pairs left to compute.')
+    else:
+        existing_ids = []
 
-    feature_list = sampler.variables + ['Spacing']
-    eg_columns = [f'eg_{var}' for var in feature_list]
-    std_columns = [f'std_{var}' for var in feature_list]
+    eg_columns = [f'eg_{var}' for var in sampler.variables]
+    std_columns = [f'std_{var}' for var in sampler.variables]
     event_count = len(existing_ids)
     for event_id, target_id in tqdm(voted_targets[['event_id','target_id']].values, total=len(voted_targets), ascii=True, desc='Attribution', miniters=10):
-        samples, proximity = sampler.get_item(event_id, target_id)
+        samples, proximity, time = sampler.get_item(event_id, target_id)
         proximity = torch.from_numpy(proximity).float()
         proximity = torch.cat([proximity.unsqueeze(-1).unsqueeze(-1)]*64, dim=-1)
-        sample_representations = encoder(samples)
-        sample_inputs = torch.cat((sample_representations, proximity), dim=1)
+        sample_representations = encoder(send_x_to_device(samples, device)).cpu()
+        sample_inputs = torch.cat((sample_representations, proximity), dim=1).to(device)
         eg_matrix, var = explainer.shap_values(sample_inputs, nsamples=1024, return_variances=True, rseed=manual_seed)
-        intensity = decoder(sample_inputs).squeeze().detach().numpy()
-        eg_values = eg_matrix[:,:,:,0].sum(axis=2)
-        std = np.sqrt(var[0].sum(axis=2))
+        intensity = decoder(sample_inputs).squeeze().detach().cpu().numpy()
+        eg_values = eg_matrix[:,:-1,:,0].sum(axis=2)
+        std = np.sqrt(var[0][:,:-1,:].sum(axis=2))
         assert eg_values.shape == std.shape
         if np.any(np.isnan(eg_values)):
             Warning(f'There are NaN values in event {event_id} with target {target_id}.')
-        result = event_id_list[(event_id_list['event_id']==event_id)&(event_id_list['target_id']==target_id)]
-        result = result.sort_values(by='idx', ascending=False)[['event_id','target_id','time']]
-        result[eg_columns] = eg_values
-        result[std_columns] = std
-        result['intensity'] = intensity
-        results.append(result)
+        results.loc[(event_id, target_id, time), eg_columns] = eg_values
+        results.loc[(event_id, target_id, time), std_columns] = std
+        results.loc[(event_id, target_id, time), 'intensity'] = intensity
         event_count += 1
-        if event_count%100 == 99:
-            results = pd.concat(results, axis=0)
-            results.to_hdf(path_save + f'stages/{model_name}_{event_count//100}.h5', key='results', mode='w')
-            results = [results]
-
-    results = pd.concat(results, axis=0)
+        if event_count%100 == 99: # Save once per 100 events
+            results.to_hdf(path_save + f'{model_name}.h5', key='results', mode='w')
     results.to_hdf(path_save + f'{model_name}.h5', key='results', mode='w')
 
     print('--- Total time elapsed: ' + systime.strftime('%H:%M:%S', systime.gmtime(systime.time() - initial_time)) + ' ---')
