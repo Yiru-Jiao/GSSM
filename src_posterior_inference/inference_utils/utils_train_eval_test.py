@@ -324,7 +324,7 @@ class train_val_test():
         for module in momenta.keys():
             module.momentum = None
         for x, _ in loader:
-            x = self.send_x_to_device(x)
+            x = self.send_x_to_device(self.mask_xts(x, model))
             model(x)
         for bn_module in momenta.keys():
             bn_module.momentum = momenta[bn_module]

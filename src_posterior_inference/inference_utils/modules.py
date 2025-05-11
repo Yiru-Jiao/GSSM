@@ -17,21 +17,15 @@ class TSEncoder(nn.Module):
         super(TSEncoder, self).__init__()
         self.batch_norm = nn.BatchNorm1d(input_dims)
         self.lstm = nn.LSTM(input_dims, output_dims, num_layers=1, batch_first=True, bidirectional=False)
-        self.linear = nn.Sequential(# This is to align the output of LSTM with other outputs by MLPs
-            nn.LayerNorm(output_dims),
-            nn.Linear(output_dims, output_dims),
-            nn.Dropout(0.2),
-            nn.GELU(),
-            nn.Linear(output_dims, output_dims),
-        )
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x): # x: (batch_size, 25, feature_dims=4)
         x = torch.flip(x, [1]) # reverse time series to encode the latest time step first
         x_bn = self.batch_norm(x.permute(0, 2, 1)) # batch_norm to normalise the features
         x_bn = x_bn.permute(0, 2, 1) # (batch_size, feature_dims=4, 25) -> (batch_size, 25, feature_dims=4)
         output, _ = self.lstm(x_bn) # output: (batch_size, 25, hidden_dims=64)
-        output = output[:, 4::5, :] # each encode the passed 0.5, 1, 1.5, 2, 2.5 seconds
-        out = self.linear(output) # (batch_size, 5, output_dims=64)
+        output = self.dropout(output) # (batch_size, 25, hidden_dims=64)
+        out = output[:, 4::5, :] # each encode the passed 0.5, 1, 1.5, 2, 2.5 seconds
         return out #(batch_size, 5, 64)
 
 
