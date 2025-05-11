@@ -16,9 +16,10 @@ class TSEncoder(nn.Module):
     def __init__(self, input_dims=4, output_dims=64):
         super(TSEncoder, self).__init__()
         self.batch_norm = nn.BatchNorm1d(input_dims)
-        self.lstm = nn.LSTM(input_dims, output_dims//2, num_layers=1, batch_first=True, bidirectional=False)
+        self.lstm = nn.LSTM(input_dims, output_dims, num_layers=1, batch_first=True, bidirectional=False)
         self.linear = nn.Sequential(# This is to align the output of LSTM with other outputs by MLPs
-            nn.Linear(output_dims//2, output_dims),
+            nn.LayerNorm(output_dims),
+            nn.Linear(output_dims, output_dims),
             nn.Dropout(0.2),
             nn.GELU(),
             nn.Linear(output_dims, output_dims),
@@ -26,9 +27,9 @@ class TSEncoder(nn.Module):
 
     def forward(self, x): # x: (batch_size, 25, feature_dims=4)
         x = torch.flip(x, [1]) # reverse time series to encode the latest time step first
-        x_bn = self.batch_norm(x.permute(0, 2, 1))
+        x_bn = self.batch_norm(x.permute(0, 2, 1)) # batch_norm to normalise the features
         x_bn = x_bn.permute(0, 2, 1) # (batch_size, feature_dims=4, 25) -> (batch_size, 25, feature_dims=4)
-        output, _ = self.lstm(x_bn) # output: (batch_size, 25, hidden_dims=32)
+        output, _ = self.lstm(x_bn) # output: (batch_size, 25, hidden_dims=64)
         output = output[:, 4::5, :] # each encode the passed 0.5, 1, 1.5, 2, 2.5 seconds
         out = self.linear(output) # (batch_size, 5, output_dims=64)
         return out #(batch_size, 5, 64)
@@ -76,11 +77,11 @@ class EnvEncoder(nn.Module):
     def __init__(self, input_dims=27, output_dims=64):
         super(EnvEncoder, self).__init__()
         self.feature_extractor = nn.ModuleList([
-            self.order_layers(6, indim, output_dims) for indim in [5, 8, 7, 7]
+            self.ordered_layers(6, indim, output_dims) for indim in [5, 8, 7, 7]
         ]) # 4 different blocks for the 4 different categorical features
 
     # Define an layer-ordered MLP
-    def order_layers(self, num_layers, input_dims, output_dims):
+    def ordered_layers(self, num_layers, input_dims, output_dims):
         ordered_layers = OrderedDict()
         ordered_layers['linear0'] = nn.Linear(input_dims, output_dims//2)
         ordered_layers['gelu0'] = nn.GELU()
