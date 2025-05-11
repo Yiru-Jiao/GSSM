@@ -82,6 +82,10 @@ class train_val_test():
         self.current_ranges = self.train_dataloader.dataset.data[0].var(dim=0).sqrt()
         x = self.train_dataloader.dataset.data[0][:self.batch_size]
         self.val_current_noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+        if 'profiles' in self.encoder_selection:
+            self.profile_ranges = self.train_dataloader.dataset.data[-2].reshape(-1, 4).var(dim=0).sqrt()
+            x = self.train_dataloader.dataset.data[-2][:self.batch_size]
+            self.val_profile_noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
 
     def send_x_to_device(self, x):
         if isinstance(x, list):
@@ -93,18 +97,25 @@ class train_val_test():
         '''
         Generate noise based on the range of each feature, and add it to the original features.
         '''
-        if self._model.training:
-            noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
-        else: # generate fixed noise for validation and testing
-            noise = self.val_current_noise[:x.size(0)]
-        noised_x = x + noise
-        # make sure the rad angles are within [-pi, pi]
-        mask = torch.zeros_like(noised_x, dtype=torch.bool, requires_grad=False)
-        if x.size(1)==12:
-            mask[:, [10,11]] = True
-        elif x.size(1)==13:
-            mask[:, [10,12]] = True
-        noised_x = torch.where(mask, (noised_x + np.pi) % (2 * np.pi) - np.pi, noised_x)
+        if len(x.size())==2:
+            if self._model.training:
+                noise = self.noise * self.current_ranges.unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            else: # use fixed noise for validation and testing
+                noise = self.val_current_noise[:x.size(0)]
+            noised_x = x + noise
+            # make sure the rad angles are within [-pi, pi]
+            mask = torch.zeros_like(noised_x, dtype=torch.bool, requires_grad=False)
+            if x.size(1)==12:
+                mask[:, [10,11]] = True
+            elif x.size(1)==13:
+                mask[:, [10,12]] = True
+            noised_x = torch.where(mask, (noised_x + np.pi) % (2 * np.pi) - np.pi, noised_x)
+        elif len(x.size())==3:
+            if self._model.training:
+                noise = self.noise * self.profile_ranges.unsqueeze(0).unsqueeze(0) * torch.randn_like(x, requires_grad=False)
+            else: # use fixed noise for validation and testing
+                noise = self.val_profile_noise[:x.size(0)]
+            noised_x = x + noise
         return noised_x
 
     def get_inducing_out(self, x, model2use):
@@ -116,7 +127,7 @@ class train_val_test():
         elif self.encoder_selection==['current','environment'] or self.encoder_selection==['current+acc','environment']:
             inducing_points = [self.generate_noised_x(x[0]), x[1]]
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
-            inducing_points = [self.generate_noised_x(x[0]), x[1], x[2]]
+            inducing_points = [self.generate_noised_x(x[0]), x[1], self.generate_noised_x(x[2])]
         if model2use.training:
             if isinstance(x, list) and len(x)==3:
                 inducing_points[2] = inducing_points[2]*self.random_mask
@@ -239,7 +250,7 @@ class train_val_test():
                         )
                     self.model.train()
                 
-                if self.schedule_stage=='in-swa' and epoch_n>self.epoch_reduced+20:
+                if self.schedule_stage=='in-swa' and epoch_n>self.epoch_reduced+annealing_epochs:
                     # set the flag to 'post-swa' to stop using SWA
                     self.schedule_stage = 'post-swa'
                     # update buffers for the averaged model
@@ -252,7 +263,7 @@ class train_val_test():
                     # use ReduceLROnPlateau to further reduce the learning rate
                     self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                         self.optimizer, mode='min', factor=0.3, patience=3, cooldown=0,
-                        threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6*0.05*0.3**10
+                        threshold=1e-3, threshold_mode='rel', verbose='deprecated', min_lr=self.initial_lr*0.6*multiplier*0.3**10
                     )
 
             val_loss_log[epoch_n] = val_loss
@@ -273,7 +284,7 @@ class train_val_test():
                 break
 
             # Force a stop if the post-swa procedure over 20 epochs
-            if epoch_n > (self.epoch_reduced+40):
+            if epoch_n > (self.epoch_reduced+annealing_epochs+20):
                 print(f'Learning procedure is too long and training stops early at Epoch {epoch_n}.')
                 break
 
