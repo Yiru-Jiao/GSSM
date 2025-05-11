@@ -179,6 +179,13 @@ class train_val_test():
         self._model = self._model.to(self.device)
         self.lognorm_nll = LogNormalNLL().to(self.device)
         self.smooth_lognorm_nll = SmoothLogNormalNLL(beta=5).to(self.device)
+        # Define the parameters for SWA scheduler
+        if 'profiles' in self.encoder_selection: # avoid overfitting when 'profiles' is used
+            multiplier = 0.01
+            annealing_epochs = 15
+        else:
+            multiplier = 0.05
+            annealing_epochs = 20
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
@@ -238,12 +245,6 @@ class train_val_test():
                         f"\n Current lr: {self.optimizer.param_groups[0]['lr']}, epoch: {epoch_n}, val_loss: {val_loss}"
                         )
                     # define SWA scheduler
-                    if 'profiles' in self.encoder_selection: # avoid overfitting when 'profiles' is used
-                        multiplier = 0.01
-                        annealing_epochs = 15
-                    else:
-                        multiplier = 0.05
-                        annealing_epochs = 20
                     self.scheduler = torch.optim.swa_utils.SWALR(
                         self.optimizer, swa_lr=self.optimizer.param_groups[0]['lr'] * multiplier,
                         anneal_epochs=annealing_epochs, anneal_strategy='cos'
