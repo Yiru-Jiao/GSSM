@@ -168,9 +168,10 @@ class train_val_test():
         # Define the parameters for SWA scheduler
         if 'profiles' in self.encoder_selection: # avoid overfitting when 'profiles' is used
             multiplier = 0.01
+            annealing_epochs = 15
         else:
             multiplier = 0.05
-        annealing_epochs = 20
+            annealing_epochs = 20
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
