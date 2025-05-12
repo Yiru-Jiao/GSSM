@@ -129,8 +129,6 @@ class train_val_test():
         elif self.encoder_selection==['current','environment','profiles'] or self.encoder_selection==['current+acc','environment','profiles']:
             inducing_points = [self.generate_noised_x(x[0]), x[1], self.generate_noised_x(x[2])]
         if model2use.training:
-            if isinstance(x, list) and len(x)==3:
-                inducing_points[2] = inducing_points[2]*self.random_mask
             inducing_points = self.send_x_to_device(inducing_points)
             inducing_out = model2use(inducing_points)
         else:
@@ -139,17 +137,6 @@ class train_val_test():
                 inducing_out = model2use(inducing_points)
         return inducing_out
     
-    def mask_xts(self, x, model2use, drop_rate=0.4):
-        '''
-        Randomly mask the time series input to avoid position bias.
-        '''
-        if model2use.training and isinstance(x, list) and len(x)==3:
-            self.random_mask = (torch.rand_like(x[2][:,:,0], requires_grad=False) > drop_rate).float().unsqueeze(-1)
-            x[2] = x[2] * self.random_mask
-            return x
-        else:
-            return x
-
     def compute_loss(self, x, y, model2use, return_out=False, smoothed=True):
         '''
         Compute the loss for the model, considering whether to use the smoothed or unsmoothed version.
@@ -158,7 +145,6 @@ class train_val_test():
             out = model2use(self.send_x_to_device(x))
             loss = self.lognorm_nll(out, y.to(self.device))
         else:
-            x = self.mask_xts(x, model2use)
             inducing_out = self.get_inducing_out(x, model2use)
             out = model2use(self.send_x_to_device(x))
             loss = self.smooth_lognorm_nll(out, y.to(self.device), inducing_out)
@@ -182,10 +168,9 @@ class train_val_test():
         # Define the parameters for SWA scheduler
         if 'profiles' in self.encoder_selection: # avoid overfitting when 'profiles' is used
             multiplier = 0.01
-            annealing_epochs = 15
         else:
             multiplier = 0.05
-            annealing_epochs = 20
+        annealing_epochs = 20
 
         # Training
         loss_log = np.ones(num_epochs)*np.inf
@@ -342,8 +327,7 @@ class train_val_test():
         for module in momenta.keys():
             module.momentum = None
         for x, _ in loader:
-            x = self.send_x_to_device(self.mask_xts(x, model))
-            model(x)
+            model(self.send_x_to_device(x))
         for bn_module in momenta.keys():
             bn_module.momentum = momenta[bn_module]
         model.train(was_training)
