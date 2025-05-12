@@ -270,8 +270,8 @@ class train_val_test():
                 print(f'Validation loss converges and training stops early at Epoch {epoch_n}.')
                 break
 
-            # Force a stop if the post-swa procedure over 20 epochs
-            if epoch_n > (self.epoch_reduced+annealing_epochs+20):
+            # Force a stop if the post-swa procedure is too long
+            if epoch_n > (self.epoch_reduced+annealing_epochs*2):
                 print(f'Learning procedure is too long and training stops early at Epoch {epoch_n}.')
                 break
 
