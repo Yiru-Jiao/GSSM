@@ -51,6 +51,9 @@ def main(path_result):
             voted_targets.loc[warning.index, model] = warning.values
         voted_targets[models] = voted_targets[models].fillna(-1).astype(int)
         print(f'Models to use ({len(models)}):\n', models)
+        if len(models) < 15:
+            print('--- Exit: Not enough models to vote ---')
+            sys.exit(0)
 
         # Seeing each model makes a vote, select the target with the most votes 
         # and less than 1/3 of the total votes against (considering NaNs as abstentions)
