@@ -109,7 +109,7 @@ class BNRF(nn.Module):
         super(BNRF, self).__init__()
         self.seq_len = seq_len
         if additional_dim is None:
-            self.additional_dim = seq_len // 5
+            self.additional_dim = 2
         else:
             self.additional_dim = additional_dim
         self.batch_norm1d = nn.BatchNorm1d(seq_len+self.additional_dim)
