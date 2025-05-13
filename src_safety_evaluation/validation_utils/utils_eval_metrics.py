@@ -120,7 +120,7 @@ def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90
     precision = tp / np.maximum(small_eps, tp + fp)
     auprc = get_auprc(recall, precision)
     for threshold in thresholds['prc']:
-        prc_metrics[f'aprc_{int(threshold*100)}'] = partial_prc(recall, precision, threshold)
+        prc_metrics[f'pprc_{int(threshold*100)}'] = partial_prc(recall, precision, threshold)
 
     # ATC
     if thresholds['tti'] is not None:
