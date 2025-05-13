@@ -81,16 +81,22 @@ def partial_prc(recall, precision, min_recall=0.80):
     return precision[mask].max()
 
 
-def get_time(warning, cutoff=1.5):
+def get_time(warning, f1=None, cutoff=1.5):
     '''
     Median time-to-impact (TTI) and the proportion with TTI ≥ cutoff.
     '''
     w = warning.copy()
     w['TTI'] = w['impact_time'] - w['warning_timestamp'] / 1000.0
 
+    if f1 is None:
+        tp, fp, tn, fn = get_statistics(warning, return_statistics=False)
+        f1 = tp / np.maximum(small_eps, tp + 0.5*(fp + fn))
+
     median_tti = w.groupby('threshold')['TTI'].median()
-    p_tti = len(w[w['TTI']>=cutoff])/len(w[~w['TTI'].isna()])
-    return median_tti, p_tti
+    mtti_star = median_tti.loc[f1.idxmax()]
+    w = w[w['threshold'] == f1.idxmax()]
+    ptti_star = len(w[w['TTI']>=cutoff])/len(w[~w['TTI'].isna()])
+    return mtti_star, ptti_star
 
 
 def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90], 'tti': None}):
@@ -119,16 +125,15 @@ def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90
     # ATC
     if thresholds['tti'] is not None:
         f1 = tp / np.maximum(small_eps, tp + 0.5*(fp + fn))
-        mtti, ptti = get_time(warning, thresholds['tti'])
-        mtti_star = mtti.loc[f1.idxmax()]
+        mtti_star, ptti_star = get_time(warning, f1, thresholds['tti'])
     else:
         mtti_star = None
-        ptti      = None
+        ptti_star = None
 
     return {
         **roc_metrics,
         **prc_metrics,
-        'auprc':      auprc,
-        'mTTI_star':  mtti_star,
-        'PTTI':       ptti,
+        'auprc': auprc,
+        'PTTI_star': ptti_star,
+        'mTTI_star': mtti_star,
     }
