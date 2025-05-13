@@ -32,28 +32,20 @@ def partial_auc(fpr, tpr, min_tpr=0.80, resolution=1000, normalize=True):
     fpr = np.asarray(fpr, dtype=float)
     tpr = np.asarray(tpr, dtype=float)
 
-    # sort and add the obligatory (0,0) and (1,1) end-points
+    # sort the points by FPR
     order = np.argsort(fpr)
     fpr, tpr = fpr[order], tpr[order]
 
-    if fpr[0] > 0 + small_eps:
-        fpr = np.insert(fpr, 0, small_eps)
-        tpr = np.insert(tpr, 0, small_eps)
-    if fpr[-1] < 1 - small_eps:
-        fpr = np.append(fpr, 1 - small_eps)
-        tpr = np.append(tpr, 1 - small_eps)
-
     # interpolate onto a dense, uniform FPR grid
-    grid = np.linspace(fpr[0], fpr[-1], resolution)
-    interp_tpr = np.interp(grid, fpr, tpr)
+    virtual_fpr = np.linspace(small_eps, 1 - small_eps, resolution)
+    interp_tpr = np.interp(virtual_fpr, fpr, tpr)
 
     # keep only the part above the TPR floor
     mask = interp_tpr >= min_tpr
     if not mask.any():
         return 0.0
-
-    area = np.trapz(interp_tpr[mask] - min_tpr, grid[mask])
-
+    
+    area = np.trapz(interp_tpr[mask] - min_tpr, virtual_fpr[mask])
     if normalize:
         area /= (1.0 - min_tpr)            # theoretical max area
     return area
@@ -63,16 +55,30 @@ def get_auprc(recall, precision, resolution=1000):
     '''
     Area under the Precision-Recall curve
     '''
+    recall = np.asarray(recall, dtype=float)
+    precision = np.asarray(precision, dtype=float)
+
+    order = np.argsort(recall)
+    recall, precision = recall[order], precision[order]
+
+    virtual_recall = np.linspace(small_eps, 1 - small_eps, resolution)
+    interp_precision  = np.interp(virtual_recall, recall, precision)
+
+    return np.trapz(interp_precision, virtual_recall)
+
+
+def partial_prc(recall, precision, min_recall=0.80):
+    '''
+    Get the maximum Precision when Recall >= min_recall
+    '''
     recall    = np.asarray(recall, dtype=float)
     precision = np.asarray(precision, dtype=float)
 
-    order     = np.argsort(recall)
-    recall, precision = recall[order], precision[order]
-
-    grid      = np.linspace(0.0, 1.0, resolution)
-    interp_p  = np.interp(grid, recall, precision)
-
-    return np.trapz(interp_p, grid)
+    # keep only the part above the Recall floor
+    mask = recall >= min_recall
+    if not mask.any():
+        return 0.0
+    return precision[mask].max()
 
 
 def get_time(warning, cutoff=1.5):
@@ -87,7 +93,7 @@ def get_time(warning, cutoff=1.5):
     return median_tti, p_tti
 
 
-def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'tti': None}):
+def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90], 'tti': None}):
     '''
     Compute safety-oriented evaluation metrics from a dataframe with
     per-threshold confusion counts stored in columns tp, fp, tn, fn.
@@ -95,17 +101,20 @@ def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'tti': None}):
     # confusion-matrix stats
     tp, fp, tn, fn = get_statistics(warning, return_statistics=False)
 
-    # PRC
-    recall = tp / np.maximum(small_eps, tp + fn)
-    precision = tp / np.maximum(small_eps, tp + fp)
-    auprc = get_auprc(recall, precision)
-
     # ROC
     roc_metrics = {}
     fpr = fp / np.maximum(small_eps, fp + tn)
     tpr = tp / np.maximum(small_eps, tp + fn)
     for threshold in thresholds['roc']:
         roc_metrics[f'aroc_{int(threshold*100)}'] = partial_auc(fpr, tpr, threshold)
+
+    # PRC
+    prc_metrics = {}
+    recall = tp / np.maximum(small_eps, tp + fn)
+    precision = tp / np.maximum(small_eps, tp + fp)
+    auprc = get_auprc(recall, precision)
+    for threshold in thresholds['prc']:
+        prc_metrics[f'aprc_{int(threshold*100)}'] = partial_prc(recall, precision, threshold)
 
     # ATC
     if thresholds['tti'] is not None:
@@ -118,6 +127,7 @@ def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'tti': None}):
 
     return {
         **roc_metrics,
+        **prc_metrics,
         'auprc':      auprc,
         'mTTI_star':  mtti_star,
         'PTTI':       ptti,
