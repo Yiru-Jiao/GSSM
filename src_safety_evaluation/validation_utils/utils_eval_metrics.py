@@ -131,9 +131,9 @@ def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90
         ptti_star = None
 
     return {
+        'auprc': auprc,
         **roc_metrics,
         **prc_metrics,
-        'auprc': auprc,
         'PTTI_star': ptti_star,
         'mTTI_star': mtti_star,
     }
