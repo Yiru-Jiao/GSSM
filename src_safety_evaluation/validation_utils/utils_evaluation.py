@@ -325,21 +325,20 @@ def optimize_threshold(warning, conflict_indicator, return_stats=False):
     statistics['false positive rate'] = statistics['FP']/(statistics['FP']+statistics['TN'])
     statistics['precision'] = statistics['TP']/(statistics['TP']+statistics['FP'])
     statistics['recall'] = statistics['TP']/(statistics['TP']+statistics['FN'])
-    statistics['F1'] = 2*statistics['precision']*statistics['recall']/(statistics['precision']+statistics['recall'])
 
     if conflict_indicator in ['TAdv', 'TTC2D', 'ACT']:
         statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, True])
     elif conflict_indicator in ['GSSM', 'EI', 'UCD']:
         statistics = statistics.sort_values(by=['false positive rate','false negative rate','threshold'], ascending=[True, True, False])
 
-    optimal_rate = statistics['F1'].max()
+    optimal_rate = statistics[statistics['recall']>=0.85]['precision'].max()
     if np.isnan(optimal_rate):
         if return_stats:
             return statistics, None, None
         else:
             return np.nan
     else:
-        optimal_warning = statistics.loc[statistics['F1']==optimal_rate]
+        optimal_warning = statistics.loc[statistics['precision']==optimal_rate]
         optimal_threshold = optimal_warning.iloc[0]
         if return_stats:
             optimal_warning = warning[warning['threshold']==optimal_threshold['threshold']]
