@@ -1,4 +1,5 @@
 **/*.*
+!./readme.md
 # **/__pycache__
 # !**/*.md
 # RawData/**/*.*
