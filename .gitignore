@@ -1,16 +1,16 @@
 **/*.*
-**/__pycache__
-!**/*.md
-RawData/**/*.*
-ProcessedData/**/*.*
-!src_trajectory_reconstruction/**/*.py
-!src_trajectory_reconstruction/**/*.ipynb
-!src_data_preparation/**/*.py
-!src_data_preparation/**/*.ipynb
-!src_data_preparation/INT_MapVis/**/*.*
-!src_posterior_inference/**/*.py
-!src_safety_evaluation/**/*.py
-!environment_test.py
-!requirements.txt
-!clean_pycache.py
-!.gitignore
+# **/__pycache__
+# !**/*.md
+# RawData/**/*.*
+# ProcessedData/**/*.*
+# !src_trajectory_reconstruction/**/*.py
+# !src_trajectory_reconstruction/**/*.ipynb
+# !src_data_preparation/**/*.py
+# !src_data_preparation/**/*.ipynb
+# !src_data_preparation/INT_MapVis/**/*.*
+# !src_posterior_inference/**/*.py
+# !src_safety_evaluation/**/*.py
+# !environment_test.py
+# !requirements.txt
+# !clean_pycache.py
+# !.gitignore
