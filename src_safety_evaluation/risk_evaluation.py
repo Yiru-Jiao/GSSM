@@ -11,16 +11,8 @@ from tqdm import tqdm
 import time as systime
 from joblib import Parallel, delayed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src_safety_evaluation.validation_utils.utils_evaluation import read_events, read_evaluation, evaluate, optimize_threshold, issue_warning
+from src_safety_evaluation.validation_utils.utils_evaluation import read_events, read_evaluation, evaluate
 manual_seed = 131
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--reversed_list', type=int, default=0, help='Whether to reverse the model list (defaults to False), useful for running parallel jobs')
-    args = parser.parse_args()
-    args.reversed_list = bool(args.reversed_list)
-    return args
 
 
 def get_model_fig(model_name):
@@ -48,7 +40,7 @@ def fill_na_warning(results):
     return results
 
 
-def main(args, path_result, path_prepared):
+def main(path_result, path_prepared):
     initial_time = systime.time()
     print('---- available cpus:', os.cpu_count(), '----')
 
@@ -71,8 +63,6 @@ def main(args, path_result, path_prepared):
 
     # 2D SSMs and UCD
     for indicator in ['TAdv', 'TTC2D', 'ACT', 'EI', 'UCD']:
-        if args.reversed_list:
-            continue
         if indicator == 'TAdv':
             thresholds = np.unique(np.round(np.arange(0,1.75,0.0115)**7,2))
         elif indicator in ['TTC2D', 'ACT']:
@@ -104,10 +94,6 @@ def main(args, path_result, path_prepared):
     dataset_name_list = model_evaluation['dataset'].values
     encoder_name_list = model_evaluation['encoder_selection'].values
     mixrate_list = model_evaluation['mixrate'].values
-    if args.reversed_list:
-        dataset_name_list = dataset_name_list[::-1]
-        encoder_name_list = encoder_name_list[::-1]
-        mixrate_list = mixrate_list[::-1]
 
     gssm_thresholds = np.unique(np.round(np.arange(0,6,0.06)-0.06,2))
     for dataset_name, encoder_name, mixrate in zip(dataset_name_list, encoder_name_list, mixrate_list):
@@ -146,5 +132,4 @@ if __name__ == '__main__':
     np.random.seed(manual_seed)
     path_prepared = 'PreparedData/'
     path_result = 'ResultData/'
-    args = parse_args()
-    main(args, path_result, path_prepared)
+    main(path_result, path_prepared)

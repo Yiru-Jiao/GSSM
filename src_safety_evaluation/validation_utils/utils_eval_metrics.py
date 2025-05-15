@@ -91,8 +91,8 @@ def get_time(warning, f1=None, cutoff=1.5):
     if f1 is None:
         tp, fp, tn, fn = get_statistics(warning, return_statistics=False)
         f1 = tp / np.maximum(small_eps, tp + 0.5*(fp + fn))
+    median_tti = w[w['TTI']<10].groupby('threshold')['TTI'].median()
 
-    median_tti = w.groupby('threshold')['TTI'].median()
     mtti_star = median_tti.loc[f1.idxmax()]
     w = w[w['threshold'] == f1.idxmax()]
     ptti_star = len(w[w['TTI']>=cutoff])/len(w[~w['TTI'].isna()])
