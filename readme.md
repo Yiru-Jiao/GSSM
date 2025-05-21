@@ -1,5 +1,5 @@
 # Codespace for "Learning Collision Risk from Naturalistic Driving with Generalised Surrogate Safety Measures"
-This study is being submitted and under review. A preprint is provided at https://arxiv.org/abs/. Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out via email or GitHub Issues.
+This study is being submitted and under review. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out via email or GitHub Issues.
 
 <!-- ## Directory of dynamic figures
 Dynamic visualisations in this paper are saved in the folder [`./ResultData/DynamicFigures/`](ResultData/DynamicFigures/). Below we present the example in Figure 7 of a conflict 
