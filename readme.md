@@ -1,5 +1,5 @@
-# Codespace for "Learning Collision Risk from Naturalistic Driving with Generalised Surrogate Safety Measures"
-This study is being submitted and under review. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out via email or [GitHub Discussions](https://github.com/Yiru-Jiao/GSSM/discussions).
+# Learning Collision Risk from Naturalistic Driving with Generalised Surrogate Safety Measures
+This study is being submitted and under review. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out.
 
 <!-- ## Directory of dynamic figures
 Dynamic visualisations in this paper are saved in the folder [`./ResultData/DynamicFigures/`](ResultData/DynamicFigures/). Below we present the example in Figure 7 of a conflict 
@@ -7,58 +7,102 @@ Dynamic visualisations in this paper are saved in the folder [`./ResultData/Dyna
 <p align="center">
   <img src="ResultData/DynamicFigures/Figure7/Figure7.gif" alt="animated" width="75%" height="75%"/>
 </p>
+ -->
 
-## Open access to SHRP2 Safety-Critical Trajectory Data
-Collaborating with VITTI, we have made the processed anoynomous trajectory data publicly available. The data include 1,836 crashes, 6,881 near-crashes, and 32,581 baselines. The data are available at -->
+## Discussions open to everyone
+We enable [GitHub Discussions](https://github.com/Yiru-Jiao/GSSM/discussions) for this repository, where you are welcome to ask questions, share insights, and discuss the content of the paper or future research. We encourage everyone to participate in the discussions, as it helps foster a collaborative environment for learning and improvement.
+
+## Access to trajectory data of crashes and near-crashes
+Collaborated with Virginia Tech Transportation Institute (VITTI), we have made the trajectory reconstruction dataset of naturalistic crashes and near-crashes in SHRP2 NDS accessible. You are welcome to refer to [BirdsEyeTrajectoryReconstructionSHRP2NDS](https://github.com/Yiru-Jiao/BirdsEyeTrajectoryReconstructionSHRP2NDS) for more information and guidelines to use.
 
 ## TL;DR for Abstract
-- Introduces GSSM (Generalised Surrogate Safety Measure) – a neural-network approach that learns potential collisions from naturalistic data without any crash or near-crash labels.
-- For any traffic context (motion, weather, lighting, etc.), GSSM flags interactions whose multi-directional spacing deviates toward unsafe extremes, assigning data-driven risk scores and according probability of potential collisions.
-- Trained on several public datasets and tested on thousands of real crash/near-crash events, a basic GSSM (using only instantaneous kinematics) achieves AUPRC ≈ 0.90 and warns ≈ 2.6 s before impact; adding richer context boosts performance further.
-- GSSM outperforms existing baselines across rear-end, merge, and crossing scenarios, with feature analysis highlighting spacing direction, road surface, and the past second of motion as top risk factors—offering a context-aware and scalable tool for ADAS, safety monitoring, and emergency response.
+- Introduces GSSM (Generalised Surrogate Safety Measure) – a neural-network approach that learns potential collisions from naturalistic data without crash or near-crash labels.
+- For all traffic contexts defined by motion, weather, lighting, etc., GSSM can flag interactions whose multi-directional spacing deviates toward unsafe extremes, assigning data-driven risk scores and according probability of potential collisions.
+- Trained on various public datasets and tested on thousands of real crash/near-crash events, a basic GSSM (using only instantaneous kinematics) achieves AUPRC ≈ 0.90 and warns ≈ 2.6 s before impact; adding richer context boosts performance further.
+- GSSM outperforms existing baselines across rear-end, merge, and crossing scenarios, with feature analysis highlighting spacing direction, road surface, and the past second of motion as top risk factors—offering a context-aware and scalable tool for autonomous driving, ADAS, traffic safety analytics, and road emergency management.
 
 ## In order to repeat the experiments
-This offers a workflow to repeat the experiments in the paper. More detailed instructions can be found at the beginning of each script.
+Below we offer a step-by-step workflow to repeat the experiments in the paper. On the top of each script, we provide a brief description of its purpose. These scripts are designed to be run in sequence, and each script outputs necessary files for the next one.
 
-### Dependencies
-`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirementx.txt`](requirements.txt).
+**Quick Navigation:**
+- [1 Dependencies](#1-dependencies)
+- [2 Data](#2-data)
+- [3 Bird's eye trajectory reconstruction](#3-birds-eye-trajectory-reconstruction)
+- [4 Training data preparation](#training-data-preparation)
+- [5 Posterior inference](#posterior-inference)
+- [6 Test data preparation and first-stage evaluation](#test-data-preparation-and-first-stage-evaluation)
+- [7 Second-stage evaluation and result analysis](#second-stage-evaluation-and-result-analysis)
 
-### Data
-- **SHRP2 NDS:** https://github.com/Yiru-Jiao/BirdsEyeTrajectoryReconstructionSHRP2NDS
-- **highD:** https://www.highd-dataset.com/
-- **ArgoverseHV:** https://github.com/RomainLITUD/conflict_resolution_dataset
+## 1 Dependencies
+`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt).
 
-### Bird's eye trajectory reconstruction
-- **Transform .xlsx to .csv:** `/src_trajectory_reconstruction/transform_files.py`
-- **Summarise meta data:** `/src_trajectory_reconstruction/organise_metadata.py`
-- **Search for EKF parameters:** `/src_trajectory_reconstruction/search_ekf_parameter.py`
-- **Reconstruct trajectory:** `/src_trajectory_reconstruction/reconstruct_birdseye.py`
+### 2 Data
+Three datasets are used in this study.
+- **SHRP2 NDS:**  
+  Two options are available depending on whether you are interested in trajectory reconstruction from the original event data.
+  - If you would like to skip trajectory reconstruction:  
+    Download the dataset following the guidlines at https://github.com/Yiru-Jiao/BirdsEyeTrajectoryReconstructionSHRP2NDS. Put the files in `ReconstructedTrajectories.zip` under the directory `./ProcessedData/SHRP2/`. Put the files in `SafetyCriticalTestSet.zip` under the directory `./ResultData/EventData/`.
+  - If you would like to reconstruct the trajectories:  
+    Apply for the original datasets 
+    - E. Sears, M. A. Perez, K. Dan, T. Shimamiya, T. Hashimoto, M. Kimura, S. Yamada, and T. Seo. A Study on the Factors That Affect the Occurrence of Crashes and Near-Crashes. Version V2. 2019. URL: https://doi.org/10.15787/VTT1/FQLUWZ
+    - C. K. Layman, M. A. Perez, T. Sugino, and J. Eggert. Research of Driver Assistant System. Version V3. 2019. URL: https://doi.org/10.15787/VTT1/DEDACT  
+    and put them under the directory `./RawData/SHRP2/`.  
 
-### Training data preparation
-- **Lane-changes in highD:** `src_data_preparation/prepare_highD.py`
-- **Crossing and turning in ArgoverseHV:** `src_data_preparation/prepare_argoverse.py`
-- **Segment samples:** `src_data_preparation/segment_datasets.py`
+- **highD:**  
+  Download the dataset from https://www.highd-dataset.com/ to the directory `./RawData/highD/`.
+- **ArgoverseHV:**  
+  Download the dataset following the guidlines at https://github.com/RomainLITUD/conflict_resolution_dataset. Put the files under the directory `./RawData/Argoverse2/`.
 
-### Posterior inference
-- **GSSM training:** `src_posterior_inference/pi_train_eval.py`
+### 3 Bird's eye trajectory reconstruction
+Run the following scripts in order to reconstruct the trajectories of the events in SHRP2 NDS. 
+- **Transform .xlsx to .csv:** `./src_trajectory_reconstruction/transform_files.py`
+- **Summarise meta data:** `./src_trajectory_reconstruction/organise_metadata.py`
+- **Search for EKF parameters:** `./src_trajectory_reconstruction/search_ekf_parameter.py`
+- **Reconstruct trajectories:** `./src_trajectory_reconstruction/reconstruct_birdseye.py`
+- **Visualise reconstructed trajectories:** `./src_trajectory_reconstruction/event_visualiser.ipynb` (This is optional in case you would like to check the reconstructed events.)
 
-### Test data preparation and first-stage safety evaluation
-- **Prepare test data:** `src_safety_evaluation/organise_events.py`
-- **Apply GSSMs:** `src_safety_evaluation/evaluate_safety.py`
-- **Initially evaluate warning at different thresholds:** `src_safety_evaluation/analyse_events.py`
+### 4 Training data preparation
+Run the following scripts in order to prepare the training data. The SHRP2 SafeBaseline data are processed in the previous step, here we prepare the highD and ArgoverseHV data. Then we segment the data into samples, and split each dataset into a train set (80%) and a val set (20%) for GSSM training.
+- **Extract lane-changes in highD:** `./src_data_preparation/prepare_highD.py`
+- **Filter HV-HV crossings and turnings:** `./src_data_preparation/prepare_argoverse.py`
+- **Segment samples:** `./src_data_preparation/segment_datasets.py`
 
-### Second-stage safety evaluation and result analysis
-- **Vote for conflicting objects:** `src_safety_evaluation/vote_conflicting_target.py`
-- **Re-evaluate warning at different thresholds:** `src_safety_evaluation/risk_evaluation.py`
-- **Attribute risk to contextual representations:** `src_safety_evaluation/attribute_intensity.py`
+### 5 Posterior inference
+Run the following script in order to train the GSSMs. The trained models and loss logs will be saved for later use. You can run this script for multiple times. It will skip trained models and continue training until all models are trained.
+- **GSSM training:** `./src_posterior_inference/pi_train_eval.py`
+
+### 6 Test data preparation and first-stage evaluation
+Run the following scripts in order to prepare the test set and implement the first-stage evaluation.
+- **Prepare test set:** `./src_safety_evaluation/organise_events.py` (This can be skipped if you have downloaded the reconstructed trajectories and put `SafetyCriticalTestSet.zip` under the directory `./ResultData/EventData/`.)
+- **Apply GSSMs to 4,875 events in the test set:** `./src_safety_evaluation/evaluate_safety.py`
+- **Initially evaluate warning at different thresholds:** `./src_safety_evaluation/analyse_events.py`
+
+### 7 Second-stage evaluation and result analysis
+Run the following scripts in order to implement the second-stage evaluation and analyse the results.
+- **Vote for conflicting objects:** `./src_safety_evaluation/vote_conflicting_target.py`
+- **Re-evaluate warnings for 2,591 events that have conflicting objects determined:** `./src_safety_evaluation/risk_evaluation.py`
+- **Attribute risk to contextual representations:** `./src_safety_evaluation/attribute_intensity.py`
+
+### 8 Visualise results
+Use the following notebook to reproduce the figures and tables in the paper.
+- **Visualise results:** `./src_visualisation/figure_table_to_reproduce.ipynb`
+
 
 ## Copyright
 
 ### Citation
 ```latex
-@article{
+@article{jiao2025gssm,
+    title = {Learning Collision Risk from Naturalistic Driving with Generalised Surrogate Safety Measures},
+    author = {Yiru Jiao and Simeon C. Calvert and Sander {van Cranenburgh} and Hans {van Lint}},
+    year = {2025},
+    journal = {arXiv preprint},
+    pages = {arXiv:2505.13556}
 }
 ```
+
+### License
+This repository is licensed under the [MIT License](LICENSE). You are free to use, modify, and distribute the code, but please retain the original copyright notice and license in any copies or substantial portions of the software.
 
 ### Repo references
 Thanks to GitHub for offering the open environment, from which this work reuses/learns/adapts the following repositories to different extents:
