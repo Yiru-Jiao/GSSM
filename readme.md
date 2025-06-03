@@ -28,10 +28,10 @@ Below we offer a step-by-step workflow to repeat the experiments in the paper. O
 - [1 Dependencies](#1-dependencies)
 - [2 Data](#2-data)
 - [3 Bird's eye trajectory reconstruction](#3-birds-eye-trajectory-reconstruction)
-- [4 Training data preparation](#training-data-preparation)
-- [5 Posterior inference](#posterior-inference)
-- [6 Test data preparation and first-stage evaluation](#test-data-preparation-and-first-stage-evaluation)
-- [7 Second-stage evaluation and result analysis](#second-stage-evaluation-and-result-analysis)
+- [4 Training data preparation](#4-training-data-preparation)
+- [5 Posterior inference](#5-posterior-inference)
+- [6 Test data preparation and first-stage evaluation](#6-test-data-preparation-and-first-stage-evaluation)
+- [7 Second-stage evaluation and result analysis](#7-second-stage-evaluation-and-result-analysis)
 
 ## 1 Dependencies
 `pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt).
