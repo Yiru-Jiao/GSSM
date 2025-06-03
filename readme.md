@@ -37,7 +37,7 @@ Below we offer a step-by-step workflow to repeat the experiments in the paper. O
 `pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt).
 
 ### 2 Data
-The intermediate data such as trained models, loss logs, evaluation results, will be shared later (as I'm still finalising my thesis and uploading research data as required by TU Delft). A link will be provided soon.
+Result data such as trained models, loss logs, evaluation results, will be shared later (as I'm still finalising my thesis and uploading research data as required by TU Delft). A link will be provided soon.
 
 Three datasets are used in this study.
 - **SHRP2 NDS:**  
