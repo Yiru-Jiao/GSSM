@@ -6,6 +6,8 @@
 !src_data_preparation/**/*.py
 !src_posterior_inference/**/*.py
 !src_safety_evaluation/**/*.py
+!src_visualisation/visual_utils/__init__.py
+!src_visualisation/visual_utils/utils_tabfig.py
 !src_visualisation/figure_table_to_reproduce.ipynb
 !environment_test.py
 !requirements.txt
