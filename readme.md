@@ -33,7 +33,7 @@ Below we offer a step-by-step workflow to repeat the experiments in the paper. O
 - [6 Test data preparation and first-stage evaluation](#6-test-data-preparation-and-first-stage-evaluation)
 - [7 Second-stage evaluation and result analysis](#7-second-stage-evaluation-and-result-analysis)
 
-## 1 Dependencies
+### 1 Dependencies
 `pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt).
 
 ### 2 Data
