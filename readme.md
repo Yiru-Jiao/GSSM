@@ -16,10 +16,12 @@ We enable [GitHub Discussions](https://github.com/Yiru-Jiao/GSSM/discussions) fo
 Collaborated with Virginia Tech Transportation Institute (VITTI), we have made the trajectory reconstruction dataset of naturalistic crashes and near-crashes in SHRP2 NDS accessible. You are welcome to refer to [BirdsEyeTrajectoryReconstructionSHRP2NDS](https://github.com/Yiru-Jiao/BirdsEyeTrajectoryReconstructionSHRP2NDS) for more information and guidelines to use.
 
 ## TL;DR for Abstract
-- Introduces GSSM (Generalised Surrogate Safety Measure) – a neural-network approach that learns potential collisions from naturalistic data without crash or near-crash labels.
-- For all traffic contexts defined by motion, weather, lighting, etc., GSSM can flag interactions whose multi-directional spacing deviates toward unsafe extremes, assigning data-driven risk scores and according probability of potential collisions.
-- Trained on various public datasets and tested on thousands of real crash/near-crash events, a basic GSSM (using only instantaneous kinematics) achieves AUPRC ≈ 0.90 and warns ≈ 2.6 s before impact; adding richer context boosts performance further.
-- GSSM outperforms existing baselines across rear-end, merge, and crossing scenarios, with feature analysis highlighting spacing direction, road surface, and the past second of motion as top risk factors—offering a context-aware and scalable tool for autonomous driving, ADAS, traffic safety analytics, and road emergency management.
+- Introduces GSSM (Generalised Surrogate Safety Measure) – a neural network approach that learns potential collisions from naturalistic interactions without crash or near-crash annotations.
+- For all traffic interactions characterised by motion, weather, lighting, etc., GSSM can flag interactions whose multi-directional spacing deviates toward unsafe extremes, assigning data-driven risk scores and according probability of potential collisions.
+- Trained on various public datasets and tested on 2,591 real crash/near-crash events, a basic GSSM (using only instantaneous kinematics) achieves AUPRC ≈ 0.90 and warns ≈ 2.6 s before impact; adding richer context boosts performance further.
+- GSSM outperforms existing baselines across rear-end, merging, and crossing scenarios, with feature attributions highlighting spacing direction, road surface, and the past second of motion as top risk factors
+
+This work enables **context-aware**, **scalable**, and **generalisable** learning of collision risk from everyday interactions. I believe it is opening a window to foundational models for proactive risk quantification of potential collisions. This hopefully will facilitate research in safe autonomous driving and traffic safety analytics.
 
 ## In order to repeat the experiments
 Below we offer a step-by-step workflow to repeat the experiments in the paper. On the top of each script, we provide a brief description of its purpose. These scripts are designed to be run in sequence, and each script outputs necessary files for the next one.
