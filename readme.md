@@ -1,4 +1,4 @@
-# Learning Collision Risk from Naturalistic Driving with Generalised Surrogate Safety Measures
+# Learning Collision Risk Proactively from Naturalistic Driving at Scale
 This study is being submitted and under review. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out.
 
 <!-- ## Directory of dynamic figures
@@ -15,11 +15,13 @@ We enable [GitHub Discussions](https://github.com/Yiru-Jiao/GSSM/discussions) fo
 ## Access to trajectory data of crashes and near-crashes
 Collaborated with Virginia Tech Transportation Institute (VITTI), we have made the trajectory reconstruction dataset of naturalistic crashes and near-crashes in SHRP2 NDS accessible. You are welcome to refer to [BirdsEyeTrajectoryReconstructionSHRP2NDS](https://github.com/Yiru-Jiao/BirdsEyeTrajectoryReconstructionSHRP2NDS) for more information and guidelines to use.
 
-## TL;DR for Abstract
-- Introduces GSSM (Generalised Surrogate Safety Measure) – a neural network approach that learns potential collisions from naturalistic interactions without crash or near-crash annotations.
-- For all traffic interactions characterised by motion, weather, lighting, etc., GSSM can flag interactions whose multi-directional spacing deviates toward unsafe extremes, assigning data-driven risk scores and according probability of potential collisions.
-- Trained on various public datasets and tested on 2,591 real crash/near-crash events, a basic GSSM (using only instantaneous kinematics) achieves AUPRC ≈ 0.90 and warns ≈ 2.6 s before impact; adding richer context boosts performance further.
-- GSSM outperforms existing baselines across rear-end, merging, and crossing scenarios, with feature attributions highlighting spacing direction, road surface, and the past second of motion as top risk factors
+## Highlights
+- Collision risk is learnt from naturalistic interactions without crash or near-crash labels.
+- Context-conditioned distributions of multi-directional spacing characterise interactions.
+- Deviations from typical safe spacing towards closer extremes are quantified as risk.
+- Outperformance over existing methods is validated on 2,591 real-world (near-)crashes.
+- Environmental and historical kinematic features provide performance enhancement.
+- Spacing direction, road-surface condition, and past kinematics are main risk factors.
 
 This work enables **context-aware**, **scalable**, and **generalisable** learning of collision risk from everyday interactions. I believe it is opening a window to foundational models for proactive risk quantification of potential collisions. This hopefully will facilitate research in safe autonomous driving and traffic safety analytics.
 
@@ -39,8 +41,6 @@ Below we offer a step-by-step workflow to repeat the experiments in the paper. O
 `pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt).
 
 ### 2 Data
-Result data such as trained models, loss logs, evaluation results, will be shared later (as I'm still finalising my thesis and uploading research data as required by TU Delft). A link will be provided soon.
-
 Three datasets are used in this study.
 - **SHRP2 NDS:**  
   Two options are available depending on whether you are interested in trajectory reconstruction from the original event data.
@@ -56,6 +56,8 @@ Three datasets are used in this study.
   Download the dataset from https://www.highd-dataset.com/ to the directory `./RawData/highD/`.
 - **ArgoverseHV:**  
   Download the dataset following the guidlines at https://github.com/RomainLITUD/conflict_resolution_dataset. Put the files under the directory `./RawData/Argoverse2/`.
+
+Resulting data such as trained models, loss logs, and evaluation results are compressed as two zip files of the `./PreparedData/` and `./ResultData/` folders. They can be downloaded from https://doi.org/10.4121/9caa1e6c-9abd-4e36-ae28-c9ea4542d940.
 
 ### 3 Bird's eye trajectory reconstruction
 Run the following scripts in order to reconstruct the trajectories of the events in SHRP2 NDS. 
