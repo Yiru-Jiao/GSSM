@@ -1,34 +1,13 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
 [project]
 name = "gssm"
 version = "0.1.0"
 requires-python = ">=3.10,<3.11"
 description = "Learning Collision Risk Proactively from Naturalistic Driving at Scale (CPU/GPU switchable via extras)"
 readme = "readme.md"
-
-[build-system]
-requires = ["hatchling>=1.25"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = [
-  "src_data_preparation",
-  "src_posterior_inference",
-  "src_safety_evaluation",
-  "src_trajectory_reconstruction",
-  "src_visualisation"
-]
-
-[tool.hatch.build.targets.sdist]
-include = [
-  "src_data_preparation/**",
-  "src_posterior_inference/**",
-  "src_safety_evaluation/**",
-  "src_trajectory_reconstruction/**",
-  "src_visualisation/**",
-  "pyproject.toml",
-  "readme.*",
-  "LICENSE*",
-]
 
 # --- Common dependencies (GPU-agnostic) ---
 dependencies = [
@@ -80,16 +59,34 @@ dependencies = [
   "zarr==2.18.3",
 ]
 
-# --- Optional variants: choose one at install/sync time ---
-# Choose exactly one of these on your machine
 [project.optional-dependencies]
 cpu   = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
 cu118 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
 cu124 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
 cu126 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
 
+[tool.hatch.build.targets.wheel]
+packages = [
+  "src_data_preparation",
+  "src_posterior_inference",
+  "src_safety_evaluation",
+  "src_trajectory_reconstruction",
+  "src_visualisation",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src_data_preparation/**",
+  "src_posterior_inference/**",
+  "src_safety_evaluation/**",
+  "src_trajectory_reconstruction/**",
+  "src_visualisation/**",
+  "pyproject.toml",
+  "readme.*",
+  "LICENSE*",
+]
+
 [tool.uv]
-# Safety: don't let users select more than one variant at once
 conflicts = [
   [{ extra = "cpu"   }, { extra = "cu118" }],
   [{ extra = "cpu"   }, { extra = "cu124" }],
@@ -99,22 +96,21 @@ conflicts = [
   [{ extra = "cu124" }, { extra = "cu126" }],
 ]
 
-# Route each package to the proper wheel index for the chosen extra
 [tool.uv.sources]
 torch = [
-  { index = "pytorch-cpu",  extra = "cpu"   },
+  { index = "pytorch-cpu",   extra = "cpu"   },
   { index = "pytorch-cu118", extra = "cu118" },
   { index = "pytorch-cu124", extra = "cu124" },
   { index = "pytorch-cu126", extra = "cu126" },
 ]
 torchvision = [
-  { index = "pytorch-cpu",  extra = "cpu"   },
+  { index = "pytorch-cpu",   extra = "cpu"   },
   { index = "pytorch-cu118", extra = "cu118" },
   { index = "pytorch-cu124", extra = "cu124" },
   { index = "pytorch-cu126", extra = "cu126" },
 ]
 torchaudio = [
-  { index = "pytorch-cpu",  extra = "cpu"   },
+  { index = "pytorch-cpu",   extra = "cpu"   },
   { index = "pytorch-cu118", extra = "cu118" },
   { index = "pytorch-cu124", extra = "cu124" },
   { index = "pytorch-cu126", extra = "cu126" },
