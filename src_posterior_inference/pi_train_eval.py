@@ -64,6 +64,7 @@ def main(args, manual_seed, path_prepared):
         evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv')
     else:
         evaluation = pd.DataFrame(columns=['dataset', 'encoder_selection', 'val_loss',
+                                           'num_samples', 'num_epochs_trained', 'training_time',
                                            'whole_model', 'current_encoder', 'environment_encoder', 
                                            'profiles_encoder', 'attention_decoder', 'mixrate'])
         evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
@@ -91,6 +92,7 @@ def main(args, manual_seed, path_prepared):
             try:
                 pipeline = train_val_test(device, path_prepared, dataset, encoder_selection)
                 pipeline.create_dataloader(batch_size, mixrate)
+                num_samples = len(pipeline.train_dataloader.dataset) + len(pipeline.val_dataloader.dataset)
             except:
                 print(f'Failed to initialize the pipeline for {dataset_name}, {encoder_name}, {mixrate}, skipping...')
                 continue
@@ -106,19 +108,15 @@ def main(args, manual_seed, path_prepared):
                 condition = (evaluation['dataset']==dataset_name)&\
                             (evaluation['encoder_selection']==encoder_name)
 
-            if len(evaluation[condition])>0 and not np.isnan(evaluation.loc[condition, 'val_loss'].values[0]):
+            if len(evaluation[condition])>0 and not np.isnan(evaluation.loc[condition, 'training_time'].values[0]):
                 print(f'Already done {dataset_name}, {encoder_name}, {mixrate}, skipping...')
                 continue
             else:
                 print(f'Start training {dataset_name}, {encoder_name}, {mixrate}...')
-
-            if os.path.exists(pipeline.path_output + f'loss_log.csv'):
-                print(f'Loading trained model: {dataset_name}, {encoder_name}, {mixrate}...')
-                pipeline.load_model(mixrate)
-                val_loss = pd.read_csv(pipeline.path_output + 'loss_log.csv')
-                val_loss = np.sort(val_loss['val_loss'].values[-5:])[1:4].mean()
-            else:
+                start_time = systime.time()
                 pipeline.train_model(epochs, initial_lr, lr_schedule=True, verbose=5)
+                end_time = systime.time()
+                num_epochs_trained = len(pipeline.val_loss_log)
                 val_loss = np.sort(pipeline.val_loss_log[-5:])[1:4].mean()
             
             model_size = dict()
@@ -135,8 +133,8 @@ def main(args, manual_seed, path_prepared):
             model_size['attention_decoder'] = sum(p.numel() for p in pipeline._model.AttentionDecoder.parameters())
 
             evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
-            columns = ['dataset', 'encoder_selection', 'val_loss'] + list(model_size.keys())
-            values = [dataset_name, encoder_name, val_loss] + [int(model_size[key]) for key in model_size.keys()]
+            columns = ['dataset', 'encoder_selection', 'val_loss', 'num_samples', 'num_epochs_trained', 'training_time'] + list(model_size.keys())
+            values = [dataset_name, encoder_name, val_loss, num_samples, num_epochs_trained, end_time - start_time] + [int(model_size[key]) for key in model_size.keys()]
             evaluation.loc[len(evaluation), columns] = values
             if mixrate<=1:
                 evaluation.loc[len(evaluation)-1, 'mixrate'] = mixrate
