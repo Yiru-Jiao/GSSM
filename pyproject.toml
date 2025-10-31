@@ -13,6 +13,7 @@ readme = "readme.md"
 dependencies = [
   "blosc2==2.7.1",
   "cloudpickle==3.1.1",
+  "colorcet==3.0.1",
   "contourpy==1.3.1",
   "cycler==0.12.1",
   "filelock==3.17.0",
@@ -52,7 +53,6 @@ dependencies = [
   "threadpoolctl==3.5.0",
   "tifffile==2024.8.30",
   "tqdm==4.67.1",
-  "triton==3.2.0",
   "typing_extensions==4.12.2",
   "tzdata==2025.1",
   "wadler_lindig==0.1.3",
@@ -60,10 +60,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu   = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
-cu118 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
-cu124 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
-cu126 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
+cpu   = ["torch==2.6.0","torchvision==0.21.0","torchaudio==2.6.0","gpytorch==1.14","linear-operator==0.6"]
+cu118 = ["torch==2.6.0","torchvision==0.21.0","torchaudio==2.6.0","gpytorch==1.14","linear-operator==0.6","triton==3.2.0"]
+cu124 = ["torch==2.6.0","torchvision==0.21.0","torchaudio==2.6.0","gpytorch==1.14","linear-operator==0.6","triton==3.2.0"]
+cu126 = ["torch==2.6.0","torchvision==0.21.0","torchaudio==2.6.0","gpytorch==1.14","linear-operator==0.6","triton==3.2.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = [
