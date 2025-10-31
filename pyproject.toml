@@ -1,0 +1,120 @@
+[project]
+name = "gssm"
+version = "0.1.0"
+requires-python = ">=3.10,<3.11"
+description = "Learning Collision Risk Proactively from Naturalistic Driving at Scale (CPU/GPU switchable via extras)"
+readme = "readme.md"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+# --- Common dependencies (GPU-agnostic) ---
+dependencies = [
+  "blosc2==2.7.1",
+  "cloudpickle==3.1.1",
+  "contourpy==1.3.1",
+  "cycler==0.12.1",
+  "filelock==3.17.0",
+  "fsspec==2025.2.0",
+  "h5py==3.13.0",
+  "imageio==2.35.1",
+  "jaxtyping==0.2.38",
+  "Jinja2==3.1.6",
+  "joblib==1.4.2",
+  "kiwisolver==1.4.8",
+  "lazy_loader==0.4",
+  "llvmlite==0.44.0",
+  "MarkupSafe==3.0.2",
+  "matplotlib==3.10.1",
+  "mpmath==1.3.0",
+  "msgpack==1.1.0",
+  "ndindex==1.9.2",
+  "networkx==3.4.2",
+  "numba==0.61.0",
+  "numexpr==2.10.2",
+  "numpy==2.1.3",
+  "packaging==24.1",
+  "pandas==2.2.3",
+  "pillow==11.1.0",
+  "py-cpuinfo==9.0.0",
+  "pyparsing==3.2.1",
+  "python-dateutil==2.9.0.post0",
+  "pytz==2025.1",
+  "scikit-image==0.24.0",
+  "scikit-learn==1.6.1",
+  "scipy==1.15.2",
+  "shap==0.47.0",
+  "six==1.17.0",
+  "slicer==0.0.8",
+  "sympy==1.13.1",
+  "tables==3.10.1",
+  "threadpoolctl==3.5.0",
+  "tifffile==2024.8.30",
+  "tqdm==4.67.1",
+  "triton==3.2.0",
+  "typing_extensions==4.12.2",
+  "tzdata==2025.1",
+  "wadler_lindig==0.1.3",
+  "zarr==2.18.3",
+]
+
+# --- Optional variants: choose one at install/sync time ---
+# Choose exactly one of these on your machine
+[project.optional-dependencies]
+cpu   = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
+cu118 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
+cu124 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
+cu126 = ["torch==2.6.0", "torchvision==0.21.0", "torchaudio==2.6.0", "gpytorch==1.14", "linear-operator==0.6"]
+
+[tool.uv]
+# Safety: don't let users select more than one variant at once
+conflicts = [
+  [{ extra = "cpu"   }, { extra = "cu118" }],
+  [{ extra = "cpu"   }, { extra = "cu124" }],
+  [{ extra = "cpu"   }, { extra = "cu126" }],
+  [{ extra = "cu118" }, { extra = "cu124" }],
+  [{ extra = "cu118" }, { extra = "cu126" }],
+  [{ extra = "cu124" }, { extra = "cu126" }],
+]
+
+# Route each package to the proper wheel index for the chosen extra
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu",  extra = "cpu"   },
+  { index = "pytorch-cu118", extra = "cu118" },
+  { index = "pytorch-cu124", extra = "cu124" },
+  { index = "pytorch-cu126", extra = "cu126" },
+]
+torchvision = [
+  { index = "pytorch-cpu",  extra = "cpu"   },
+  { index = "pytorch-cu118", extra = "cu118" },
+  { index = "pytorch-cu124", extra = "cu124" },
+  { index = "pytorch-cu126", extra = "cu126" },
+]
+torchaudio = [
+  { index = "pytorch-cpu",  extra = "cpu"   },
+  { index = "pytorch-cu118", extra = "cu118" },
+  { index = "pytorch-cu124", extra = "cu124" },
+  { index = "pytorch-cu126", extra = "cu126" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true

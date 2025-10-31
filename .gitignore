@@ -11,5 +11,6 @@
 !src_visualisation/figure_table_to_reproduce.ipynb
 !environment_test.py
 !requirements.txt
+!pyproject.toml
 !clean_pycache.py
 !.gitignore
