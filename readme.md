@@ -37,8 +37,40 @@ Below we offer a step-by-step workflow to repeat the experiments in the paper. O
 - [6 Test data preparation and first-stage evaluation](#6-test-data-preparation-and-first-stage-evaluation)
 - [7 Second-stage evaluation and result analysis](#7-second-stage-evaluation-and-result-analysis)
 
-### 1 Dependencies
+### 1 Settle an environment with dependencies
 `pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt).
+
+#### Install uv if needed
+```bash
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+#### (Optional) Use Python 3.10 for reproducibility
+Make sure in the current directory
+```bash
+uv python install 3.10
+uv python pin 3.10
+uv venv --python 3.10
+```
+
+#### Install the project (choose exactly one variant)
+
+**CPU only (Windows/macOS/Linux)**
+```bash
+uv sync --extra cpu
+```
+
+**CUDA (Linux + NVIDIA)**
+Our experiments were running with CUDA 12.4. Feel free to use `cu118`, `cu124`, `cu126` for CUDA versions 11.8, 12.4, 12.6. The correct PyTorch wheels are selected automatically based on the chosen extra. 
+```bash
+uv sync --extra cu124
+```
+
+#### (Optional) Switch variants later
+```bash
+# Example: move from CPU to CUDA 12.4
+uv sync --extra cu124
+```
 
 ### 2 Data
 Three datasets are used in this study.
