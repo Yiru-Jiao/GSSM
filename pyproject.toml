@@ -9,6 +9,27 @@ readme = "readme.md"
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = [
+  "src_data_preparation",
+  "src_posterior_inference",
+  "src_safety_evaluation",
+  "src_trajectory_reconstruction",
+  "src_visualisation"
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src_data_preparation/**",
+  "src_posterior_inference/**",
+  "src_safety_evaluation/**",
+  "src_trajectory_reconstruction/**",
+  "src_visualisation/**",
+  "pyproject.toml",
+  "readme.*",
+  "LICENSE*",
+]
+
 # --- Common dependencies (GPU-agnostic) ---
 dependencies = [
   "blosc2==2.7.1",
