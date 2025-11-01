@@ -29,8 +29,8 @@ This work enables **context-aware**, **scalable**, and **generalisable** learnin
 Below we offer a step-by-step workflow to repeat the experiments in the paper. On the top of each script, we provide a brief description of its purpose. These scripts are designed to be run in sequence, and each script outputs necessary files for the next one.
 
 **Quick Navigation:**
-- [1 Dependencies](#1-dependencies)
-- [2 Data](#2-data)
+- [1 Settle an environment with dependencies](#1-settle-an-environment-with-dependencies)
+- [2 Download data](#2-download-data)
 - [3 Bird's eye trajectory reconstruction](#3-birds-eye-trajectory-reconstruction)
 - [4 Training data preparation](#4-training-data-preparation)
 - [5 Posterior inference](#5-posterior-inference)
@@ -38,41 +38,37 @@ Below we offer a step-by-step workflow to repeat the experiments in the paper. O
 - [7 Second-stage evaluation and result analysis](#7-second-stage-evaluation-and-result-analysis)
 
 ### 1 Settle an environment with dependencies
-`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt).
+`pandas`, `pytables`, `tqdm`, `numpy`, `matplotlib`, `torch`, `torchvision`, `scikit-learn`, `scipy`, see more detailed dependencies in [`requirements.txt`](requirements.txt) and [`project.toml`](project.toml). 
 
-#### Install uv if needed
-```bash
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+Using [`pip`](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/) can prepare a virtual environment with the dependencies as long as you have Python installed. Below we provide and recommend a solution with [`uv`](https://docs.astral.sh/uv/), which can be installed following [official instructions](https://docs.astral.sh/uv/getting-started/installation/).
 
-#### (Optional) Use Python 3.10 for reproducibility
-Make sure in the current directory
+#### Use Python 3.10 for reproducibility (recommended but optional)
+Enter the current directory 'gssm' or 'GSSM'.
 ```bash
+# Check existing python versions and locations
+uv python list
+# If Python 3.10 is not installed, install it
 uv python install 3.10
+# Pin Python 3.10 for this project (recommended but optional)
 uv python pin 3.10
+# Create a specified virtual environment for this project
 uv venv --python 3.10
 ```
 
-#### Install the project (choose exactly one variant)
+#### Install the dependencies (choose exactly one variant)
 
 **CPU only (Windows/macOS/Linux)**
 ```bash
 uv sync --extra cpu
 ```
 
-**CUDA (Linux + NVIDIA)**
-Our experiments were running with CUDA 12.4. Feel free to use `cu118`, `cu124`, `cu126` for CUDA versions 11.8, 12.4, 12.6. The correct PyTorch wheels are selected automatically based on the chosen extra. 
+**CUDA (Windows/Linux + NVIDIA GPU)**\
+Our experiments were running with CUDA 12.4. Feel free to use `--extra cu118`, `--extra cu124`, `--extra cu126` for CUDA versions 11.8, 12.4, 12.6. The correct PyTorch wheels are selected automatically based on the chosen extra. 
 ```bash
 uv sync --extra cu124
 ```
 
-#### (Optional) Switch variants later
-```bash
-# Example: move from CPU to CUDA 12.4
-uv sync --extra cu124
-```
-
-### 2 Data
+### 2 Download data
 Three datasets are used in this study.
 - **SHRP2 NDS:**  
   Two options are available depending on whether you are interested in trajectory reconstruction from the original event data.
