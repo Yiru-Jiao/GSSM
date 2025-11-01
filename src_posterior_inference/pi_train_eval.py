@@ -108,7 +108,15 @@ def main(args, manual_seed, path_prepared):
                 condition = (evaluation['dataset']==dataset_name)&\
                             (evaluation['encoder_selection']==encoder_name)
 
-            if len(evaluation[condition])>0 and not np.isnan(evaluation.loc[condition, 'training_time'].values[0]):
+            is_trained = False
+            if len(evaluation[condition]) > 0:
+                if mixrate > 1: # Single dataset full data training
+                    if not np.isnan(evaluation.loc[condition, 'training_time'].values[0]):
+                        is_trained = True
+                else: # Multi-dataset mixed data training
+                    if not np.isnan(evaluation.loc[condition, 'val_loss'].values[0]):
+                        is_trained = True
+            if is_trained:
                 print(f'Already done {dataset_name}, {encoder_name}, {mixrate}, skipping...')
                 continue
             else:
@@ -135,9 +143,14 @@ def main(args, manual_seed, path_prepared):
             evaluation = pd.read_csv(path_prepared + 'PosteriorInference/evaluation.csv') # Reload the evaluation file to make sure updated
             columns = ['dataset', 'encoder_selection', 'val_loss', 'num_samples', 'num_epochs_trained', 'training_time'] + list(model_size.keys())
             values = [dataset_name, encoder_name, val_loss, num_samples, num_epochs_trained, end_time - start_time] + [int(model_size[key]) for key in model_size.keys()]
-            evaluation.loc[len(evaluation), columns] = values
-            if mixrate<=1:
-                evaluation.loc[len(evaluation)-1, 'mixrate'] = mixrate
+            if len(evaluation[condition]) > 0:
+                evaluation.loc[condition, columns] = values
+                if mixrate<=1:
+                    evaluation.loc[condition, 'mixrate'] = mixrate
+            else:
+                evaluation.loc[len(evaluation), columns] = values
+                if mixrate<=1:
+                    evaluation.loc[len(evaluation)-1, 'mixrate'] = mixrate
             evaluation = evaluation.sort_values(by=['dataset', 'encoder_selection', 'mixrate'])
             evaluation[list(model_size.keys())] = evaluation[list(model_size.keys())].astype(int)
             evaluation.to_csv(path_prepared + 'PosteriorInference/evaluation.csv', index=False)
