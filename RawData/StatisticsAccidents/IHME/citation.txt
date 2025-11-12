@@ -1,0 +1,6 @@
+GBD Results tool:
+Use the following to cite data included in this download:
+Global Burden of Disease Collaborative Network.
+Global Burden of Disease Study 2021 (GBD 2021) Results.
+Seattle, United States: Institute for Health Metrics and Evaluation (IHME), 2022.
+Available from https://vizhub.healthdata.org/gbd-results/.

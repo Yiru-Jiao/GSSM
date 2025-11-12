@@ -1,0 +1,136 @@
+﻿Light Condition,Year,Fatal crashes,Injury-only crashes
+Daylight,2008,"16,490","1,118,268"
+Daylight,2009,"14,979","1,049,151"
+Daylight,2010,"14,909","1,095,865"
+Daylight,2011,"14,625","1,066,519"
+Daylight,2012,"14,958","1,130,569"
+Daylight,2013,"14,572","1,111,462"
+Daylight,2014,"14,403","1,150,526"
+Daylight,2015,"15,452","1,208,096"
+Daylight,2016,"16,458","1,480,160"
+Daylight,2017,"16,451","1,329,191"
+Daylight,2018,"15,886","1,303,813"
+Daylight,2019,"15,815","1,315,359"
+Daylight,2020,"16,368","1,050,359"
+Daylight,2021,"17,986","1,173,592"
+Daylight,2022,"17,674","1,137,704"
+Dark - Not Lighted,2008,"10,284","178,381"
+Dark - Not Lighted,2009,"8,779","146,482"
+Dark - Not Lighted,2010,"8,245","128,860"
+Dark - Not Lighted,2011,"8,248","142,597"
+Dark - Not Lighted,2012,"9,012","141,534"
+Dark - Not Lighted,2013,"8,692","150,127"
+Dark - Not Lighted,2014,"8,567","145,839"
+Dark - Not Lighted,2015,"9,157","156,437"
+Dark - Not Lighted,2016,"9,581","200,777"
+Dark - Not Lighted,2017,"9,485","173,821"
+Dark - Not Lighted,2018,"9,312","183,790"
+Dark - Not Lighted,2019,"9,047","176,918"
+Dark - Not Lighted,2020,"9,875","171,651"
+Dark - Not Lighted,2021,"10,838","166,589"
+Dark - Not Lighted,2022,"10,452","160,844"
+Dark - Lighted,2008,"5,877","281,901"
+Dark - Lighted,2009,"5,428","256,321"
+Dark - Lighted,2010,"5,433","253,265"
+Dark - Lighted,2011,"5,467","258,456"
+Dark - Lighted,2012,"5,477","294,205"
+Dark - Lighted,2013,"5,429","267,749"
+Dark - Lighted,2014,"5,462","284,545"
+Dark - Lighted,2015,"6,073","280,436"
+Dark - Lighted,2016,"6,910","341,862"
+Dark - Lighted,2017,"6,754","302,671"
+Dark - Lighted,2018,"6,819","327,561"
+Dark - Lighted,2019,"6,719","339,853"
+Dark - Lighted,2020,"7,502","293,168"
+Dark - Lighted,2021,"8,592","306,090"
+Dark - Lighted,2022,"8,524","287,003"
+Dawn,2008,648,"20,685"
+Dawn,2009,537,"21,498"
+Dawn,2010,596,"18,396"
+Dawn,2011,514,"21,736"
+Dawn,2012,569,"20,449"
+Dawn,2013,565,"20,496"
+Dawn,2014,581,"22,536"
+Dawn,2015,662,"22,773"
+Dawn,2016,600,"31,370"
+Dawn,2017,658,"27,837"
+Dawn,2018,670,"26,815"
+Dawn,2019,673,"31,560"
+Dawn,2020,653,"27,064"
+Dawn,2021,696,"24,494"
+Dawn,2022,722,"26,404"
+Dusk,2008,732,"31,185"
+Dusk,2009,690,"35,848"
+Dusk,2010,687,"35,836"
+Dusk,2011,672,"31,868"
+Dusk,2012,692,"40,957"
+Dusk,2013,649,"34,807"
+Dusk,2014,699,"38,536"
+Dusk,2015,807,"39,521"
+Dusk,2016,808,"48,290"
+Dusk,2017,802,"44,865"
+Dusk,2018,798,"41,585"
+Dusk,2019,757,"42,588"
+Dusk,2020,961,"38,897"
+Dusk,2021,940,"42,095"
+Dusk,2022,910,"36,401"
+Dark - Unknown Lighting,2008,0,0
+Dark - Unknown Lighting,2009,310,"7,591"
+Dark - Unknown Lighting,2010,301,"9,572"
+Dark - Unknown Lighting,2011,215,"8,567"
+Dark - Unknown Lighting,2012,147,"6,173"
+Dark - Unknown Lighting,2013,145,"6,340"
+Dark - Unknown Lighting,2014,187,"5,430"
+Dark - Unknown Lighting,2015,213,"7,910"
+Dark - Unknown Lighting,2016,209,"13,636"
+Dark - Unknown Lighting,2017,250,"9,587"
+Dark - Unknown Lighting,2018,244,"9,889"
+Dark - Unknown Lighting,2019,256,"9,201"
+Dark - Unknown Lighting,2020,331,"11,903"
+Dark - Unknown Lighting,2021,422,"14,300"
+Dark - Unknown Lighting,2022,628,"16,007"
+Other,2008,0,0
+Other,2009,4,184
+Other,2010,16,310
+Other,2011,11,224
+Other,2012,9,295
+Other,2013,8,35
+Other,2014,13,313
+Other,2015,12,220
+Other,2016,14,212
+Other,2017,15,553
+Other,2018,17,252
+Other,2019,14,865
+Other,2020,18,349
+Other,2021,26,448
+Other,2022,19,233
+Not Reported,2008,0,
+Not Reported,2009,0,
+Not Reported,2010,19,
+Not Reported,2011,18,
+Not Reported,2012,28,
+Not Reported,2013,15,
+Not Reported,2014,28,
+Not Reported,2015,24,
+Not Reported,2016,18,
+Not Reported,2017,12,
+Not Reported,2018,39,
+Not Reported,2019,46,
+Not Reported,2020,70,
+Not Reported,2021,116,
+Not Reported,2022,52,
+Reported as Unknown,2008,141,
+Reported as Unknown,2009,135,
+Reported as Unknown,2010,90,
+Reported as Unknown,2011,97,
+Reported as Unknown,2012,114,
+Reported as Unknown,2013,127,
+Reported as Unknown,2014,116,
+Reported as Unknown,2015,138,
+Reported as Unknown,2016,150,
+Reported as Unknown,2017,133,
+Reported as Unknown,2018,134,
+Reported as Unknown,2019,160,
+Reported as Unknown,2020,157,
+Reported as Unknown,2021,169,
+Reported as Unknown,2022,240,

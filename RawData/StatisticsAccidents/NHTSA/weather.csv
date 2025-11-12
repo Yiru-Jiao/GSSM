@@ -1,0 +1,181 @@
+﻿Weather,Year,Fatal crashes,Injury-only crashes
+No Adverse Atmospheric Conditions/Clear/Cloudy,2008,"30,167","1,400,805"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2009,"27,205","1,294,588"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2010,"23,055","1,127,636"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2011,"22,436","1,109,149"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2012,"22,819","1,192,437"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2013,"21,675","1,140,031"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2014,"21,607","1,184,422"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2015,"23,243","1,227,188"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2016,"24,956","1,567,888"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2017,"23,817","1,371,381"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2018,"22,595","1,352,513"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2019,"22,666","1,388,864"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2020,"25,189","1,175,270"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2021,"28,977","1,308,886"
+No Adverse Atmospheric Conditions/Clear/Cloudy,2022,"29,449","1,277,741"
+Rain (Mist),2008,"2,442","157,094"
+Rain (Mist),2009,"2,416","170,460"
+Rain (Mist),2010,"1,995","132,658"
+Rain (Mist),2011,"2,048","144,929"
+Rain (Mist),2012,"2,054","149,725"
+Rain (Mist),2013,"2,138","157,668"
+Rain (Mist),2014,"2,046","140,294"
+Rain (Mist),2015,"2,480","165,456"
+Rain (Mist),2016,"2,174","185,137"
+Rain (Mist),2017,"2,472","176,112"
+Rain (Mist),2018,"2,774","196,887"
+Rain (Mist),2019,"2,592","198,316"
+Rain (Mist),2020,"2,642","156,124"
+Rain (Mist),2021,"2,616","143,523"
+Rain (Mist),2022,"2,421","128,075"
+"Sleet, Hail (Freezing Rain or Drizzle)",2008,201,"7,134"
+"Sleet, Hail (Freezing Rain or Drizzle)",2009,121,"3,206"
+"Sleet, Hail (Freezing Rain or Drizzle)",2010,109,"5,608"
+"Sleet, Hail (Freezing Rain or Drizzle)",2011,127,"7,724"
+"Sleet, Hail (Freezing Rain or Drizzle)",2012,67,"3,564"
+"Sleet, Hail (Freezing Rain or Drizzle)",2013,126,"8,936"
+"Sleet, Hail (Freezing Rain or Drizzle)",2014,99,"9,391"
+"Sleet, Hail (Freezing Rain or Drizzle)",2015,100,"8,019"
+"Sleet, Hail (Freezing Rain or Drizzle)",2016,66,"4,625"
+"Sleet, Hail (Freezing Rain or Drizzle)",2017,50,"2,434"
+"Sleet, Hail (Freezing Rain or Drizzle)",2018,65,"3,832"
+"Sleet, Hail (Freezing Rain or Drizzle)",2019,47,"2,104"
+"Sleet, Hail (Freezing Rain or Drizzle)",2020,27,926
+"Sleet, Hail (Freezing Rain or Drizzle)",2021,33,"2,066"
+"Sleet, Hail (Freezing Rain or Drizzle)",2022,40,"2,269"
+Snow,2008,637,"39,407"
+Snow,2009,474,"29,523"
+Snow,2010,544,"46,797"
+Snow,2011,429,"34,994"
+Snow,2012,342,"28,005"
+Snow,2013,471,"30,684"
+Snow,2014,463,"33,993"
+Snow,2015,318,"24,343"
+Snow,2016,350,"34,873"
+Snow,2017,320,"30,690"
+Snow,2018,392,"33,969"
+Snow,2019,331,"29,634"
+Snow,2020,283,"22,739"
+Snow,2021,305,"18,316"
+Snow,2022,372,"26,915"
+"Fog, Smog, Smoke",2008,416,
+"Fog, Smog, Smoke",2009,305,
+"Fog, Smog, Smoke",2010,298,"5,031"
+"Fog, Smog, Smoke",2011,328,"5,823"
+"Fog, Smog, Smoke",2012,372,"5,835"
+"Fog, Smog, Smoke",2013,373,"5,344"
+"Fog, Smog, Smoke",2014,320,"6,293"
+"Fog, Smog, Smoke",2015,403,"7,281"
+"Fog, Smog, Smoke",2016,333,"7,106"
+"Fog, Smog, Smoke",2017,466,"8,412"
+"Fog, Smog, Smoke",2018,366,"8,786"
+"Fog, Smog, Smoke",2019,350,"7,143"
+"Fog, Smog, Smoke",2020,372,"8,242"
+"Fog, Smog, Smoke",2021,476,"7,031"
+"Fog, Smog, Smoke",2022,397,"5,201"
+Severe Crosswinds,2008,55,
+Severe Crosswinds,2009,46,
+Severe Crosswinds,2010,42,"1,910"
+Severe Crosswinds,2011,49,"1,616"
+Severe Crosswinds,2012,58,600
+Severe Crosswinds,2013,51,"1,160"
+Severe Crosswinds,2014,46,"1,782"
+Severe Crosswinds,2015,23,809
+Severe Crosswinds,2016,48,"1,576"
+Severe Crosswinds,2017,60,"1,047"
+Severe Crosswinds,2018,53,"1,509"
+Severe Crosswinds,2019,51,840
+Severe Crosswinds,2020,56,"2,679"
+Severe Crosswinds,2021,68,"1,711"
+Severe Crosswinds,2022,71,"1,674"
+"Blowing Sand, Soil, Dirt",2008,10,
+"Blowing Sand, Soil, Dirt",2009,13,
+"Blowing Sand, Soil, Dirt",2010,10,403
+"Blowing Sand, Soil, Dirt",2011,8,359
+"Blowing Sand, Soil, Dirt",2012,12,378
+"Blowing Sand, Soil, Dirt",2013,8,352
+"Blowing Sand, Soil, Dirt",2014,14,"1,084"
+"Blowing Sand, Soil, Dirt",2015,13,162
+"Blowing Sand, Soil, Dirt",2016,17,919
+"Blowing Sand, Soil, Dirt",2017,11,538
+"Blowing Sand, Soil, Dirt",2018,10,122
+"Blowing Sand, Soil, Dirt",2019,9,293
+"Blowing Sand, Soil, Dirt",2020,6,50
+"Blowing Sand, Soil, Dirt",2021,15,57
+"Blowing Sand, Soil, Dirt",2022,9,379
+Other,2008,35,
+Other,2009,35,
+Other,2010,34,"2,153"
+Other,2011,25,"1,791"
+Other,2012,39,"2,095"
+Other,2013,43,"2,378"
+Other,2014,51,666
+Other,2015,59,"1,478"
+Other,2016,51,"1,723"
+Other,2017,33,"1,314"
+Other,2018,40,"2,096"
+Other,2019,30,"1,542"
+Other,2020,20,890
+Other,2021,46,751
+Other,2022,46,755
+Cloudy,2008,,
+Cloudy,2009,,
+Cloudy,2010,"3,961","218,364"
+Cloudy,2011,"4,135","222,998"
+Cloudy,2012,"4,988","251,042"
+Cloudy,2013,"5,013","235,820"
+Cloudy,2014,"5,074","258,932"
+Cloudy,2015,"5,547","274,900"
+Cloudy,2016,"5,023","310,920"
+Cloudy,2017,"4,870","295,108"
+Cloudy,2018,"4,943","293,175"
+Cloudy,2019,"4,857","286,059"
+Cloudy,2020,"4,648","224,738"
+Cloudy,2021,"5,413","243,324"
+Cloudy,2022,"4,795","218,559"
+Blowing Snow,2008,,
+Blowing Snow,2009,,
+Blowing Snow,2010,32,"1,544"
+Blowing Snow,2011,39,585
+Blowing Snow,2012,21,498
+Blowing Snow,2013,45,"8,266"
+Blowing Snow,2014,37,"10,709"
+Blowing Snow,2015,23,"5,261"
+Blowing Snow,2016,13,825
+Blowing Snow,2017,23,943
+Blowing Snow,2018,32,712
+Blowing Snow,2019,25,429
+Blowing Snow,2020,26,915
+Blowing Snow,2021,28,"1,010"
+Blowing Snow,2022,46,"1,699"
+Freezing Rain or Drizzle,2008,,
+Freezing Rain or Drizzle,2009,,
+Freezing Rain or Drizzle,2010,,
+Freezing Rain or Drizzle,2011,,
+Freezing Rain or Drizzle,2012,,
+Freezing Rain or Drizzle,2013,15,378
+Freezing Rain or Drizzle,2014,29,160
+Freezing Rain or Drizzle,2015,24,497
+Freezing Rain or Drizzle,2016,17,717
+Freezing Rain or Drizzle,2017,17,545
+Freezing Rain or Drizzle,2018,24,104
+Freezing Rain or Drizzle,2019,37,"1,120"
+Freezing Rain or Drizzle,2020,38,816
+Freezing Rain or Drizzle,2021,29,933
+Freezing Rain or Drizzle,2022,40,"1,329"
+Unknown/Not Reported,2008,209,
+Unknown/Not Reported,2009,247,
+Unknown/Not Reported,2010,216,
+Unknown/Not Reported,2011,243,
+Unknown/Not Reported,2012,234,
+Unknown/Not Reported,2013,244,
+Unknown/Not Reported,2014,270,
+Unknown/Not Reported,2015,305,
+Unknown/Not Reported,2016,"1,700",
+Unknown/Not Reported,2017,"2,421",
+Unknown/Not Reported,2018,"2,625",
+Unknown/Not Reported,2019,"2,492",
+Unknown/Not Reported,2020,"2,628",
+Unknown/Not Reported,2021,"1,779",
+Unknown/Not Reported,2022,"1,535",

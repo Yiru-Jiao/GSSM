@@ -1,6 +1,6 @@
 **/*.*
-!./readme.md
 **/__pycache__
+!./readme.md
 !src_trajectory_reconstruction/**/*.py
 !src_trajectory_reconstruction/**/*.ipynb
 !src_data_preparation/**/*.py
@@ -9,6 +9,11 @@
 !src_visualisation/visual_utils/__init__.py
 !src_visualisation/visual_utils/utils_tabfig.py
 !src_visualisation/figure_table_to_reproduce.ipynb
+!RawData/StatisticsAccidents/IHME/*.csv
+!RawData/StatisticsAccidents/IHME/*.txt
+!RawData/StatisticsAccidents/UNECE/*.*
+!RawData/StatisticsAccidents/BRON/*.*
+!RawData/StatisticsAccidents/NHTSA/*.*
 !environment_test.py
 !requirements.txt
 !pyproject.toml

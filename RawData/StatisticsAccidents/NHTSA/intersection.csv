@@ -1,0 +1,46 @@
+﻿Location,Year,Fatal crashes,Injury-only crashes,Property-damage-only crashes
+At Intersection,2009,"6,982","699,506","1,504,099"
+At Intersection,2010,"7,073","733,565","1,525,095"
+At Intersection,2011,"6,808","718,697","1,550,817"
+At Intersection,2012,"7,216","762,888","1,630,011"
+At Intersection,2013,"7,005","743,475","1,630,194"
+At Intersection,2014,"7,098","769,472","1,814,415"
+At Intersection,2015,"7,926","809,970","1,877,470"
+At Intersection,2016,"8,545","1,017,590","1,909,892"
+At Intersection,2017,"8,594","893,424","1,791,867"
+At Intersection,2018,"8,361","914,811","2,020,660"
+At Intersection,2019,"8,444","968,372","2,074,214"
+At Intersection,2020,"8,824","738,076","1,448,413"
+At Intersection,2021,"9,754","814,694","1,731,863"
+At Intersection,2022,"9,966","837,011","1,786,326"
+At Intersection,2023,"9,724","865,509","1,907,021"
+Not At Intersection,2009,"23,814","817,569","2,453,144"
+Not At Intersection,2010,"23,168","808,539","2,321,949"
+Not At Intersection,2011,"23,009","811,271","2,227,177"
+Not At Intersection,2012,"23,743","871,293","2,319,848"
+Not At Intersection,2013,"23,144","847,541","2,435,479"
+Not At Intersection,2014,"22,878","878,255","2,572,087"
+Not At Intersection,2015,"24,550","905,424","2,670,732"
+Not At Intersection,2016,"26,149","1,098,718","2,760,182"
+Not At Intersection,2017,"25,897","995,101","2,737,646"
+Not At Intersection,2018,"25,471","978,893","2,786,398"
+Not At Intersection,2019,"24,952","947,972","2,732,039"
+Not At Intersection,2020,"27,009","855,314","2,173,268"
+Not At Intersection,2021,"29,948","912,914","2,603,957"
+Not At Intersection,2022,"29,341","827,586","2,440,351"
+Not At Intersection,2023,"27,817","831,743","2,496,432"
+Other/Unknown,2009,66,,
+Other/Unknown,2010,55,,
+Other/Unknown,2011,50,,
+Other/Unknown,2012,47,,
+Other/Unknown,2013,53,,
+Other/Unknown,2014,80,,
+Other/Unknown,2015,62,,
+Other/Unknown,2016,54,,
+Other/Unknown,2017,69,,
+Other/Unknown,2018,87,,
+Other/Unknown,2019,91,,
+Other/Unknown,2020,102,,
+Other/Unknown,2021,83,,
+Other/Unknown,2022,115,,
+Other/Unknown,2023,113,,
