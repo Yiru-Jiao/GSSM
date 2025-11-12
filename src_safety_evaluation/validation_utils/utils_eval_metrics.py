@@ -4,6 +4,7 @@ This file contains functions to calculate evaluation metrics for safety warnings
 
 import numpy as np
 import pandas as pd
+from scipy.stats import binom
 small_eps = 1e-6
 
 
@@ -81,6 +82,39 @@ def partial_prc(recall, precision, min_recall=0.80):
     return precision[mask].max()
 
 
+def _median_ci_bounds(x: pd.Series, alpha: float = 0.01):
+    """
+    Exact (1 - alpha) CI for the population median via order statistics.
+    Uses Binomial(n, 0.5) quantiles (SciPy) — stable for large n.
+    Returns (lower_bound, upper_bound).
+    """
+    arr = np.asarray(x.dropna())
+    n = arr.size
+    if n == 0:
+        return (np.nan, np.nan)
+
+    arr.sort()
+
+    # Binomial quantiles for p = 0.5
+    kL = int(binom.ppf(alpha / 2.0, n, 0.5))          # in [0, n]
+    kU = int(binom.ppf(1.0 - alpha / 2.0, n, 0.5))    # in [0, n]
+
+    # Map to 0-based order-statistic indices:
+    # Lower = kL, Upper = kU - 1  (clipped to [0, n-1])
+    lo_idx = max(0, min(kL, n - 1))
+    hi_idx = max(0, min(kU - 1, n - 1))
+
+    return (arr[lo_idx], arr[hi_idx])
+
+def get_low_CI(TTI: pd.Series, alpha: float = 0.05) -> float:
+    """Lower bound of the exact (1 - alpha) CI for the median."""
+    return _median_ci_bounds(TTI, alpha=alpha)[0]
+
+def get_up_CI(TTI: pd.Series, alpha: float = 0.05) -> float:
+    """Upper bound of the exact (1 - alpha) CI for the median."""
+    return _median_ci_bounds(TTI, alpha=alpha)[1]
+
+
 def get_time(warning, f1=None, cutoff=1.5):
     '''
     Median time-to-impact (TTI) and the proportion with TTI ≥ cutoff.
@@ -92,14 +126,22 @@ def get_time(warning, f1=None, cutoff=1.5):
         tp, fp, tn, fn = get_statistics(warning, return_statistics=False)
         f1 = tp / np.maximum(small_eps, tp + 0.5*(fp + fn))
     median_tti = w[w['TTI']<10].groupby('threshold')['TTI'].median()
+    tti_q25 = w[w['TTI']<10].groupby('threshold')['TTI'].quantile(0.25)
+    tti_q75 = w[w['TTI']<10].groupby('threshold')['TTI'].quantile(0.75)
+    tti_lowCI = w[w['TTI']<10].groupby('threshold')['TTI'].apply(get_low_CI)
+    tti_upCI = w[w['TTI']<10].groupby('threshold')['TTI'].apply(get_up_CI)
 
-    mtti_star = median_tti.loc[f1.idxmax()]
+    tti_star = (median_tti.loc[f1.idxmax()],
+                tti_q25.loc[f1.idxmax()],
+                tti_q75.loc[f1.idxmax()],
+                tti_lowCI.loc[f1.idxmax()],
+                tti_upCI.loc[f1.idxmax()])
     w = w[w['threshold'] == f1.idxmax()]
     ptti_star = len(w[w['TTI']>=cutoff])/len(w[~w['TTI'].isna()])
-    return mtti_star, ptti_star
+    return tti_star, ptti_star
 
 
-def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90], 'tti': None}):
+def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90], 'tti': None}, with_CI=False):
     '''
     Compute safety-oriented evaluation metrics from a dataframe with
     per-threshold confusion counts stored in columns tp, fp, tn, fn.
@@ -125,15 +167,28 @@ def get_eval_metrics(warning, thresholds={'roc': [0.80, 0.90], 'prc':[0.80, 0.90
     # ATC
     if thresholds['tti'] is not None:
         f1 = tp / np.maximum(small_eps, tp + 0.5*(fp + fn))
-        mtti_star, ptti_star = get_time(warning, f1, thresholds['tti'])
+        tti_star, ptti_star = get_time(warning, f1, thresholds['tti'])
     else:
-        mtti_star = None
+        tti_star = (None, None, None)
         ptti_star = None
 
-    return {
-        'auprc': auprc,
-        **roc_metrics,
-        **prc_metrics,
-        'PTTI_star': ptti_star,
-        'mTTI_star': mtti_star,
-    }
+    if with_CI:
+        return {
+            'auprc': auprc,
+            **roc_metrics,
+            **prc_metrics,
+            'PTTI_star': ptti_star,
+            'mTTI_star': tti_star[0],
+            'TTI_star_q25': tti_star[1],
+            'TTI_star_q75': tti_star[2],
+            'TTI_star_lowCI': tti_star[3],
+            'TTI_star_upCI': tti_star[4],
+        }
+    else:
+        return {
+            'auprc': auprc,
+            **roc_metrics,
+            **prc_metrics,
+            'PTTI_star': ptti_star,
+            'mTTI_star': tti_star[0],
+        }
