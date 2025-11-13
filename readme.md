@@ -6,6 +6,7 @@ This study is being submitted and under review. A preprint is provided at [arXiv
 <p align="center">
   <img src="ResultData/DynamicFigures/Event10611463.gif" alt="animated" width="75%" height="75%"/>
 </p>
+
 <p align="center">
   <img src="ResultData/DynamicFigures/Event116594166.gif" alt="animated" width="75%" height="75%"/>
 </p>
