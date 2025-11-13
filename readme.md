@@ -1,13 +1,14 @@
 # Learning Collision Risk Proactively from Naturalistic Driving at Scale
 This study is being submitted and under review. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out.
 
-<!-- ## Directory of dynamic figures
-Dynamic visualisations in this paper are saved in the folder [`./ResultData/DynamicFigures/`](ResultData/DynamicFigures/). Below we present the example in Figure 7 of a conflict 
+## Visualisation examples
 
 <p align="center">
-  <img src="ResultData/DynamicFigures/Figure7/Figure7.gif" alt="animated" width="75%" height="75%"/>
+  <img src="ResultData/DynamicFigures/Event10611463.gif" alt="animated" width="75%" height="75%"/>
 </p>
- -->
+<p align="center">
+  <img src="ResultData/DynamicFigures/Event116594166.gif" alt="animated" width="75%" height="75%"/>
+</p>
 
 ## Discussions open to everyone
 We enable [GitHub Discussions](https://github.com/Yiru-Jiao/GSSM/discussions) for this repository, where you are welcome to ask questions, share insights, and discuss the content of the paper or future research. We encourage everyone to participate in the discussions, as it helps foster a collaborative environment for learning and improvement.
