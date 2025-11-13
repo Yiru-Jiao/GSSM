@@ -14,6 +14,7 @@
 !RawData/StatisticsAccidents/UNECE/*.*
 !RawData/StatisticsAccidents/BRON/*.*
 !RawData/StatisticsAccidents/NHTSA/*.*
+!ResultData/DynamicFigures/*.gif
 !environment_test.py
 !requirements.txt
 !pyproject.toml
