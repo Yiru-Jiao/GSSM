@@ -1,5 +1,9 @@
 # Learning Collision Risk Proactively from Naturalistic Driving at Scale
-This study is being submitted and under review. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out.
+This study is being processed for publication. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). 
+
+**❗Important Note❗** The equation for defining $A_R^{ROC}$ was wrong before v4 of the arXiv preprint and in my thesis downloaded before Jan 2026. Please follow the latest versions of the relevant publications for correctness.
+
+Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out.
 
 ## Visualisation examples
 
