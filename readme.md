@@ -1,9 +1,7 @@
 # Learning Collision Risk Proactively from Naturalistic Driving at Scale
-This study is being processed for publication. A preprint is provided at [arXiv](https://arxiv.org/abs/2505.13556). 
+This study is published in Nature Machine Intelligence and accessible via https://doi.org/10.1038/s42256-026-01189-w. An unofficially formatted version with the ordinary order of sections is available at https://arxiv.org/abs/2505.13556. Questions, suggestions, and collaboration are welcome. Please feel free to reach out via email or GitHub Issues.
 
 **❗Important Note❗** The equation for defining $A_R^{ROC}$ was wrong before v4 of the arXiv preprint and in my thesis downloaded before Jan 2026. Please follow the latest versions of the relevant publications for correctness.
-
-Questions, suggestions, comments, and collaborations are welcome. Please feel free to reach out.
 
 ## Visualisation examples
 
@@ -131,13 +129,16 @@ Use the following notebook to reproduce the figures and tables in the paper.
 ## Copyright
 
 ### Citation
+
 ```latex
 @article{jiao2025gssm,
-    title = {Learning Collision Risk from Naturalistic Driving with Generalised Surrogate Safety Measures},
+    title = {Learning collision risk proactively from naturalistic driving data at scale},
     author = {Yiru Jiao and Simeon C. Calvert and Sander {van Cranenburgh} and Hans {van Lint}},
-    year = {2025},
-    journal = {arXiv preprint},
-    pages = {arXiv:2505.13556}
+    year = {2026},
+    journal = {Nature Machine Intelligence},
+    issue = {}, # awaiting assignment until the current issue is finished
+    pages = {}, # awaiting assignment
+    doi = {10.1038/s42256-026-01189-w}
 }
 ```
 
